@@ -9,6 +9,7 @@ import {
   useCreateMoment,
   useToggleLike
 } from '../../hooks/useAmplifyData';
+import { StorageImage } from '../../components/StorageImage';
 
 type TabType = 'marketplace' | 'circuits' | 'packages' | 'moments';
 
@@ -90,8 +91,8 @@ export function DashboardContent() {
             {marketplaceData.map((item) => (
               <div key={item.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 {item.cover_image_url && (
-                  <img 
-                    src={item.cover_image_url} 
+                  <StorageImage 
+                    path={item.cover_image_url}
                     alt={item.name || 'Sin título'}
                     className="w-full h-48 object-cover"
                   />
@@ -161,8 +162,8 @@ export function DashboardContent() {
                     </div>
                   </div>
                   {circuit.cover_image_url && (
-                    <img 
-                      src={circuit.cover_image_url} 
+                    <StorageImage 
+                      path={circuit.cover_image_url}
                       alt={circuit.name || 'Circuit'}
                       className="w-24 h-24 object-cover rounded-lg ml-4"
                     />
@@ -192,8 +193,8 @@ export function DashboardContent() {
             {packagesData.map((pkg) => (
               <div key={pkg.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 {pkg.cover_image_url && (
-                  <img 
-                    src={pkg.cover_image_url} 
+                  <StorageImage 
+                    path={pkg.cover_image_url}
                     alt={pkg.name || 'Package'}
                     className="w-full h-40 object-cover"
                   />
@@ -261,8 +262,8 @@ export function DashboardContent() {
                 <div key={moment.id} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
                   <div className="flex items-start space-x-4">
                     {moment.user_data?.profile_picture && (
-                      <img 
-                        src={moment.user_data.profile_picture} 
+                      <StorageImage 
+                        path={moment.user_data.profile_picture}
                         alt={moment.user_data.username || 'User'}
                         className="w-12 h-12 rounded-full object-cover"
                       />
