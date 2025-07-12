@@ -5,7 +5,7 @@ export function StorageImage({
   path, 
   alt = '', 
   className = '',
-  fallbackSrc = '/placeholder-image.png'
+  fallbackSrc = '/placeholder-image.svg'
 }: {
   path: string | undefined | null;
   alt?: string;
