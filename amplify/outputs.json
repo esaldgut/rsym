@@ -1,0 +1,43 @@
+{
+  "$schema": "https://amplify.aws/2024-02/outputs-schema.json",
+  "version": "1",
+  "auth": {
+    "aws_region": "us-west-2",
+    "user_pool_id": "us-west-2_0dKObGMka",
+    "user_pool_client_id": "4med1j0i2j2qphca7br2k9c22c",
+    "identity_pool_id": "us-west-2:0358ca3d-88d4-4afa-9fce-f9da345d71e5",
+    "password_policy": {
+      "min_length": 8,
+      "require_numbers": true,
+      "require_lowercase": true,
+      "require_uppercase": true,
+      "require_symbols": false
+    },
+    "username_attributes": ["email"],
+    "user_verification_types": ["email"],
+    "unauthenticated_identities_enabled": false,
+    "mfa_configuration": "NONE",
+    "mfa_methods": [],
+    "standard_required_attributes": [
+      "email"
+    ],
+    "verification": {
+      "email": {
+        "delivery_medium": "EMAIL",
+        "email_subject": "Your verification code",
+        "email_message": "Your verification code is {####}"
+      }
+    }
+  },
+  "data": {
+    "url": "https://5h4ahg2zyrdrhc34ffkcdkcmhu.appsync-api.us-west-2.amazonaws.com/graphql",
+    "aws_region": "us-west-2",
+    "default_authorization_type": "AMAZON_COGNITO_USER_POOLS",
+    "authorization_types": ["AMAZON_COGNITO_USER_POOLS"]
+  },
+  "storage": {
+    "aws_region": "us-west-2",
+    "bucket_name": "yaan-provider-documents"
+  },
+  "version": "1.1"
+}
