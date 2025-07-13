@@ -10,6 +10,7 @@ import {
   useToggleLike
 } from '../../hooks/useAmplifyData';
 import { StorageImage } from '../../components/StorageImage';
+import { LocationDescription } from './LocationDescription';
 
 type TabType = 'marketplace' | 'circuits' | 'packages' | 'moments';
 
@@ -102,9 +103,9 @@ export function DashboardContent() {
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{item.description}</p>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-blue-600 font-bold">
-                      ${item.price?.toFixed(2) || 'N/A'}
+                      ${item.product_pricing?.toFixed(2) || 'N/A'}
                     </span>
-                    <span className="text-gray-500 text-sm">{item.location}</span>
+                    <LocationDescription locationString={item.location} className="text-gray-500 text-sm" />
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <span>@{item.username}</span>
