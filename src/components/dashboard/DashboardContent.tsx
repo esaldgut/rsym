@@ -105,7 +105,7 @@ export function DashboardContent() {
                     <span className="text-blue-600 font-bold">
                       ${item.product_pricing?.toFixed(2) || 'N/A'}
                     </span>
-                    <LocationDescription locationString={item.location} className="text-gray-500 text-sm" />
+                    <LocationDescription locations={item.location} className="text-sm text-gray-600" />
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <span>@{item.username}</span>

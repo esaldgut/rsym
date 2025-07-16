@@ -1,6 +1,7 @@
 'use client';
 
-import { Authenticator } from '@aws-amplify/ui-react';
+//import { Authenticator } from '@aws-amplify/ui-react';
+import { CustomAuthenticator } from '../../components/auth/CustomAuthenticator';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { useAuth } from '../../hooks/useAuth';
@@ -23,10 +24,10 @@ export default function AuthPage() {
             Accede a tu cuenta YAAN
           </h2>
         </div>
-        <Authenticator>
+        <CustomAuthenticator>
           {({ signOut, user }) => (
             <div className="text-center">
-              <p className="mb-4">Bienvenido {user?.username}</p>
+              <p className="mb-4">Bienvenidooooooooooooo {user?.username}</p>
               <button
                 onClick={signOut}
                 className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded"
@@ -35,7 +36,7 @@ export default function AuthPage() {
               </button>
             </div>
           )}
-        </Authenticator>
+        </CustomAuthenticator>
       </div>
     </div>
   );

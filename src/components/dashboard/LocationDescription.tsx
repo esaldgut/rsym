@@ -1,69 +1,39 @@
 import { useMemo } from 'react';
-import type { CircuitLocation } from '../../types/graphql';
 
 interface LocationDescriptionProps {
-  locationString: string;
+  locations: string[]; // Ahora recibe directamente el arreglo de strings
   className?: string;
+  maxLength?: number; // Opcional: longitud máxima por item
+  maxItems?: number; // Opcional: máximo de items a mostrar
 }
 
-const normalizeLocationString = (str: string): string => {
-  if (!str?.trim()) return '[]';
-
-  try {
-    // Paso 1: Convertir formato no estándar a JSON-like
-    let jsonLike = str
-      .replace(/(\w+)=/g, '"$1":') // Reemplaza key= por "key":
-      .replace(/([a-zA-Z_][a-zA-Z0-9_]*)(?=\s*[:,\]}])/g, '"$1"') // Comillas en keys
-      .replace(/:\s*([^"\s{}\[\],]+)(?=\s*[,}\]])/g, (_, val) => {
-        // Manejar números (enteros y decimales)
-        if (/^-?\d*\.?\d+$/.test(val)) return `:${val}`;
-        return `:"${val}"`;
-      });
-
-    // Paso 2: Manejar arrays específicamente
-    jsonLike = jsonLike.replace(/\[([^\]]+)\]/g, (_, content) => {
-      const items = content.split(',').map(item => {
-        const trimmed = item.trim();
-        return /^-?\d*\.?\d+$/.test(trimmed) ? trimmed : `"${trimmed}"`;
-      });
-      return `[${items.join(',')}]`;
-    });
-
-    return jsonLike;
-  } catch {
-    return '[]';
-  }
-};
-
 export const LocationDescription = ({ 
-  locationString,
-  className = 'text-gray-500 text-sm'
+  locations = [],
+  className = 'text-gray-500 text-sm',
+  maxLength = 20,
+  maxItems = 3
 }: LocationDescriptionProps) => {
-  const descriptions = useMemo(() => {
-    try {
-      if (!locationString?.trim()) return 'Sin ubicación';
-      
-      const normalized = normalizeLocationString(locationString);
-      const parsed = JSON.parse(normalized) as CircuitLocation[];
-      
-      if (!Array.isArray(parsed)) return 'Sin ubicación';
-
-      const locationsText = parsed
-        .map(loc => loc.complementaryDescription || loc.place || '')
-        .filter(Boolean)
-        .map(text => text.length > 20 ? `${text.slice(0, 20)}...` : text)
-        .join(', ');
-
-      return locationsText || 'Sin ubicación';
-    } catch (error) {
-      console.error('Error parsing location:', {
-        error,
-        original: locationString,
-        normalized: normalizeLocationString(locationString)
-      });
+  const description = useMemo(() => {
+    if (!locations || !Array.isArray(locations)) {
       return 'Sin ubicación';
     }
-  }, [locationString]);
 
-  return <span className={className}>{descriptions}</span>;
+    // Filtrar y formatear las ubicaciones
+    const validLocations = locations
+      .filter(location => location?.trim()) // Filtra strings vacíos
+      .slice(0, maxItems) // Limita la cantidad de items
+      .map(location => 
+        location.length > maxLength 
+          ? `${location.slice(0, maxLength)}...` 
+          : location
+      );
+
+    if (validLocations.length === 0) {
+      return 'Sin ubicación';
+    }
+
+    return validLocations.join(', ');
+  }, [locations, maxLength, maxItems]);
+
+  return <span className={className}>{description}</span>;
 };

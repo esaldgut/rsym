@@ -19,7 +19,7 @@ export interface Seasson {
   capacity?: number;
   categories?: string[];
   endDate?: string;
-  id: string;
+  product_pricing?: number;
   prices?: Price[];
   schedules?: string;
   startDate?: string;
@@ -118,7 +118,7 @@ export interface MarketplaceFeed {
   description?: string;
   followerNumber?: number;
   id: string;
-  location?: string;
+  location?: string[];
   name?: string;
   preferences?: string[];
   product_pricing?: number;
