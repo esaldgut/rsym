@@ -8,7 +8,7 @@ interface CustomAuthenticatorProps {
 }
 
 export function CustomAuthenticator({ children }: CustomAuthenticatorProps) {
-  // Configuración de campos del formulario con todos los atributos requeridos
+  // Configuración de campos del formulario - solo campos requeridos, sin email duplicado
   const formFields = {
     signUp: {
       given_name: {
@@ -76,24 +76,6 @@ export function CustomAuthenticator({ children }: CustomAuthenticatorProps) {
     },
   };
 
-  // Servicios sociales (deshabilitados por ahora)
-  const services = {
-    async handleSignUp(formData: Record<string, any>) {
-      let { username, password, attributes } = formData;
-      // username es típicamente el email en este setup
-      username = attributes.email;
-      
-      // Asegurar que given_name y family_name estén en attributes
-      attributes = {
-        ...attributes,
-        given_name: formData.given_name || attributes.given_name,
-        family_name: formData.family_name || attributes.family_name,
-      };
-
-      return { username, password, attributes };
-    },
-  };
-
   // Tema personalizado para YAAN
   const theme: Theme = {
     name: 'yaan-theme',
@@ -136,10 +118,11 @@ export function CustomAuthenticator({ children }: CustomAuthenticatorProps) {
   return (
     <Authenticator
       formFields={formFields}
-      services={services}
       theme={theme}
       socialProviders={[]}
       signUpAttributes={['given_name', 'family_name', 'email']}
+      hideSignUp={false}
+      // Removido services para que Amplify maneje automáticamente el signup
     >
       {children}
     </Authenticator>
