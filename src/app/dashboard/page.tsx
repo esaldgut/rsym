@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { DashboardContent } from '../../components/dashboard/DashboardContent';
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading, user, signOut } = useAuth();
+  const { isAuthenticated, isLoading, user, signOut, userType } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -38,6 +38,11 @@ export default function DashboardPage() {
               </h1>
             </div>
             <div className="flex items-center space-x-4">
+              {userType === 'provider' && (
+                <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm font-medium">
+                  Proveedor
+                </span>
+              )}
               <span className="text-sm text-gray-700">
                 Hola, {user?.username}
               </span>
@@ -53,7 +58,7 @@ export default function DashboardPage() {
       </nav>
       
       <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <DashboardContent />
+        <DashboardContent userType={userType} />
       </main>
     </div>
   );

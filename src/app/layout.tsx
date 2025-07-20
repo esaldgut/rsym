@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConfigureAmplifyClientSide } from './amplify-client-config';
 import { QueryProvider } from '../components/providers/QueryProvider';
+import { Navbar } from '@/components';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,11 +26,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`} >
+    <html lang="es" className="scroll-smooth">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}>
         <ConfigureAmplifyClientSide />
         <QueryProvider>
-        {children}
+          <Navbar />
+          {children}
         </QueryProvider>
       </body>
     </html>

@@ -11,11 +11,21 @@ import {
 } from '../../hooks/useAmplifyData';
 import { StorageImage } from '../../components/StorageImage';
 import { LocationDescription } from './LocationDescription';
+import { UserType } from '../../hooks/useAuth';
+import { CreateCircuitForm } from '../provider/CreateCircuitForm';
+import { CreatePackageForm } from '../provider/CreatePackageForm';
 
-type TabType = 'marketplace' | 'circuits' | 'packages' | 'moments';
+type TabType = 'marketplace' | 'circuits' | 'packages' | 'moments' | 'my-circuits' | 'my-packages';
 
-export function DashboardContent() {
+interface DashboardContentProps {
+  userType: UserType | null;
+}
+
+export function DashboardContent({ userType }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState<TabType>('marketplace');
+  const [showCreateCircuit, setShowCreateCircuit] = useState(false);
+  const [showCreatePackage, setShowCreatePackage] = useState(false);
+  const isProvider = userType === 'provider';
 
   // Queries optimizadas siguiendo patrones de aws-samples
   const { 
@@ -68,6 +78,10 @@ export function DashboardContent() {
     { id: 'circuits', label: 'Circuitos', count: circuitsData !== null ? circuitsData.length : 0 },
     { id: 'packages', label: 'Paquetes', count: packagesData !== null ? packagesData.length : 0 },
     { id: 'moments', label: 'Momentos', count: momentsData !== null ? momentsData.length : 0 },
+    ...(isProvider ? [
+      { id: 'my-circuits', label: 'Mis Circuitos', count: 0 },
+      { id: 'my-packages', label: 'Mis Paquetes', count: 0 },
+    ] : [])
   ];
 
   const renderContent = () => {
@@ -108,7 +122,12 @@ export function DashboardContent() {
                     <LocationDescription locations={item.location} className="text-sm text-gray-600" />
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>@{item.username}</span>
+                    <div className="flex items-center gap-2">
+                      <span>@{item.username}</span>
+                      <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-medium">
+                        Proveedor
+                      </span>
+                    </div>
                     {item.followerNumber && (
                       <span>{item.followerNumber} seguidores</span>
                     )}
@@ -310,6 +329,48 @@ export function DashboardContent() {
           </div>
         );
 
+      case 'my-circuits':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Mis Circuitos</h3>
+              <button
+                onClick={() => setShowCreateCircuit(true)}
+                className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Crear Nuevo Circuito
+              </button>
+            </div>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">No tienes circuitos creados</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Crea tu primer circuito para ofrecerlo en el marketplace
+              </p>
+            </div>
+          </div>
+        );
+
+      case 'my-packages':
+        return (
+          <div className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold">Mis Paquetes</h3>
+              <button
+                onClick={() => setShowCreatePackage(true)}
+                className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+              >
+                Crear Nuevo Paquete
+              </button>
+            </div>
+            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+              <p className="text-gray-500">No tienes paquetes creados</p>
+              <p className="text-sm text-gray-400 mt-1">
+                Crea tu primer paquete turístico para ofrecerlo en el marketplace
+              </p>
+            </div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -317,6 +378,25 @@ export function DashboardContent() {
 
   return (
     <div className="space-y-6">
+      {/* Mensaje de bienvenida para proveedores */}
+      {isProvider && (
+        <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-100 rounded-full p-2">
+              <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-semibold text-purple-900">Panel de Proveedor</h3>
+              <p className="text-sm text-purple-700">
+                Como proveedor, puedes crear y gestionar circuitos y paquetes turísticos en las secciones "Mis Circuitos" y "Mis Paquetes".
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8">
@@ -348,6 +428,29 @@ export function DashboardContent() {
             Error creando momento: {createMomentMutation.error?.message}
           </p>
         </div>
+      )}
+
+      {/* Forms modales para proveedores */}
+      {showCreateCircuit && (
+        <CreateCircuitForm
+          onSubmit={(circuit) => {
+            console.log('Crear circuito:', circuit);
+            // TODO: Implementar la mutación para crear circuito
+            setShowCreateCircuit(false);
+          }}
+          onCancel={() => setShowCreateCircuit(false)}
+        />
+      )}
+
+      {showCreatePackage && (
+        <CreatePackageForm
+          onSubmit={(packageData) => {
+            console.log('Crear paquete:', packageData);
+            // TODO: Implementar la mutación para crear paquete
+            setShowCreatePackage(false);
+          }}
+          onCancel={() => setShowCreatePackage(false)}
+        />
       )}
     </div>
   );
