@@ -4,11 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../hooks/useAuth';
 import { useRouter, usePathname } from 'next/navigation';
+import YaanLogo from '../ui/YaanLogo';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated, user, signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -46,18 +47,14 @@ export const Navbar = () => {
           {/* Logo */}
           <Link
             href="/"
-            className="flex items-center space-x-2 group"
+            className="group transform transition-all duration-300 hover:scale-105"
           >
-            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${
-              isScrolled ? '' : 'shadow-lg'
-            }`}>
-              <span className="text-white font-black text-xl">Y</span>
-            </div>
-            <span className={`text-2xl font-bold transition-colors duration-300 ${
-              isScrolled ? 'text-gray-900' : 'text-white'
-            }`}>
-              YAAN
-            </span>
+            <YaanLogo
+              size="lg"
+              responsive={true}
+              variant={isScrolled ? 'default' : 'white'}
+              className="transition-all duration-300"
+            />
           </Link>
 
           {/* Desktop Navigation */}

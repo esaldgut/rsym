@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../hooks/useAuth';
+import YaanLogo from '../components/ui/YaanLogo';
 
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const [scrollY, setScrollY] = useState(0);
-  const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -393,11 +393,12 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
             <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-2 mb-6">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center">
-                  <span className="text-white font-black text-xl">Y</span>
-                </div>
-                <span className="text-2xl font-bold">YAAN</span>
+              <div className="mb-6">
+                <YaanLogo
+                  size="xl"
+                  variant="white"
+                  className="mb-4"
+                />
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
                 Conectamos viajeros con experiencias únicas. Descubre el mundo de una forma diferente.
