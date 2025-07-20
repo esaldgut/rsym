@@ -7,8 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 export default function HomePage() {
   const { isAuthenticated } = useAuth();
   const [scrollY, setScrollY] = useState(0);
-  const heroRef = useRef<HTMLDivElement>(null);
-  const featuresRef = useRef<HTMLDivElement>(null);
+  const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
     const handleScroll = () => {
@@ -39,136 +38,158 @@ export default function HomePage() {
     return () => observer.disconnect();
   }, []);
 
+  const destinations = [
+    { name: 'Machu Picchu', country: 'Perú', image: '🏔️' },
+    { name: 'Caribe Mexicano', country: 'México', image: '🏖️' },
+    { name: 'Buenos Aires', country: 'Argentina', image: '🌆' },
+    { name: 'Amazonas', country: 'Brasil', image: '🌳' },
+  ];
+
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section 
-        ref={heroRef}
-        className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-to-b from-purple-900 via-purple-800 to-purple-700"
-      >
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-10">
+    <div className="min-h-screen overflow-x-hidden">
+      {/* Hero Section with Onboarding Style */}
+      <section className="relative min-h-screen flex items-center justify-center">
+        {/* Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-pink-500 via-purple-600 to-indigo-700">
+          <div className="absolute inset-0 bg-black/20" />
+        </div>
+
+        {/* Animated Shapes */}
+        <div className="absolute inset-0 overflow-hidden">
           <div 
-            className="absolute inset-0 bg-repeat"
-            style={{
-              transform: `translateY(${scrollY * 0.3}px)`,
-              backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
-            }}
+            className="absolute top-20 -right-20 w-96 h-96 bg-white/10 rounded-full blur-3xl"
+            style={{ transform: `translateY(${scrollY * 0.2}px)` }}
+          />
+          <div 
+            className="absolute -bottom-40 -left-40 w-[500px] h-[500px] bg-pink-400/20 rounded-full blur-3xl"
+            style={{ transform: `translateY(${scrollY * -0.3}px)` }}
           />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="mb-8 animate-fade-in-up">
+            <span className="inline-flex items-center px-4 py-2 rounded-full bg-white/20 backdrop-blur-xl text-white text-sm font-medium">
+              <span className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
+              Más de 10,000 viajeros activos
+            </span>
+          </div>
+          
           <h1 
-            className="text-5xl md:text-7xl lg:text-8xl font-bold text-white mb-6 opacity-0 animate-fade-in-up"
-            style={{
-              transform: `translateY(${scrollY * -0.2}px)`,
-              opacity: 1 - scrollY / 1000
-            }}
+            className="text-5xl md:text-6xl lg:text-7xl font-black text-white mb-6 leading-tight animate-fade-in-up animation-delay-200"
           >
-            Descubre el mundo
+            Tu próxima aventura
             <br />
-            <span className="bg-gradient-to-r from-yellow-400 to-orange-400 bg-clip-text text-transparent">
-              a tu manera
+            <span className="bg-gradient-to-r from-yellow-300 to-orange-400 bg-clip-text text-transparent">
+              comienza aquí
             </span>
           </h1>
           
           <p 
-            className="text-xl md:text-2xl text-white/90 mb-12 max-w-3xl mx-auto opacity-0 animate-fade-in-up animation-delay-200"
-            style={{
-              transform: `translateY(${scrollY * -0.15}px)`,
-              opacity: 1 - scrollY / 800
-            }}
+            className="text-xl md:text-2xl text-white/90 mb-12 max-w-2xl mx-auto leading-relaxed animate-fade-in-up animation-delay-400"
           >
-            YAAN conecta viajeros con experiencias únicas. Encuentra circuitos turísticos 
-            y paquetes diseñados por expertos locales.
+            Conectamos viajeros con experiencias únicas diseñadas por expertos locales
           </p>
           
           <div 
-            className="flex flex-col sm:flex-row gap-4 justify-center opacity-0 animate-fade-in-up animation-delay-400"
-            style={{
-              transform: `translateY(${scrollY * -0.1}px)`,
-              opacity: 1 - scrollY / 600
-            }}
+            className="flex flex-col sm:flex-row gap-4 justify-center items-center animate-fade-in-up animation-delay-600"
           >
             {isAuthenticated ? (
               <Link
                 href="/dashboard"
-                className="inline-block bg-white text-purple-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
+                className="group relative inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300"
               >
-                Ir al Dashboard
+                <span className="relative z-10">Explorar experiencias</span>
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <span className="absolute inset-0 rounded-2xl bg-white group-hover:bg-transparent transition-colors duration-300" />
               </Link>
             ) : (
               <>
                 <Link
                   href="/auth?mode=signup"
-                  className="inline-block bg-white text-purple-900 px-8 py-4 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
+                  className="group relative inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300 overflow-hidden"
                 >
-                  Comenzar ahora
+                  <span className="relative z-10">Comenzar gratis</span>
+                  <div className="absolute inset-0 bg-gradient-to-r from-pink-500 to-purple-600 transform translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                 </Link>
                 <Link
                   href="/marketplace"
-                  className="inline-block bg-transparent text-white border-2 border-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-purple-900 transition-all duration-300 transform hover:scale-105"
+                  className="inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-white/10 backdrop-blur-xl border-2 border-white/30 text-white font-bold text-lg hover:bg-white/20 transform hover:-translate-y-1 transition-all duration-300"
                 >
-                  Explorar marketplace
+                  Ver experiencias
+                  <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
                 </Link>
               </>
             )}
+          </div>
+
+          {/* Trust Indicators */}
+          <div className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto animate-fade-in-up animation-delay-800">
+            {[
+              { number: '50K+', label: 'Viajeros' },
+              { number: '1000+', label: 'Experiencias' },
+              { number: '4.9', label: 'Calificación' },
+            ].map((stat, index) => (
+              <div key={index} className="text-center">
+                <div className="text-3xl md:text-4xl font-black text-white mb-1">{stat.number}</div>
+                <div className="text-sm text-white/70">{stat.label}</div>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Scroll Indicator */}
         <div 
-          className="absolute bottom-10 left-1/2 transform -translate-x-1/2 text-white opacity-70 animate-bounce"
+          className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-white animate-bounce"
           style={{ opacity: 1 - scrollY / 200 }}
         >
-          <svg className="w-6 h-6" fill="none" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" stroke="currentColor">
-            <path d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
-          </svg>
+          <div className="flex flex-col items-center">
+            <span className="text-sm mb-2">Descubre más</span>
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+            </svg>
+          </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section ref={featuresRef} className="py-24 bg-gray-50">
+      {/* Popular Destinations Section */}
+      <section className="py-24 bg-gradient-to-b from-gray-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 animate-on-scroll opacity-0 translate-y-10">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Todo lo que necesitas para tu próxima aventura
+            <span className="text-pink-600 font-bold text-sm uppercase tracking-wider">Destinos populares</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mt-4 mb-6">
+              Descubre lugares increíbles
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Una plataforma completa diseñada para conectar viajeros con experiencias auténticas
+            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+              Explora nuestros destinos más solicitados y vive experiencias únicas
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: '🌍',
-                title: 'Circuitos Únicos',
-                description: 'Descubre rutas turísticas diseñadas por expertos locales que conocen los mejores lugares.',
-              },
-              {
-                icon: '📦',
-                title: 'Paquetes Completos',
-                description: 'Todo incluido: alojamiento, transporte y actividades. Sin preocupaciones, solo disfrutar.',
-              },
-              {
-                icon: '⭐',
-                title: 'Proveedores Verificados',
-                description: 'Trabajamos solo con proveedores certificados para garantizar tu seguridad y satisfacción.',
-              },
-            ].map((feature, index) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {destinations.map((destination, index) => (
               <div
                 key={index}
-                className={`bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 animate-on-scroll opacity-0 translate-y-10`}
+                className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-pink-50 to-purple-50 p-8 hover:shadow-2xl transition-all duration-500 animate-on-scroll opacity-0 translate-y-10 cursor-pointer"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
-                <div className="text-5xl mb-6">{feature.icon}</div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                  {feature.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {feature.description}
-                </p>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-pink-400/20 to-purple-400/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
+                
+                <div className="relative z-10">
+                  <div className="text-6xl mb-4 transform group-hover:scale-110 transition-transform duration-300">
+                    {destination.image}
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                    {destination.name}
+                  </h3>
+                  <p className="text-gray-600 mb-4">{destination.country}</p>
+                  <div className="flex items-center text-pink-600 font-semibold group-hover:translate-x-2 transition-transform duration-300">
+                    Explorar
+                    <svg className="w-5 h-5 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -176,49 +197,133 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-24 bg-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-pink-50 via-white to-purple-50" />
+        
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16 animate-on-scroll opacity-0 translate-y-10">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-              Cómo funciona
+            <span className="text-purple-600 font-bold text-sm uppercase tracking-wider">Cómo funciona</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mt-4 mb-6">
+              Tu viaje en 3 simples pasos
             </h2>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Tres simples pasos para comenzar tu próxima aventura
-            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
+            {/* Connection Line */}
+            <div className="hidden md:block absolute top-1/2 left-0 right-0 h-0.5 bg-gradient-to-r from-pink-200 via-purple-200 to-pink-200 transform -translate-y-1/2" />
+            
             {[
               {
-                step: '01',
-                title: 'Explora',
-                description: 'Navega por nuestro marketplace y descubre experiencias únicas en destinos increíbles.',
+                step: '1',
+                icon: '🔍',
+                title: 'Busca tu destino',
+                description: 'Explora miles de experiencias únicas en destinos increíbles',
+                color: 'pink',
               },
               {
-                step: '02',
-                title: 'Selecciona',
-                description: 'Elige el circuito o paquete que mejor se adapte a tus preferencias y presupuesto.',
+                step: '2',
+                icon: '💳',
+                title: 'Reserva seguro',
+                description: 'Paga de forma segura y recibe confirmación instantánea',
+                color: 'purple',
               },
               {
-                step: '03',
-                title: 'Disfruta',
-                description: 'Relájate y disfruta de tu viaje mientras nosotros nos encargamos de todos los detalles.',
+                step: '3',
+                icon: '✈️',
+                title: 'Viaja tranquilo',
+                description: 'Disfruta tu experiencia con soporte 24/7',
+                color: 'indigo',
               },
-            ].map((step, index) => (
+            ].map((item, index) => (
               <div
                 key={index}
-                className={`text-center animate-on-scroll opacity-0 translate-y-10`}
+                className="relative animate-on-scroll opacity-0 translate-y-10"
                 style={{ animationDelay: `${index * 150}ms` }}
               >
-                <div className="text-6xl font-bold text-purple-600 mb-6 opacity-20">
-                  {step.step}
+                <div className="relative z-10 text-center">
+                  <div className={`w-20 h-20 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-${item.color}-400 to-${item.color}-600 flex items-center justify-center text-4xl shadow-xl transform hover:scale-110 transition-transform duration-300`}>
+                    {item.icon}
+                  </div>
+                  <h3 className="text-2xl font-bold text-gray-900 mb-4">
+                    {item.title}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {item.description}
+                  </p>
                 </div>
-                <h3 className="text-2xl font-semibold text-gray-900 mb-4">
-                  {step.title}
-                </h3>
-                <p className="text-gray-600 leading-relaxed">
-                  {step.description}
-                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Grid Section */}
+      <section className="py-24 bg-gradient-to-b from-white to-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16 animate-on-scroll opacity-0 translate-y-10">
+            <span className="text-pink-600 font-bold text-sm uppercase tracking-wider">Por qué elegirnos</span>
+            <h2 className="text-4xl md:text-5xl font-black text-gray-900 mt-4 mb-6">
+              La mejor forma de viajar
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: '🛡️',
+                title: 'Viajes seguros',
+                description: 'Todos nuestros proveedores están verificados y cuentan con seguro',
+                gradient: 'from-blue-400 to-blue-600',
+              },
+              {
+                icon: '💰',
+                title: 'Mejor precio',
+                description: 'Garantizamos el mejor precio o te devolvemos la diferencia',
+                gradient: 'from-green-400 to-green-600',
+              },
+              {
+                icon: '🌟',
+                title: 'Experiencias únicas',
+                description: 'Accede a experiencias exclusivas no disponibles en otros lugares',
+                gradient: 'from-purple-400 to-purple-600',
+              },
+              {
+                icon: '🤝',
+                title: 'Soporte 24/7',
+                description: 'Nuestro equipo está disponible para ayudarte en cualquier momento',
+                gradient: 'from-pink-400 to-pink-600',
+              },
+              {
+                icon: '🌍',
+                title: 'Turismo sostenible',
+                description: 'Apoyamos el turismo responsable y las comunidades locales',
+                gradient: 'from-orange-400 to-orange-600',
+              },
+              {
+                icon: '📱',
+                title: 'App móvil',
+                description: 'Gestiona tus viajes desde cualquier lugar con nuestra app',
+                gradient: 'from-indigo-400 to-indigo-600',
+              },
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="group relative bg-white rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all duration-500 animate-on-scroll opacity-0 translate-y-10 overflow-hidden"
+                style={{ animationDelay: `${index * 100}ms` }}
+              >
+                <div className={`absolute -top-20 -right-20 w-40 h-40 bg-gradient-to-br ${feature.gradient} rounded-full opacity-10 group-hover:scale-150 transition-transform duration-700`} />
+                
+                <div className="relative z-10">
+                  <div className={`w-16 h-16 mb-6 rounded-2xl bg-gradient-to-br ${feature.gradient} flex items-center justify-center text-3xl shadow-lg transform group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+                    {feature.icon}
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    {feature.title}
+                  </h3>
+                  <p className="text-gray-600 leading-relaxed">
+                    {feature.description}
+                  </p>
+                </div>
               </div>
             ))}
           </div>
@@ -226,70 +331,114 @@ export default function HomePage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-purple-700 to-purple-900">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section className="relative py-32 overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-pink-600 via-purple-600 to-indigo-700">
+          <div className="absolute inset-0 bg-black/10" />
+        </div>
+        
+        {/* Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-float" />
+          <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-pink-400/10 rounded-full blur-3xl animate-float-delayed" />
+        </div>
+
+        <div className="relative z-10 max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="animate-on-scroll opacity-0 translate-y-10">
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
-              ¿Listo para comenzar tu aventura?
+            <h2 className="text-4xl md:text-6xl font-black text-white mb-6">
+              ¿Listo para tu próxima aventura?
             </h2>
-            <p className="text-xl text-white/90 mb-12 max-w-2xl mx-auto">
-              Únete a miles de viajeros que ya están descubriendo el mundo con YAAN
+            <p className="text-xl md:text-2xl text-white/90 mb-12 max-w-2xl mx-auto leading-relaxed">
+              Únete a miles de viajeros que ya están descubriendo el mundo de una forma diferente
             </p>
-            {isAuthenticated ? (
-              <Link
-                href="/dashboard"
-                className="inline-block bg-white text-purple-900 px-10 py-5 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
-              >
-                Explorar experiencias
-              </Link>
-            ) : (
-              <Link
-                href="/auth?mode=signup"
-                className="inline-block bg-white text-purple-900 px-10 py-5 rounded-full font-semibold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105"
-              >
-                Crear cuenta gratis
-              </Link>
-            )}
+            
+            <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
+              {isAuthenticated ? (
+                <Link
+                  href="/dashboard"
+                  className="group relative inline-flex items-center justify-center px-10 py-5 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300"
+                >
+                  <span className="relative z-10">Explorar experiencias</span>
+                  <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-pink-500 to-purple-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/auth?mode=signup"
+                    className="inline-flex items-center justify-center px-10 py-5 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300"
+                  >
+                    Crear cuenta gratis
+                  </Link>
+                  <div className="flex items-center gap-4 text-white">
+                    <div className="flex -space-x-2">
+                      {[...Array(4)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-purple-400 border-2 border-white flex items-center justify-center text-sm font-bold"
+                        >
+                          {String.fromCharCode(65 + i)}
+                        </div>
+                      ))}
+                    </div>
+                    <span className="text-sm">+10K viajeros activos</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-900 text-white py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <h3 className="text-2xl font-bold mb-4">YAAN</h3>
-              <p className="text-gray-400">
-                Tu puerta de entrada a experiencias de viaje inolvidables.
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+            <div className="col-span-1 md:col-span-2">
+              <div className="flex items-center space-x-2 mb-6">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center">
+                  <span className="text-white font-black text-xl">Y</span>
+                </div>
+                <span className="text-2xl font-bold">YAAN</span>
+              </div>
+              <p className="text-gray-400 mb-6 max-w-md">
+                Conectamos viajeros con experiencias únicas. Descubre el mundo de una forma diferente.
               </p>
+              <div className="flex space-x-4">
+                {['facebook', 'instagram', 'twitter'].map((social) => (
+                  <a
+                    key={social}
+                    href="#"
+                    className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors duration-300"
+                  >
+                    <span className="sr-only">{social}</span>
+                    <div className="w-5 h-5 bg-white rounded" />
+                  </a>
+                ))}
+              </div>
             </div>
+            
             <div>
-              <h4 className="font-semibold mb-4">Explorar</h4>
-              <ul className="space-y-2">
+              <h4 className="font-bold text-lg mb-4">Explora</h4>
+              <ul className="space-y-3">
                 <li><Link href="/marketplace" className="text-gray-400 hover:text-white transition-colors">Marketplace</Link></li>
                 <li><Link href="/circuits" className="text-gray-400 hover:text-white transition-colors">Circuitos</Link></li>
                 <li><Link href="/packages" className="text-gray-400 hover:text-white transition-colors">Paquetes</Link></li>
+                <li><Link href="/destinations" className="text-gray-400 hover:text-white transition-colors">Destinos</Link></li>
               </ul>
             </div>
+            
             <div>
-              <h4 className="font-semibold mb-4">Compañía</h4>
-              <ul className="space-y-2">
-                <li><Link href="/about" className="text-gray-400 hover:text-white transition-colors">Nosotros</Link></li>
+              <h4 className="font-bold text-lg mb-4">Soporte</h4>
+              <ul className="space-y-3">
+                <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Centro de ayuda</Link></li>
                 <li><Link href="/contact" className="text-gray-400 hover:text-white transition-colors">Contacto</Link></li>
-                <li><Link href="/help" className="text-gray-400 hover:text-white transition-colors">Ayuda</Link></li>
-              </ul>
-            </div>
-            <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2">
-                <li><Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">Privacidad</Link></li>
+                <li><Link href="/faq" className="text-gray-400 hover:text-white transition-colors">FAQ</Link></li>
                 <li><Link href="/terms" className="text-gray-400 hover:text-white transition-colors">Términos</Link></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 YAAN. Todos los derechos reservados.</p>
+          
+          <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
+            <p>&copy; 2025 YAAN. Todos los derechos reservados.</p>
           </div>
         </div>
       </footer>
@@ -307,8 +456,34 @@ export default function HomePage() {
           }
         }
 
+        @keyframes float {
+          0%, 100% {
+            transform: translateY(0) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-20px) rotate(10deg);
+          }
+        }
+
+        @keyframes float-delayed {
+          0%, 100% {
+            transform: translateY(0) rotate(0deg);
+          }
+          50% {
+            transform: translateY(-30px) rotate(-10deg);
+          }
+        }
+
         .animate-fade-in-up {
           animation: fade-in-up 1s ease-out forwards;
+        }
+
+        .animate-float {
+          animation: float 6s ease-in-out infinite;
+        }
+
+        .animate-float-delayed {
+          animation: float-delayed 8s ease-in-out infinite;
         }
 
         .animation-delay-200 {
@@ -317,6 +492,14 @@ export default function HomePage() {
 
         .animation-delay-400 {
           animation-delay: 400ms;
+        }
+
+        .animation-delay-600 {
+          animation-delay: 600ms;
+        }
+
+        .animation-delay-800 {
+          animation-delay: 800ms;
         }
 
         .animate-on-scroll {

@@ -28,30 +28,36 @@ export const Navbar = () => {
 
   const navLinks = [
     { href: '/', label: 'Inicio' },
-    { href: '/marketplace', label: 'Marketplace' },
+    { href: '/marketplace', label: 'Explora' },
     { href: '/circuits', label: 'Circuitos' },
     { href: '/packages', label: 'Paquetes' },
-    { href: '/about', label: 'Nosotros' },
   ];
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
-          ? 'bg-white/80 backdrop-blur-xl shadow-sm'
-          : 'bg-transparent'
+          ? 'bg-white/95 backdrop-blur-xl shadow-lg'
+          : 'bg-gradient-to-b from-black/20 to-transparent'
       }`}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link
             href="/"
-            className={`text-2xl font-bold transition-colors duration-300 ${
-              isScrolled ? 'text-gray-900' : 'text-white'
-            }`}
+            className="flex items-center space-x-2 group"
           >
-            YAAN
+            <div className={`w-10 h-10 rounded-xl bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center transform transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 ${
+              isScrolled ? '' : 'shadow-lg'
+            }`}>
+              <span className="text-white font-black text-xl">Y</span>
+            </div>
+            <span className={`text-2xl font-bold transition-colors duration-300 ${
+              isScrolled ? 'text-gray-900' : 'text-white'
+            }`}>
+              YAAN
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
@@ -60,11 +66,14 @@ export const Navbar = () => {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`text-sm font-medium transition-all duration-300 hover:opacity-70 ${
+                className={`relative text-sm font-medium transition-all duration-300 ${
                   isScrolled ? 'text-gray-700' : 'text-white'
-                } ${pathname === link.href ? 'opacity-100' : 'opacity-80'}`}
+                } hover:opacity-80`}
               >
                 {link.label}
+                {pathname === link.href && (
+                  <div className="absolute -bottom-1 left-0 right-0 h-0.5 bg-gradient-to-r from-pink-500 to-pink-600 rounded-full" />
+                )}
               </Link>
             ))}
           </div>
@@ -75,42 +84,42 @@ export const Navbar = () => {
               <>
                 <Link
                   href="/dashboard"
-                  className={`text-sm font-medium transition-all duration-300 hover:opacity-70 ${
-                    isScrolled ? 'text-gray-700' : 'text-white'
+                  className={`text-sm font-medium transition-all duration-300 px-6 py-2.5 rounded-full ${
+                    isScrolled
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  Dashboard
+                  Mi cuenta
                 </Link>
                 <button
                   onClick={handleSignOut}
-                  className={`text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 ${
+                  className={`text-sm font-medium px-6 py-2.5 rounded-full transition-all duration-300 ${
                     isScrolled
-                      ? 'bg-gray-900 text-white hover:bg-gray-800'
-                      : 'bg-white text-gray-900 hover:bg-gray-100'
+                      ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white hover:shadow-lg transform hover:-translate-y-0.5'
+                      : 'bg-white text-gray-900 hover:shadow-lg transform hover:-translate-y-0.5'
                   }`}
                 >
-                  Cerrar sesión
+                  Salir
                 </button>
               </>
             ) : (
               <>
                 <Link
                   href="/auth"
-                  className={`text-sm font-medium transition-all duration-300 hover:opacity-70 ${
-                    isScrolled ? 'text-gray-700' : 'text-white'
+                  className={`text-sm font-medium transition-all duration-300 px-6 py-2.5 rounded-full ${
+                    isScrolled
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'text-white hover:bg-white/10'
                   }`}
                 >
                   Iniciar sesión
                 </Link>
                 <Link
                   href="/auth?mode=signup"
-                  className={`text-sm font-medium px-4 py-2 rounded-full transition-all duration-300 ${
-                    isScrolled
-                      ? 'bg-gray-900 text-white hover:bg-gray-800'
-                      : 'bg-white text-gray-900 hover:bg-gray-100'
-                  }`}
+                  className={`text-sm font-medium px-6 py-2.5 rounded-full bg-gradient-to-r from-pink-500 to-pink-600 text-white transition-all duration-300 hover:shadow-lg transform hover:-translate-y-0.5`}
                 >
-                  Registrarse
+                  Comenzar
                 </Link>
               </>
             )}
@@ -119,8 +128,10 @@ export const Navbar = () => {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className={`md:hidden p-2 rounded-lg transition-colors duration-300 ${
-              isScrolled ? 'text-gray-900' : 'text-white'
+            className={`md:hidden p-2 rounded-xl transition-all duration-300 ${
+              isScrolled 
+                ? 'text-gray-900 hover:bg-gray-100' 
+                : 'text-white hover:bg-white/10'
             }`}
           >
             <svg
@@ -143,48 +154,51 @@ export const Navbar = () => {
 
         {/* Mobile Menu */}
         <div
-          className={`md:hidden transition-all duration-300 overflow-hidden ${
-            isMobileMenuOpen ? 'max-h-96' : 'max-h-0'
+          className={`md:hidden transition-all duration-500 overflow-hidden ${
+            isMobileMenuOpen ? 'max-h-[600px] opacity-100' : 'max-h-0 opacity-0'
           }`}
         >
-          <div className="px-2 pt-2 pb-3 space-y-1">
+          <div className={`px-2 py-6 space-y-2 ${
+            isScrolled ? 'bg-white' : 'bg-black/90 backdrop-blur-xl'
+          } rounded-2xl mt-2 shadow-xl`}>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-300 ${
-                  isScrolled
-                    ? 'text-gray-700 hover:bg-gray-100'
-                    : 'text-white hover:bg-white/10'
+                className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
+                  pathname === link.href
+                    ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white'
+                    : isScrolled
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'text-white hover:bg-white/10'
                 }`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
+            
+            <div className="h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent my-4" />
+            
             {isAuthenticated ? (
               <>
                 <Link
                   href="/dashboard"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-300 ${
+                  className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
                     isScrolled
                       ? 'text-gray-700 hover:bg-gray-100'
                       : 'text-white hover:bg-white/10'
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Dashboard
+                  Mi cuenta
                 </Link>
                 <button
                   onClick={() => {
                     handleSignOut();
                     setIsMobileMenuOpen(false);
                   }}
-                  className={`block w-full text-left px-3 py-2 rounded-md text-base font-medium transition-colors duration-300 ${
-                    isScrolled
-                      ? 'text-gray-700 hover:bg-gray-100'
-                      : 'text-white hover:bg-white/10'
-                  }`}
+                  className="block w-full text-left px-4 py-3 rounded-xl text-base font-medium bg-gradient-to-r from-pink-500 to-pink-600 text-white"
                 >
                   Cerrar sesión
                 </button>
@@ -193,7 +207,7 @@ export const Navbar = () => {
               <>
                 <Link
                   href="/auth"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-300 ${
+                  className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
                     isScrolled
                       ? 'text-gray-700 hover:bg-gray-100'
                       : 'text-white hover:bg-white/10'
@@ -204,14 +218,10 @@ export const Navbar = () => {
                 </Link>
                 <Link
                   href="/auth?mode=signup"
-                  className={`block px-3 py-2 rounded-md text-base font-medium transition-colors duration-300 ${
-                    isScrolled
-                      ? 'text-gray-700 hover:bg-gray-100'
-                      : 'text-white hover:bg-white/10'
-                  }`}
+                  className="block px-4 py-3 rounded-xl text-base font-medium bg-gradient-to-r from-pink-500 to-pink-600 text-white text-center"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Registrarse
+                  Comenzar ahora
                 </Link>
               </>
             )}
