@@ -36,7 +36,8 @@ export function useAuth(): UseAuthReturn {
       
       setUser(enrichedUser);
       setUserType(userTypeValue || 'consumer');
-    } catch (error) {
+    } catch {
+      // Usuario no autenticado
       setUser(null);
       setUserType(null);
     } finally {
@@ -59,12 +60,19 @@ export function useAuth(): UseAuthReturn {
 
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
       switch (payload.event) {
+        case 'signIn':
         case 'signedIn':
+        case 'autoSignIn':
           checkAuthState();
           break;
+        case 'signOut':
         case 'signedOut':
           setUser(null);
           setUserType(null);
+          break;
+        case 'tokenRefresh':
+        case 'tokenRefresh_failure':
+          checkAuthState();
           break;
       }
     });

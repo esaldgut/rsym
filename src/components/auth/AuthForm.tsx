@@ -99,10 +99,12 @@ export function AuthForm() {
       await signUp({
         username: signUpData.email,
         password: signUpData.password,
-        attributes: {
-          email: signUpData.email,
-          given_name: signUpData.given_name,
-          family_name: signUpData.family_name,
+        options: {
+          userAttributes: {
+            email: signUpData.email,
+            given_name: signUpData.given_name,
+            family_name: signUpData.family_name,
+          },
         },
       });
 
@@ -129,12 +131,34 @@ export function AuthForm() {
     setIsLoading(true);
 
     try {
-      await signIn({
+      const { nextStep } = await signIn({
         username: signInData.email,
         password: signInData.password,
       });
 
-      router.push('/dashboard');
+      // Según la documentación oficial de Amplify v6
+      if (nextStep.signInStep === 'DONE') {
+        // Inicio de sesión exitoso - pequeña espera para asegurar que el estado se actualice
+        setTimeout(() => {
+          router.push('/dashboard');
+        }, 100);
+      } else if (nextStep.signInStep === 'CONFIRM_SIGN_UP') {
+        // Usuario no confirmado
+        setPendingEmail(signInData.email);
+        setError('Tu cuenta no está verificada. Te hemos enviado un nuevo código.');
+        setMode('confirm-signup');
+      } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        // Usuario necesita cambiar contraseña temporal
+        setError('Debes cambiar tu contraseña temporal.');
+        // TODO: Implementar flujo de cambio de contraseña
+      } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_TOTP_CODE' || 
+                 nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_SMS_CODE') {
+        // MFA requerido
+        setError('Se requiere autenticación de dos factores.');
+        // TODO: Implementar flujo MFA
+      } else {
+        console.log('Paso de autenticación no manejado:', nextStep);
+      }
     } catch (err) {
       if (err instanceof Error && err.name === 'UserNotConfirmedException') {
         setPendingEmail(signInData.email);
@@ -586,7 +610,7 @@ export function AuthForm() {
                 disabled={isLoading}
                 className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white py-3 px-4 rounded-xl font-medium hover:from-pink-600 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 transform hover:scale-[1.02]"
               >
-                {isLoading ? 'Enviando código...' : 'Enviar código'}
+                {isLoading ? 'Solicitando código...' : 'Solicitar código'}
               </button>
 
               <div className="text-center">

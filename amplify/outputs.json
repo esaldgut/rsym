@@ -3,15 +3,16 @@
   "version": "1",
   "auth": {
     "aws_region": "us-west-2",
-    "user_pool_id": "us-west-2_0dKObGMka",
-    "user_pool_client_id": "4med1j0i2j2qphca7br2k9c22c",
+    "user_pool_id": "us-west-2_S0R408BOa",
+    "user_pool_client_id": "pi3jecnooc25adjrdrj5m80it",
     "identity_pool_id": "us-west-2:0358ca3d-88d4-4afa-9fce-f9da345d71e5",
     "password_policy": {
       "min_length": 8,
       "require_numbers": true,
       "require_lowercase": true,
       "require_uppercase": true,
-      "require_symbols": false
+      "require_symbols": false,
+      "temporary_password_validity_days": 7
     },
     "username_attributes": ["email"],
     "user_verification_types": ["email"],
@@ -19,15 +20,105 @@
     "mfa_configuration": "NONE",
     "mfa_methods": [],
     "standard_required_attributes": [
-      "email"
+      "email",
+      "given_name",
+      "family_name"
+    ],
+    "standard_optional_attributes": [
+      "profile",
+      "address", 
+      "birthdate",
+      "gender",
+      "preferred_username",
+      "website",
+      "picture",
+      "phone_number",
+      "locale",
+      "middle_name",
+      "name",
+      "nickname",
+      "zoneinfo",
+      "updated_at",
+      "identities"
+    ],
+    "custom_attributes": [
+      "custom:budget",
+      "custom:uniq_influencer_ID",
+      "custom:company_profile",
+      "custom:have_a_Visa",
+      "custom:complianceOpinPath",
+      "custom:provider_is_approved",
+      "custom:emgcy_details",
+      "custom:contact_information",
+      "custom:details",
+      "custom:profilePhotoPath",
+      "custom:days_of_service",
+      "custom:user_type",
+      "custom:credentials",
+      "custom:social_media_plfms",
+      "custom:interest_rate",
+      "custom:banking_details",
+      "custom:secturPath",
+      "custom:profilePreferences",
+      "custom:have_a_passport",
+      "custom:service_hours",
+      "custom:proofOfTaxStatusPath",
+      "custom:req_special_services"
     ],
     "verification": {
       "email": {
         "delivery_medium": "EMAIL",
-        "email_subject": "Your verification code",
-        "email_message": "Your verification code is {####}"
+        "email_subject": "Tu código de verificación YAAN",
+        "email_message": "Tu código de verificación YAAN es {####}.",
+        "default_email_option": "CONFIRM_WITH_CODE"
       }
-    }
+    },
+    "oauth": {
+      "identity_providers": ["GOOGLE", "Apple", "Facebook"],
+      "domain": "auth.yaan.com.mx",
+      "scopes": ["email", "openid", "profile"],
+      "redirect_sign_in": "http://localhost:3000/auth,https://yaan.com.mx/auth",
+      "redirect_sign_out": "http://localhost:3000/,https://yaan.com.mx/",
+      "response_type": "code"
+    },
+    "admin_create_user_config": {
+      "allow_admin_create_user_only": false,
+      "unused_account_validity_days": 7,
+      "invite_message_template": {
+        "sms_message": "Tu nombre de usuario es {username} y tu contraseña temporal es {####}.",
+        "email_message": "Tu nombre de usuario es {username} y tu contraseña temporal es {####}.",
+        "email_subject": "Tu contraseña temporal YAAN"
+      }
+    },
+    "account_recovery_setting": {
+      "recovery_mechanisms": [
+        {
+          "priority": 1,
+          "name": "verified_email"
+        },
+        {
+          "priority": 2,
+          "name": "verified_phone_number"
+        }
+      ]
+    },
+    "user_pool_tags": {
+      "Application": "YAAN",
+      "Component": "IDProviderSystem",
+      "CostCenter": "Engineering",
+      "Environment": "dev",
+      "Provider": "Roatech Services",
+      "Service": "YaanIDProvider"
+    },
+    "lambda_config": {
+      "post_authentication": "arn:aws:lambda:us-west-2:288761749126:function:cognito-mongodb-synchronization",
+      "pre_token_generation": "arn:aws:lambda:us-west-2:288761749126:function:cognito-mongodb-synchronization"
+    },
+    "sign_in_policy": {
+      "allowed_first_auth_factors": ["PASSWORD"]
+    },
+    "estimated_number_of_users": 1,
+    "user_pool_tier": "ESSENTIALS"
   },
   "data": {
     "url": "https://5h4ahg2zyrdrhc34ffkcdkcmhu.appsync-api.us-west-2.amazonaws.com/graphql",
