@@ -39,11 +39,12 @@ export async function middleware(request: NextRequest) {
             return { authenticated: false, userType: null, reason: 'email_not_verified' };
           }
           
-          // Verificar expiración del token
+          // Verificar expiración del token con margen de seguridad
           const now = Math.floor(Date.now() / 1000);
           const tokenExp = idToken.payload.exp as number;
+          const bufferTime = 30; // 30 segundos de margen
           
-          if (tokenExp && tokenExp < now) {
+          if (tokenExp && (tokenExp - bufferTime) < now) {
             return { authenticated: false, userType: null, reason: 'token_expired' };
           }
           

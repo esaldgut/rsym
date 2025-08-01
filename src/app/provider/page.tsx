@@ -1,6 +1,7 @@
 'use client';
 
 import { useAuth } from '../../hooks/useAuth';
+import { AuthSecurityWrapper } from '../../components/auth/AuthSecurityWrapper';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -70,9 +71,10 @@ export default function ProviderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Mostrar error de autenticación si existe */}
-      {authError && (
+    <AuthSecurityWrapper>
+      <div className="min-h-screen bg-gray-50">
+        {/* Mostrar error de autenticación si existe */}
+        {authError && (
         <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-4">
           <div className="flex">
             <div className="flex-shrink-0">
@@ -182,6 +184,7 @@ export default function ProviderPage() {
           </div>
         </div>
       </main>
-    </div>
+      </div>
+    </AuthSecurityWrapper>
   );
 }

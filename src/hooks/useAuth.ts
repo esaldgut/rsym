@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { getCurrentUser, signOut, AuthUser, fetchUserAttributes } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
+import { tokenManager } from '../lib/token-manager';
 
 export type UserType = 'provider' | 'consumer';
 
@@ -16,6 +17,7 @@ export interface UseAuthReturn {
   isAuthenticated: boolean;
   userType: UserType | null;
   signOut: () => Promise<void>;
+  refreshTokens: () => Promise<boolean>;
 }
 
 export function useAuth(): UseAuthReturn {
@@ -47,11 +49,27 @@ export function useAuth(): UseAuthReturn {
 
   const handleSignOut = async () => {
     try {
+      // Detener monitoreo de tokens antes del sign out
+      tokenManager.stopTokenMonitoring();
       await signOut();
       setUser(null);
       setUserType(null);
     } catch (error) {
       console.error('Error signing out:', error);
+    }
+  };
+
+  const refreshTokens = async (): Promise<boolean> => {
+    try {
+      const success = await tokenManager.refreshTokensIfNeeded();
+      if (success) {
+        // Re-verificar estado de autenticación después del refresh
+        await checkAuthState();
+      }
+      return success;
+    } catch (error) {
+      console.error('Error refreshing tokens:', error);
+      return false;
     }
   };
 
@@ -86,5 +104,6 @@ export function useAuth(): UseAuthReturn {
     isAuthenticated: !!user,
     userType,
     signOut: handleSignOut,
+    refreshTokens,
   };
 }

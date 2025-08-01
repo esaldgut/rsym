@@ -78,16 +78,17 @@ export async function validateServerAuth(
             };
           }
           
-          // Verificar expiración del token
+          // Verificar expiración del token con margen de seguridad
           const now = Math.floor(Date.now() / 1000);
           const tokenExp = payload.exp as number;
+          const bufferTime = 30; // 30 segundos de margen
           
-          if (tokenExp && tokenExp < now) {
+          if (tokenExp && (tokenExp - bufferTime) < now) {
             return { 
               authenticated: false, 
               user: null, 
               reason: 'token_expired',
-              error: 'Token has expired'
+              error: 'Token has expired or will expire soon'
             };
           }
           
