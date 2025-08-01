@@ -11,9 +11,9 @@
   "dependencies": {
     "@aws-amplify/adapter-nextjs": "1.6.4",
     "@aws-amplify/ui-react": "6.11.2",
-    "@tanstack/react-query": "^5.81.5",
+    "@tanstack/react-query": "5.81.5",
     "aws-amplify": "6.15.1",
-    "clsx": "^2.1.1",
+    "clsx": "2.1.1",
     "next": "15.3.4",
     "react": "19.0.0",
     "react-dom": "19.0.0"
@@ -21,18 +21,18 @@
   "devDependencies": {
     "@aws-amplify/backend": "1.16.1",
     "@aws-amplify/backend-cli": "1.8.0",
-    "@eslint/eslintrc": "^3",
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "aws-cdk-lib": "^2.189.1",
-    "constructs": "^10.4.2",
-    "esbuild": "^0.25.5",
-    "eslint": "^9",
+    "@eslint/eslintrc": "3",
+    "@tailwindcss/postcss": "4",
+    "@types/node": "20",
+    "@types/react": "19",
+    "@types/react-dom": "19",
+    "aws-cdk-lib": "2.189.1",
+    "constructs": "10.4.2",
+    "esbuild": "0.25.5",
+    "eslint": "9",
     "eslint-config-next": "15.3.4",
-    "tailwindcss": "^4",
-    "tsx": "^4.20.3",
-    "typescript": "^5.8.3"
+    "tailwindcss": "4",
+    "tsx": "4.20.3",
+    "typescript": "5.8.3"
   }
 }

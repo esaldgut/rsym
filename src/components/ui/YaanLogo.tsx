@@ -2,11 +2,16 @@
 
 import { forwardRef } from 'react';
 import { clsx } from 'clsx';
+import styles from './YaanLogo.module.css';
 
 interface YaanLogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl';
-  variant?: 'default' | 'primary' | 'secondary' | 'white' | 'black' | 'success' | 'warning' | 'danger';
+  variant?: 'default' | 'primary' | 'secondary' | 'white' | 'black' | 'success' | 'warning' | 'danger' |
+            'gradient-sunset' | 'gradient-ocean' | 'gradient-forest' | 'gradient-purple' |
+            'holographic' | 'neon' | 'premium-gold' | 'premium-silver';
   responsive?: boolean;
+  loading?: boolean;
+  loadingAnimation?: 'pulse' | 'shimmer' | 'draw' | 'morph' | 'spin' | 'bounce';
   className?: string;
 }
 
@@ -14,6 +19,8 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
   size = 'md',
   variant = 'default',
   responsive = false,
+  loading = false,
+  loadingAnimation = 'pulse',
   className = '',
   ...props
 }, ref) => {
@@ -29,8 +36,8 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
     '4xl': 'h-20'   // 80px - 4X Large para pantallas muy grandes
   };
 
-  // Variantes de color optimizadas para Tailwind v4
-  const variantClasses = {
+  // Variantes de color básicas
+  const basicVariants = {
     default: 'text-gray-900 dark:text-white',
     primary: 'text-pink-600 dark:text-pink-400', 
     secondary: 'text-purple-600 dark:text-purple-400',
@@ -38,7 +45,35 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
     black: 'text-black',
     success: 'text-green-600 dark:text-green-400',
     warning: 'text-amber-600 dark:text-amber-400',
-    danger: 'text-red-600 dark:text-red-400'
+    danger: 'text-red-600 dark:text-red-400',
+  };
+
+  // Variantes de marca con gradientes y efectos
+  const brandVariants = {
+    'gradient-sunset': 'bg-gradient-to-r from-pink-500 to-orange-500 text-transparent bg-clip-text',
+    'gradient-ocean': 'bg-gradient-to-r from-blue-400 to-teal-500 text-transparent bg-clip-text',
+    'gradient-forest': 'bg-gradient-to-r from-green-400 to-emerald-600 text-transparent bg-clip-text',
+    'gradient-purple': 'bg-gradient-to-r from-purple-500 to-pink-500 text-transparent bg-clip-text',
+    'holographic': `bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-transparent bg-clip-text ${styles['animate-gradient-x']}`,
+    'neon': `text-pink-500 ${styles['animate-glow']}`,
+    'premium-gold': 'text-yellow-500 drop-shadow-[0_2px_4px_rgba(251,191,36,0.3)]',
+    'premium-silver': 'text-gray-300 drop-shadow-[0_2px_4px_rgba(156,163,175,0.3)]',
+  };
+
+  // Combinar todas las variantes
+  const variantClasses = {
+    ...basicVariants,
+    ...brandVariants
+  };
+
+  // Clases de animación para loading
+  const loadingAnimationClasses = {
+    pulse: styles['animate-pulse-logo'],
+    shimmer: styles['animate-shimmer'],
+    draw: styles['animate-draw'],
+    morph: styles['animate-morph'],
+    spin: styles['animate-spin-logo'],
+    bounce: styles['animate-bounce-logo'],
   };
 
   // Clases responsivas automáticas (mobile-first approach de Tailwind)
@@ -54,27 +89,87 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
     ? responsiveClasses[size] 
     : sizeClasses[size];
 
+  // Aplicar clases de gradiente especiales
+  const isGradientVariant = variant.includes('gradient') || variant === 'holographic';
+  const isSpecialEffect = variant === 'neon' || variant.includes('premium');
+
   const finalClassName = clsx(
     finalSizeClass,
     'w-auto', // Mantiene aspect ratio
     variantClasses[variant],
-    'transition-colors duration-200', // Transiciones suaves para cambios de tema
+    loading && loadingAnimationClasses[loadingAnimation],
+    'transition-all duration-300', // Transiciones suaves
     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pink-500', // Accesibilidad
     className
   );
+
+  // Para animación draw, necesitamos stroke
+  const needsStroke = loading && loadingAnimation === 'draw';
 
   return (
     <svg
       ref={ref}
       className={finalClassName}
-      viewBox="0 0 1009 339" // ViewBox basado en las dimensiones originales
-      fill="none"
+      viewBox="0 0 1009 339"
+      fill={needsStroke ? "none" : "currentColor"}
+      stroke={needsStroke ? "currentColor" : "none"}
       xmlns="http://www.w3.org/2000/svg"
       role="img"
-      aria-label="Yaan Logo"
+      aria-label={loading ? "Yaan Logo Loading" : "Yaan Logo"}
       {...props}
     >
-      <g fill="currentColor">
+      {/* Definir gradientes si es necesario */}
+      {isGradientVariant && (
+        <defs>
+          <linearGradient id="gradient-sunset" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#ec4899" />
+            <stop offset="100%" stopColor="#f97316" />
+          </linearGradient>
+          <linearGradient id="gradient-ocean" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#60a5fa" />
+            <stop offset="100%" stopColor="#14b8a6" />
+          </linearGradient>
+          <linearGradient id="gradient-forest" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#4ade80" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+          <linearGradient id="gradient-purple" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#a855f7" />
+            <stop offset="100%" stopColor="#ec4899" />
+          </linearGradient>
+          <linearGradient id="holographic" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#c084fc" />
+            <stop offset="50%" stopColor="#ec4899" />
+            <stop offset="100%" stopColor="#ef4444" />
+          </linearGradient>
+        </defs>
+      )}
+
+      {/* Aplicar filtros para efectos especiales */}
+      {isSpecialEffect && (
+        <defs>
+          <filter id="neon-glow">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          <filter id="gold-shine">
+            <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+            <feSpecularLighting result="specOut" in="SourceAlpha" specularConstant="1.5" specularExponent="20" lightingColor="white">
+              <fePointLight x="50" y="50" z="200"/>
+            </feSpecularLighting>
+            <feComposite in="specOut" in2="SourceAlpha" operator="in" result="specOut2"/>
+            <feComposite in="SourceGraphic" in2="specOut2" operator="arithmetic" k1="0" k2="1" k3="1" k4="0"/>
+          </filter>
+        </defs>
+      )}
+
+      <g 
+        fill={isGradientVariant ? `url(#${variant})` : (needsStroke ? "none" : "currentColor")}
+        filter={variant === 'neon' ? "url(#neon-glow)" : variant === 'premium-gold' ? "url(#gold-shine)" : undefined}
+      >
         <g id="yaan 1" clipPath="url(#clip0_269_11863)">
           <g id="Layer 2">
             <g id="Layer 1">
@@ -101,7 +196,7 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
       </g>
       <defs>
         <clipPath id="clip0_269_11863">
-          <rect width="1009" height="339" fill="currentColor"/>
+          <rect width="1009" height="339" fill="white"/>
         </clipPath>
       </defs>
     </svg>

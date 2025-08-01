@@ -397,7 +397,7 @@ export default function HomePage() {
                 <YaanLogo
                   size="xl"
                   variant="white"
-                  className="mb-4"
+                  className="mb-4 hover:scale-105 transition-transform duration-300"
                 />
               </div>
               <p className="text-gray-400 mb-6 max-w-md">
