@@ -59,7 +59,18 @@ export function AuthForm() {
   const [confirmationCode, setConfirmationCode] = useState('');
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  // Update URL when mode changes
+  const inputCoreStyles = 'w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300';
+
+  const getInputClasses = (hasError: boolean) => {
+    const errorClasses = 'border-red-300 bg-red-50 text-red-900 placeholder-red-400';
+    const normalClasses = 'border-gray-300 bg-white text-gray-900 placeholder-gray-400';
+    return `${inputCoreStyles} ${hasError ? errorClasses : normalClasses}`;
+  };
+
+  const getConfirmationInputClasses = (hasError: boolean) => {
+    return `${getInputClasses(hasError)} text-center text-lg tracking-widest`;
+  };
+
   useEffect(() => {
     const url = new URL(window.location.href);
     url.searchParams.set('mode', mode);
@@ -123,7 +134,6 @@ export function AuthForm() {
         password: signInData.password,
       });
 
-      // Redirect will be handled by useAuth effect
       router.push('/dashboard');
     } catch (err) {
       if (err instanceof Error && err.name === 'UserNotConfirmedException') {
@@ -225,8 +235,8 @@ export function AuthForm() {
   };
 
   const passwordStrength = mode === 'signup' ? getPasswordStrength(signUpData.password) : 
-                          mode === 'reset-password' ? getPasswordStrength(resetPasswordData.password) : 
-                          { score: 0, feedback: '' };
+                           mode === 'reset-password' ? getPasswordStrength(resetPasswordData.password) : 
+                           { score: 0, feedback: '' };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -303,9 +313,7 @@ export function AuthForm() {
                     required
                     value={signInData.email}
                     onChange={(e) => setSignInData(prev => ({ ...prev, email: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                      fieldErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    className={getInputClasses(!!fieldErrors.email)}
                     placeholder="ejemplo@correo.com"
                   />
                   {fieldErrors.email && (
@@ -323,9 +331,7 @@ export function AuthForm() {
                     required
                     value={signInData.password}
                     onChange={(e) => setSignInData(prev => ({ ...prev, password: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                      fieldErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    className={getInputClasses(!!fieldErrors.password)}
                     placeholder="Ingresa tu contraseña"
                   />
                   {fieldErrors.password && (
@@ -381,9 +387,7 @@ export function AuthForm() {
                       required
                       value={signUpData.given_name}
                       onChange={(e) => setSignUpData(prev => ({ ...prev, given_name: e.target.value }))}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                        fieldErrors.given_name ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
+                      className={getInputClasses(!!fieldErrors.given_name)}
                       placeholder="Tu nombre"
                     />
                     {fieldErrors.given_name && (
@@ -401,9 +405,7 @@ export function AuthForm() {
                       required
                       value={signUpData.family_name}
                       onChange={(e) => setSignUpData(prev => ({ ...prev, family_name: e.target.value }))}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                        fieldErrors.family_name ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                      }`}
+                      className={getInputClasses(!!fieldErrors.family_name)}
                       placeholder="Tu apellido"
                     />
                     {fieldErrors.family_name && (
@@ -422,9 +424,7 @@ export function AuthForm() {
                     required
                     value={signUpData.email}
                     onChange={(e) => setSignUpData(prev => ({ ...prev, email: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                      fieldErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    className={getInputClasses(!!fieldErrors.email)}
                     placeholder="ejemplo@correo.com"
                   />
                   {fieldErrors.email && (
@@ -442,9 +442,7 @@ export function AuthForm() {
                     required
                     value={signUpData.password}
                     onChange={(e) => setSignUpData(prev => ({ ...prev, password: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                      fieldErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    className={getInputClasses(!!fieldErrors.password)}
                     placeholder="Mínimo 8 caracteres"
                   />
                   {fieldErrors.password && (
@@ -486,9 +484,7 @@ export function AuthForm() {
                     required
                     value={signUpData.confirm_password}
                     onChange={(e) => setSignUpData(prev => ({ ...prev, confirm_password: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                      fieldErrors.confirm_password ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                    }`}
+                    className={getInputClasses(!!fieldErrors.confirm_password)}
                     placeholder="Confirma tu contraseña"
                   />
                   {fieldErrors.confirm_password && (
@@ -533,9 +529,7 @@ export function AuthForm() {
                   maxLength={6}
                   value={confirmationCode}
                   onChange={(e) => setConfirmationCode(e.target.value.replace(/\D/g, ''))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 text-center text-lg tracking-widest ${
-                    fieldErrors.confirmationCode ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={getConfirmationInputClasses(!!fieldErrors.confirmationCode)}
                   placeholder="000000"
                 />
                 {fieldErrors.confirmationCode && (
@@ -579,9 +573,7 @@ export function AuthForm() {
                   required
                   value={forgotPasswordData.email}
                   onChange={(e) => setForgotPasswordData(prev => ({ ...prev, email: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.email ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={getInputClasses(!!fieldErrors.email)}
                   placeholder="ejemplo@correo.com"
                 />
                 {fieldErrors.email && (
@@ -626,9 +618,7 @@ export function AuthForm() {
                     ...prev, 
                     confirmation_code: e.target.value.replace(/\D/g, '') 
                   }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 text-center text-lg tracking-widest ${
-                    fieldErrors.confirmation_code ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={getConfirmationInputClasses(!!fieldErrors.confirmation_code)}
                   placeholder="000000"
                 />
                 {fieldErrors.confirmation_code && (
@@ -649,9 +639,7 @@ export function AuthForm() {
                   required
                   value={resetPasswordData.password}
                   onChange={(e) => setResetPasswordData(prev => ({ ...prev, password: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.password ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={getInputClasses(!!fieldErrors.password)}
                   placeholder="Mínimo 8 caracteres"
                 />
                 {fieldErrors.password && (
@@ -693,9 +681,7 @@ export function AuthForm() {
                   required
                   value={resetPasswordData.confirm_password}
                   onChange={(e) => setResetPasswordData(prev => ({ ...prev, confirm_password: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent transition-all duration-300 ${
-                    fieldErrors.confirm_password ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
+                  className={getInputClasses(!!fieldErrors.confirm_password)}
                   placeholder="Confirma tu nueva contraseña"
                 />
                 {fieldErrors.confirm_password && (
