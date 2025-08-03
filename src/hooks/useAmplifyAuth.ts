@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { getCurrentUser, fetchAuthSession, signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
+import { logger } from '../utils/logger';
+import { SecurityValidator, type SecurityValidationResult } from '../lib/security-validator';
 
 export type UserType = 'provider' | 'consumer';
 
@@ -12,6 +14,7 @@ export interface AmplifyAuthUser {
   email?: string;
   userType: UserType;
   signInDetails: any;
+  securityValidation: SecurityValidationResult;
 }
 
 export interface UseAmplifyAuthReturn {
@@ -21,6 +24,7 @@ export interface UseAmplifyAuthReturn {
   userType: UserType | null;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  hasPermission: (operation: string, resource: string) => boolean;
 }
 
 /**
@@ -38,33 +42,42 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
       
       // 1. Verificar si hay usuario autenticado usando getCurrentUser
       const currentUser = await getCurrentUser();
-      console.log('✅ Usuario encontrado:', currentUser);
+      logger.auth('Usuario encontrado', 'getCurrentUser');
       
       // 2. Obtener atributos del usuario (incluye email y custom attributes)
       const userAttributes = await fetchUserAttributes();
-      console.log('📋 Atributos del usuario:', userAttributes);
+      logger.auth('Atributos obtenidos', 'fetchUserAttributes');
       
       // 3. Obtener sesión (incluye tokens) - Amplify maneja refresh automáticamente
       const session = await fetchAuthSession();
-      console.log('🔐 Sesión obtenida - tokens:', !!session.tokens);
+      logger.auth('Sesión obtenida', 'fetchAuthSession');
       
-      // 4. Extraer userType de los claims del ID token
-      const userType = (session.tokens?.idToken?.payload['custom:user_type'] as UserType) || 'consumer';
+      // 4. Validar ID Token y extraer claims de forma segura
+      const securityValidation = SecurityValidator.validateIdToken(session.tokens?.idToken);
       
-      // 5. Construir objeto de usuario
+      if (!securityValidation.isValid) {
+        logger.error('Token validation failed', { 
+          errors: securityValidation.errors,
+          warnings: securityValidation.warnings 
+        });
+        throw new Error(`Token inválido: ${securityValidation.errors.join(', ')}`);
+      }
+      
+      // 5. Construir objeto de usuario con validaciones de seguridad
       const amplifyUser: AmplifyAuthUser = {
-        userId: currentUser.userId,
+        userId: securityValidation.userId,
         username: currentUser.username,
         email: userAttributes.email,
-        userType,
-        signInDetails: currentUser.signInDetails
+        userType: securityValidation.userType,
+        signInDetails: currentUser.signInDetails,
+        securityValidation
       };
       
       setUser(amplifyUser);
-      console.log('✅ Usuario configurado:', amplifyUser);
+      logger.auth('Usuario configurado exitosamente', 'refreshUser');
       
     } catch (error) {
-      console.log('ℹ️ Usuario no autenticado:', error);
+      logger.auth('Usuario no autenticado', 'refreshUser');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -73,13 +86,12 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
 
   const handleSignOut = async () => {
     try {
-      console.log('👋 Cerrando sesión...');
+      logger.auth('Cerrando sesión...', 'signOut');
       await signOut();
       setUser(null);
-      console.log('✅ Sesión cerrada');
-      // No necesitamos hacer redirect manual - Hub events lo manejarán
+      logger.auth('Sesión cerrada exitosamente', 'signOut');
     } catch (error) {
-      console.error('❌ Error al cerrar sesión:', error);
+      logger.error('Error al cerrar sesión', { error: error instanceof Error ? error.message : 'Unknown error' });
     }
   };
 
@@ -89,40 +101,38 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
     refreshUser();
 
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
-      console.log('🔔 useAmplifyAuth: Auth event received:', payload.event);
+      logger.auth(`Auth event received: ${payload.event}`, 'HubListener');
       
       switch (payload.event) {
         case 'signInWithRedirect':
-          console.log('✅ OAuth sign-in completed');
+          logger.auth('OAuth sign-in completed', 'signInWithRedirect');
           refreshUser();
           break;
           
         case 'signInWithRedirect_failure':
-          console.error('❌ OAuth sign-in failed:', payload.data);
+          logger.error('OAuth sign-in failed', { event: payload.event });
           setUser(null);
           setIsLoading(false);
           break;
           
         case 'signedIn':
-          console.log('✅ User signed in');
+          logger.auth('User signed in', 'signedIn');
           refreshUser();
           break;
           
         case 'signedOut':
-          console.log('👋 User signed out');
+          logger.auth('User signed out', 'signedOut');
           setUser(null);
           setIsLoading(false);
           break;
           
         case 'tokenRefresh':
-          console.log('🔄 Tokens refreshed by Amplify');
-          // No necesitamos hacer nada - Amplify ya manejó el refresh
+          logger.auth('Tokens refreshed by Amplify', 'tokenRefresh');
           refreshUser();
           break;
           
         case 'tokenRefresh_failure':
-          console.warn('❌ Token refresh failed');
-          // Amplify manejará esto automáticamente
+          logger.warn('Token refresh failed', { event: payload.event });
           break;
       }
     });
@@ -130,12 +140,19 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
     return () => unsubscribe();
   }, []);
 
+  // Función para validar permisos usando la matriz de permisos
+  const hasPermission = (operation: string, resource: string): boolean => {
+    if (!user?.userType) return false;
+    return SecurityValidator.validateOperation(user.userType, `${operation}:${resource}`);
+  };
+
   return {
     user,
     isLoading,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && user.securityValidation?.isValid,
     userType: user?.userType || null,
     signOut: handleSignOut,
     refreshUser,
+    hasPermission,
   };
 }

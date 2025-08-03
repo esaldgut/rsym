@@ -9,15 +9,7 @@ Amplify.configure(outputs, {
   ssr: true
 });
 
-// Debug logging para verificar configuración OAuth
-if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-  console.log('🔍 Amplify OAuth Config Debug:', {
-    oauth: outputs.auth.oauth,
-    identityProviders: outputs.auth.oauth.identity_providers,
-    domain: outputs.auth.oauth.domain,
-    scopes: outputs.auth.oauth.scopes
-  });
-}
+// Debug logging removido para producción - información sensible
 
 export function ConfigureAmplifyClientSide() {
   return null;

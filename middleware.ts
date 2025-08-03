@@ -5,11 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Amplify v6 gestiona completamente la autenticación
  */
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-  
-  // Solo logging básico, sin verificación de autenticación
-  console.log(`[Middleware] ${request.method} ${pathname}`);
-  
+  // Sin logging en producción por seguridad
   return NextResponse.next();
 }
 

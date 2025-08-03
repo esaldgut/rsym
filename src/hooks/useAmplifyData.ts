@@ -2,6 +2,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { generateClient } from 'aws-amplify/data';
+import { logger } from '../utils/logger';
+import { canExecuteGraphQLOperation } from '../lib/permission-matrix';
+import { useAmplifyAuth } from './useAmplifyAuth';
 import type {
   MarketplaceFeed,
   Circuit,
@@ -16,8 +19,11 @@ import type {
 const client = generateClient();
 
 // Función helper para manejar errores GraphQL
-function handleGraphQLError(error: any) {
-  console.error('GraphQL Error Details:', error);
+function handleGraphQLError(error: any, operation: string) {
+  logger.error(`GraphQL error in ${operation}`, { 
+    errorType: error?.errors?.[0]?.errorType,
+    message: error?.message 
+  });
   
   if (error?.errors) {
     const firstError = error.errors[0];
@@ -37,11 +43,18 @@ function handleGraphQLError(error: any) {
   throw new Error(error?.message || 'Error desconocido en la API');
 }
 
-// Hook para marketplace feed con manejo robusto de errores
+// Hook para marketplace feed con validación de permisos
 export function useMarketplaceFeed() {
+  const { userType } = useAmplifyAuth();
+  
   return useQuery({
     queryKey: ['marketplace', 'feed'],
     queryFn: async () => {
+      // Validar permisos antes de ejecutar la query
+      if (!userType || !canExecuteGraphQLOperation(userType, 'getAllMarketplaceFeed')) {
+        throw new Error('Sin permisos para acceder al marketplace');
+      }
+      
       try {
         const result = await client.graphql({
           query: `
@@ -72,16 +85,17 @@ export function useMarketplaceFeed() {
           `
         });
         
-        console.log('Marketplace data received:', result.data);
+        logger.graphql('getAllMarketplaceFeed', true);
         return result.data.getAllMarketplaceFeed as MarketplaceFeed[];
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('getAllMarketplaceFeed', false);
+        handleGraphQLError(error, 'getAllMarketplaceFeed');
         return [];
       }
     },
     staleTime: 5 * 60 * 1000,
     retry: (failureCount, error: any) => {
-      console.log(`Retry attempt ${failureCount} for marketplace feed:`, error);
+      logger.debug(`Retry attempt ${failureCount} for marketplace feed`, { error: error?.message });
       
       // No reintentar errores de autorización
       if (error?.message?.includes('autorizado')) {
@@ -135,10 +149,11 @@ export function useActiveCircuits() {
           `
         });
         
-        console.log('Circuits data received:', result.data);
+        logger.graphql('getAllActiveCircuits', true);
         return result.data.getAllActiveCircuits as Circuit[];
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('getAllActiveCircuits', false);
+        handleGraphQLError(error, 'getAllActiveCircuits');
         return [];
       }
     },
@@ -205,10 +220,11 @@ export function useActivePackages() {
           `
         });
         
-        console.log('Packages data received:', result.data);
+        logger.graphql('getAllActivePackages', true);
         return result.data.getAllActivePackages as Package[];
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('getAllActivePackages', false);
+        handleGraphQLError(error, 'getAllActivePackages');
         return [];
       }
     },
@@ -266,10 +282,11 @@ export function useActiveMoments() {
           `
         });
         
-        console.log('Moments data received:', result.data);
+        logger.graphql('getAllActiveMoments', true);
         return result.data.getAllActiveMoments as Moment[];
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('getAllActiveMoments', false);
+        handleGraphQLError(error, 'getAllActiveMoments');
         return [];
       }
     },
@@ -317,19 +334,20 @@ export function useCreateMoment() {
           variables: { input }
         });
         
-        console.log('Moment created:', result.data);
+        logger.graphql('createMoment', true);
         return result.data.createMoment as Moment;
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('createMoment', false);
+        handleGraphQLError(error, 'createMoment');
         throw error;
       }
     },
     onSuccess: () => {
-      console.log('Moment creado exitosamente');
+      logger.info('Moment creado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['moments', 'active'] });
     },
     onError: (error) => {
-      console.error('Error en mutación createMoment:', error);
+      logger.error('Error en mutación createMoment', { error: error instanceof Error ? error.message : 'Unknown error' });
     },
   });
 }
@@ -354,20 +372,21 @@ export function useToggleLike() {
           variables: { item_id, item_type }
         });
         
-        console.log('Like toggled:', result.data);
+        logger.graphql('toggleLike', true);
         return result.data.toggleLike;
       } catch (error) {
-        handleGraphQLError(error);
+        logger.graphql('toggleLike', false);
+        handleGraphQLError(error, 'toggleLike');
         throw error;
       }
     },
     onSuccess: (data) => {
-      console.log('Like actualizado:', data);
+      logger.info('Like actualizado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['moments', 'active'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace', 'feed'] });
     },
     onError: (error) => {
-      console.error('Error en like:', error);
+      logger.error('Error en toggle like', { error: error instanceof Error ? error.message : 'Unknown error' });
     },
   });
 }
