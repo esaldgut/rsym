@@ -1,7 +1,9 @@
 'use client';
 
 import React, { createContext, useContext } from 'react';
-import { useAuth, UserType } from '../hooks/useAuth';
+import { useAmplifyAuth } from '../hooks/useAmplifyAuth';
+
+export type UserType = 'provider' | 'consumer';
 
 interface UserTypeContextType {
   userType: UserType | null;
@@ -13,7 +15,7 @@ interface UserTypeContextType {
 const UserTypeContext = createContext<UserTypeContextType | undefined>(undefined);
 
 export function UserTypeProvider({ children }: { children: React.ReactNode }) {
-  const { userType, isLoading } = useAuth();
+  const { userType, isLoading } = useAmplifyAuth();
 
   const value: UserTypeContextType = {
     userType,

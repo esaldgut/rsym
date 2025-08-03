@@ -2,8 +2,9 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../hooks/useAuth';
-import { UserType } from '../hooks/useAuth';
+import { useAmplifyAuth } from '../hooks/useAmplifyAuth';
+
+export type UserType = 'provider' | 'consumer';
 
 interface UseProviderGuardOptions {
   redirectTo?: string;
@@ -12,7 +13,7 @@ interface UseProviderGuardOptions {
 
 export function useProviderGuard(options: UseProviderGuardOptions = {}) {
   const { redirectTo = '/dashboard', onUnauthorized } = options;
-  const { isAuthenticated, isLoading, userType } = useAuth();
+  const { isAuthenticated, isLoading, userType } = useAmplifyAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -37,7 +38,7 @@ export function useProviderGuard(options: UseProviderGuardOptions = {}) {
 }
 
 export function useAuthGuard(requiredUserType?: UserType) {
-  const { isAuthenticated, isLoading, userType } = useAuth();
+  const { isAuthenticated, isLoading, userType } = useAmplifyAuth();
   const router = useRouter();
 
   useEffect(() => {

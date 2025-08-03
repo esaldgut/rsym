@@ -1,12 +1,12 @@
 'use client';
 
-import { useAuth } from '../../hooks/useAuth';
+import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { AuthSecurityWrapper } from '../../components/auth/AuthSecurityWrapper';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function ProviderPage() {
-  const { isAuthenticated, isLoading, user, signOut, userType } = useAuth();
+  const { isAuthenticated, isLoading, user, signOut, userType } = useAmplifyAuth();
   const searchParams = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
 

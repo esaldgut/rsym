@@ -2,6 +2,8 @@ import { generateClient } from 'aws-amplify/api';
 import { GraphQLResult } from '@aws-amplify/api-graphql';
 
 // Cliente GraphQL para operaciones client-side
+// CRÍTICO: Este cliente usará ID Token gracias a la configuración authTokenType en amplify-client-config.tsx
+// Esto permite que los resolvers AppSync accedan a identity claims del usuario
 export const graphqlClient = generateClient();
 
 // Tipo base para operaciones GraphQL

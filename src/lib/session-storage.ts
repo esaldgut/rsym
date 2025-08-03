@@ -3,7 +3,7 @@
  * Handles local storage, cookies, and session persistence securely
  */
 
-import { UserType } from '../hooks/useAuth';
+export type UserType = 'provider' | 'consumer';
 
 // Storage keys
 const STORAGE_KEYS = {

@@ -4,6 +4,7 @@ import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/da
 import { cookies } from 'next/headers';
 import outputs from '../../amplify/outputs.json';
 
+// CRÍTICO: Usar outputs directamente según documentación oficial Amplify v6
 // Server runner para operaciones de autenticación
 export const { runWithAmplifyServerContext } = createServerRunner({
   config: outputs,
@@ -12,18 +13,18 @@ export const { runWithAmplifyServerContext } = createServerRunner({
 // Cliente GraphQL con cookies para SSR
 export const cookiesClient = generateServerClientUsingCookies({
   config: outputs,
-  cookies,
+  cookies: cookies,
   authMode: "userPool",
 });
 
 export const idToken = async () =>
   await runWithAmplifyServerContext({
-    nextServerContext: { cookies },
+    nextServerContext: { cookies: cookies() },
     async operation(contextSpec) {
       try {
-        const idToken = await fetchAuthSession(contextSpec);
-        const userName = idToken.tokens?.idToken?.payload.preferred_username;
-        const token = idToken.tokens?.idToken?.toString();
+        const session = await fetchAuthSession(contextSpec);
+        const userName = session.tokens?.idToken?.payload.preferred_username;
+        const token = session.tokens?.idToken?.toString();
         console.log(userName, token);
         if (!token || !userName) throw new Error("No token or username");
         return { token, userName };

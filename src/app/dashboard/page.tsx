@@ -1,13 +1,13 @@
 'use client';
 
-import { useAuth } from '../../hooks/useAuth';
+import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { DashboardContent } from '../../components/dashboard/DashboardContent';
 import { AuthSecurityWrapper } from '../../components/auth/AuthSecurityWrapper';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading, user, signOut, userType } = useAuth();
+  const { isAuthenticated, isLoading, user, signOut, userType } = useAmplifyAuth();
   const searchParams = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -31,7 +31,11 @@ export default function DashboardPage() {
     }
   }, [searchParams]);
 
-  // El middleware ya maneja la redirección, pero mantenemos esto como fallback
+  // El middleware ya maneja la redirección de usuarios no autenticados
+  // No duplicar lógica de redirect aquí para evitar conflictos
+  // Hub.listen en OAuthHandler maneja los eventos de autenticación
+
+  // Mostrar loading mientras se verifica el estado de autenticación
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -43,16 +47,11 @@ export default function DashboardPage() {
     );
   }
 
-  // Este caso no debería ocurrir con el middleware, pero es un fallback de seguridad
+  // Si no está autenticado, el middleware lo redirigirá automáticamente
+  // Este código solo se ejecuta si hay un problema con el middleware
   if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="text-gray-600 mb-4">Redirigiendo a inicio de sesión...</p>
-          <div className="animate-pulse bg-gray-300 h-4 w-32 rounded mx-auto"></div>
-        </div>
-      </div>
-    );
+    console.warn('⚠️ Dashboard: Usuario no autenticado - el middleware debería haber redirigido');
+    return null;
   }
 
   return (

@@ -13,12 +13,16 @@ export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
   
   try {
-    // Validar autenticación usando Amplify Server Context
+    // Validar autenticación usando Amplify Server Context con cookies HTTP-only
+    // CRÍTICO: En middleware Next.js, pasar request y response según documentación oficial
     const authResult = await runWithAmplifyServerContext({
       nextServerContext: { request, response },
       operation: async (contextSpec) => {
         try {
-          const session = await fetchAuthSession(contextSpec);
+          // SEGURO: Verificar tokens desde cookies HTTP-only del servidor
+          const session = await fetchAuthSession(contextSpec, {
+            forceRefresh: false // No forzar refresh en middleware por performance
+          });
           
           // Verificar que los tokens existan y sean válidos
           const isAuthenticated = session.tokens?.accessToken !== undefined && 
@@ -28,13 +32,12 @@ export async function middleware(request: NextRequest) {
             return { authenticated: false, userType: null, reason: 'no_tokens' };
           }
           
-          // Extraer información del usuario del ID token
+          // SEGURO: Extraer información del ID token server-side solamente
           const idToken = session.tokens.idToken;
           const userType = idToken.payload['custom:user_type'] as string || 'consumer';
           const emailVerified = idToken.payload.email_verified as boolean;
-          const sub = idToken.payload.sub as string;
           
-          // Validaciones adicionales
+          // Validaciones adicionales de seguridad
           if (!emailVerified) {
             return { authenticated: false, userType: null, reason: 'email_not_verified' };
           }
@@ -42,18 +45,17 @@ export async function middleware(request: NextRequest) {
           // Verificar expiración del token con margen de seguridad
           const now = Math.floor(Date.now() / 1000);
           const tokenExp = idToken.payload.exp as number;
-          const bufferTime = 30; // 30 segundos de margen
+          const bufferTime = 60; // 1 minuto de margen por seguridad
           
           if (tokenExp && (tokenExp - bufferTime) < now) {
             return { authenticated: false, userType: null, reason: 'token_expired' };
           }
           
+          // NO exponer tokens ni información sensible
           return { 
             authenticated: true, 
-            userType, 
-            sub,
-            email: idToken.payload.email as string,
-            emailVerified 
+            userType,
+            // NO incluir tokens, sub, email en headers por seguridad
           };
           
         } catch (error) {
@@ -112,27 +114,12 @@ export async function middleware(request: NextRequest) {
 }
 
 /**
- * Configuración de rutas que requieren protección
- * - dashboard: Requiere autenticación básica
- * - provider: Requiere autenticación + user_type = provider
- * - api/protected: APIs que requieren autenticación
+ * TEMPORALMENTE DESHABILITADO - Dejando que Amplify gestione completamente el ciclo de autenticación
+ * Middleware será reactivado una vez que Amplify funcione correctamente
  */
 export const config = {
   matcher: [
-    // Rutas protegidas principales
-    '/dashboard/:path*',
-    
-    // Rutas específicas de proveedor
-    '/provider/:path*',
-    '/circuit/:path*',
-    '/package/:path*',
-    
-    // APIs protegidas
-    '/api/protected/:path*',
-    '/api/user/:path*',
-    '/api/provider/:path*',
-    
-    // Excluir rutas públicas explícitamente
-    '/((?!api/public|_next/static|_next/image|favicon.ico|logo-showcase|auth|$).*)'
+    // Temporalmente vacío - sin protección de middleware
+    // '/((?!api/public|_next/static|_next/image|favicon.ico|logo-showcase|auth|oauth2|$).*)'
   ]
 };

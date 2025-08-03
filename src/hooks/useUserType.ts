@@ -1,9 +1,9 @@
 'use client';
 
-import { useAuth } from './useAuth';
+import { useAmplifyAuth } from './useAmplifyAuth';
 
 export function useUserType() {
-  const { userType, isLoading } = useAuth();
+  const { userType, isLoading } = useAmplifyAuth();
 
   return {
     userType,

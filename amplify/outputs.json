@@ -5,7 +5,7 @@
     "aws_region": "us-west-2",
     "user_pool_id": "us-west-2_S0R408BOa",
     "user_pool_client_id": "pi3jecnooc25adjrdrj5m80it",
-    "identity_pool_id": "us-west-2:0358ca3d-88d4-4afa-9fce-f9da345d71e5",
+    "identity_pool_id": "us-west-2:718d9fcf-0e50-4956-8118-1697f0b26c82",
     "password_policy": {
       "min_length": 8,
       "require_numbers": true,
@@ -77,7 +77,7 @@
       "identity_providers": ["GOOGLE", "Apple", "Facebook"],
       "domain": "auth.yaan.com.mx",
       "scopes": ["email", "openid", "profile"],
-      "redirect_sign_in": "http://localhost:3000/auth,https://yaan.com.mx/auth",
+      "redirect_sign_in": "http://localhost:3000/oauth2/idpresponse,https://yaan.com.mx/oauth2/idpresponse",
       "redirect_sign_out": "http://localhost:3000/,https://yaan.com.mx/",
       "response_type": "code"
     },

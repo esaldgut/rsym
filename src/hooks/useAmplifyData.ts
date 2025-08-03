@@ -11,6 +11,8 @@ import type {
 } from '../types/graphql';
 
 // Cliente GraphQL con configuración robusta
+// CRÍTICO: Este cliente usará ID Token gracias a la configuración authTokenType
+// Los resolvers AppSync podrán acceder a identity claims como sub, email, custom:user_type, etc.
 const client = generateClient();
 
 // Función helper para manejar errores GraphQL

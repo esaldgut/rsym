@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../../hooks/useAuth';
+import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { useRouter, usePathname } from 'next/navigation';
 import YaanLogo from '../ui/YaanLogo';
 
 export const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated, signOut } = useAuth();
+  const { isAuthenticated, signOut } = useAmplifyAuth();
   const router = useRouter();
   const pathname = usePathname();
 

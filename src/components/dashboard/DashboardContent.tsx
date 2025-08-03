@@ -11,7 +11,7 @@ import {
 } from '../../hooks/useAmplifyData';
 import { StorageImage } from '../../components/StorageImage';
 import { LocationDescription } from './LocationDescription';
-import { UserType } from '../../hooks/useAuth';
+export type UserType = 'provider' | 'consumer';
 import { CreateCircuitForm } from '../provider/CreateCircuitForm';
 import { CreatePackageForm } from '../provider/CreatePackageForm';
 

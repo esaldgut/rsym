@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useAuth } from '../hooks/useAuth';
+import { useAmplifyAuth } from '../hooks/useAmplifyAuth';
 import YaanLogo from '../components/ui/YaanLogo';
 
 export default function HomePage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAmplifyAuth();
   const [scrollY, setScrollY] = useState(0);
   
   useEffect(() => {

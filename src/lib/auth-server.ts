@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { fetchAuthSession } from 'aws-amplify/auth/server';
 import { runWithAmplifyServerContext } from './amplify-server-utils';
-import { UserType } from '../hooks/useAuth';
+export type UserType = 'provider' | 'consumer';
 
 /**
  * Tipos para la autenticación del servidor

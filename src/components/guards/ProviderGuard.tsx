@@ -1,7 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
-import { useAuth } from '../../hooks/useAuth';
+import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 
 interface ProviderGuardProps {
   children: ReactNode;
@@ -9,7 +9,7 @@ interface ProviderGuardProps {
 }
 
 export function ProviderGuard({ children, fallback }: ProviderGuardProps) {
-  const { userType, isLoading } = useAuth();
+  const { userType, isLoading } = useAmplifyAuth();
 
   if (isLoading) {
     return (
