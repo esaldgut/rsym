@@ -74,10 +74,10 @@ export function DashboardContent({ userType }: DashboardContentProps) {
   };
 
   const tabs = [
-    { id: 'marketplace', label: 'Marketplace', count: marketplaceData !== null ? marketplaceData.length : 0 },
-    { id: 'circuits', label: 'Circuitos', count: circuitsData !== null ? circuitsData.length : 0 },
-    { id: 'packages', label: 'Paquetes', count: packagesData !== null ? packagesData.length : 0 },
-    { id: 'moments', label: 'Momentos', count: momentsData !== null ? momentsData.length : 0 },
+    { id: 'marketplace', label: 'Marketplace', count: marketplaceData?.length ?? 0 },
+    { id: 'circuits', label: 'Circuitos', count: circuitsData?.length ?? 0 },
+    { id: 'packages', label: 'Paquetes', count: packagesData?.length ?? 0 },
+    { id: 'moments', label: 'Momentos', count: momentsData?.length ?? 0 },
     ...(isProvider ? [
       { id: 'my-circuits', label: 'Mis Circuitos', count: 0 },
       { id: 'my-packages', label: 'Mis Paquetes', count: 0 },
@@ -90,7 +90,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
         if (isLoadingMarketplace) return <LoadingSpinner />;
         if (marketplaceError) return <ErrorMessage error={marketplaceError} onRetry={() => refetchMarketplace()} />;
         
-        if (marketplaceData.length === 0) {
+        if (!marketplaceData || marketplaceData.length === 0) {
           return (
             <div className="text-center py-12">
               <p className="text-gray-500">No hay elementos en el marketplace</p>
@@ -150,7 +150,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
       case 'circuits':
         if (isLoadingCircuits) return <LoadingSpinner />;
         
-        if (circuitsData.length === 0) {
+        if (!circuitsData || circuitsData.length === 0) {
           return (
             <div className="text-center py-12">
               <p className="text-gray-500">No hay circuitos disponibles</p>
@@ -197,7 +197,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
       case 'packages':
         if (isLoadingPackages) return <LoadingSpinner />;
         
-        if (packagesData.length === 0) {
+        if (!packagesData || packagesData.length === 0) {
           return (
             <div className="text-center py-12">
               <p className="text-gray-500">No hay paquetes disponibles</p>
@@ -270,7 +270,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
               </button>
             </div>
             
-            {momentsData.length === 0 ? (
+            {!momentsData || momentsData.length === 0 ? (
               <div className="text-center py-12">
                 <p className="text-gray-500">No hay momentos disponibles</p>
                 <p className="text-sm text-gray-400 mt-1">
