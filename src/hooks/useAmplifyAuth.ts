@@ -13,7 +13,7 @@ export interface AmplifyAuthUser {
   username: string;
   email?: string;
   userType: UserType;
-  signInDetails: any;
+  signInDetails: Record<string, unknown>;
   securityValidation: SecurityValidationResult;
 }
 
@@ -76,7 +76,7 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
       setUser(amplifyUser);
       logger.auth('Usuario configurado exitosamente', 'refreshUser');
       
-    } catch (error) {
+    } catch {
       logger.auth('Usuario no autenticado', 'refreshUser');
       setUser(null);
     } finally {

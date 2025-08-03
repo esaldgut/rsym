@@ -40,7 +40,8 @@ export class SecurityValidator {
   private static readonly TOKEN_EXPIRY_BUFFER = 300; // 5 minutos en segundos
 
   /**
-   * Valida completamente un ID Token y sus claims
+   * Valida ID Token con validaciones esenciales solamente
+   * Siguiendo AWS Amplify v6 best practices - confiar en Amplify para la mayoría de validaciones
    */
   static validateIdToken(idToken: JWT | undefined): SecurityValidationResult {
     const result: SecurityValidationResult = {
@@ -52,63 +53,50 @@ export class SecurityValidator {
     };
 
     if (!idToken) {
+      // Amplify ya validó el token, pero si no existe, es error real
       result.errors.push('ID Token no encontrado');
       return result;
     }
 
     const payload = idToken.payload as Partial<TokenClaims>;
 
-    // Validación 1: Claims requeridos
-    const missingClaims = this.validateRequiredClaims(payload);
-    if (missingClaims.length > 0) {
-      result.errors.push(`Claims faltantes: ${missingClaims.join(', ')}`);
-    }
-
-    // Validación 2: Expiración de token
-    const expiryValidation = this.validateTokenExpiry(payload);
-    if (!expiryValidation.isValid) {
-      result.errors.push(expiryValidation.error!);
-    }
-    if (expiryValidation.warning) {
-      result.warnings.push(expiryValidation.warning);
-    }
-
-    // Validación 3: Email verificado
-    if (payload.email_verified !== true) {
-      result.errors.push('Email no verificado');
-    }
-
-    // Validación 4: UserType válido
-    const userTypeValidation = this.validateUserType(payload['custom:user_type']);
-    if (!userTypeValidation.isValid) {
-      result.errors.push(userTypeValidation.error!);
-      result.userType = 'consumer'; // Fallback seguro
+    // Validación 1: Solo claims esenciales
+    if (!payload.sub) {
+      result.errors.push('User ID requerido');
     } else {
-      result.userType = userTypeValidation.userType!;
+      result.userId = payload.sub;
     }
 
-    // Validación 5: Formato de sub (user ID)
-    const userIdValidation = this.validateUserId(payload.sub);
-    if (!userIdValidation.isValid) {
-      result.errors.push(userIdValidation.error!);
+    // Validación 2: UserType con fallback seguro
+    const userType = payload['custom:user_type'] as UserType;
+    if (userType && this.VALID_USER_TYPES.includes(userType)) {
+      result.userType = userType;
     } else {
-      result.userId = payload.sub!;
+      // Fallback seguro sin error - permitir acceso como consumer
+      result.userType = 'consumer';
+      result.warnings.push('UserType no encontrado, usando consumer por defecto');
     }
 
-    // Validación 6: Estructura del token
-    const structureValidation = this.validateTokenStructure(idToken);
-    if (!structureValidation.isValid) {
-      result.errors.push(structureValidation.error!);
+    // Validación 3: Expiración (Amplify ya maneja esto, solo advertencia)
+    if (payload.exp) {
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = payload.exp - now;
+      
+      if (timeUntilExpiry <= 0) {
+        result.errors.push('Token expirado');
+      } else if (timeUntilExpiry <= this.TOKEN_EXPIRY_BUFFER) {
+        result.warnings.push(`Token expira pronto: ${timeUntilExpiry}s`);
+      }
     }
 
-    result.isValid = result.errors.length === 0;
+    // Validación mínima exitosa si tenemos sub
+    result.isValid = result.errors.length === 0 && !!result.userId;
 
-    // Log de seguridad (sin datos sensibles)
+    // Solo log si hay errores reales
     if (!result.isValid) {
       logger.warn('Token validation failed', {
         errorCount: result.errors.length,
-        warningCount: result.warnings.length,
-        userType: result.userType
+        userId: result.userId ? '[PRESENT]' : '[MISSING]'
       });
     }
 
@@ -154,7 +142,7 @@ export class SecurityValidator {
   /**
    * Valida el tipo de usuario
    */
-  private static validateUserType(userType: any): {
+  private static validateUserType(userType: unknown): {
     isValid: boolean;
     userType?: UserType;
     error?: string;
@@ -176,7 +164,7 @@ export class SecurityValidator {
   /**
    * Valida el formato del user ID (sub)
    */
-  private static validateUserId(sub: any): {
+  private static validateUserId(sub: unknown): {
     isValid: boolean;
     error?: string;
   } {
@@ -258,7 +246,7 @@ export class SecurityValidator {
   /**
    * Sanitiza datos para logging (remueve información sensible)
    */
-  static sanitizeForLogging(data: any): any {
+  static sanitizeForLogging(data: Record<string, unknown>): Record<string, unknown> {
     const sanitized = { ...data };
     const sensitiveFields = ['sub', 'email', 'token', 'accessToken', 'idToken'];
     

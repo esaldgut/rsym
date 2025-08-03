@@ -12,7 +12,7 @@ export function StorageImage({
   className?: string;
   fallbackSrc?: string;
 }) {
-  const { url, isLoading, error } = useStorageUrl(path);
+  const { url, isLoading } = useStorageUrl(path);
 
   if (isLoading) {
     return (
@@ -21,6 +21,7 @@ export function StorageImage({
   }
 
   return (
+    // eslint-disable-next-line @next/next/no-img-element
     <img 
       src={url || fallbackSrc}
       alt={alt}

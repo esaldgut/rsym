@@ -19,14 +19,16 @@ import type {
 const client = generateClient();
 
 // Función helper para manejar errores GraphQL
-function handleGraphQLError(error: any, operation: string) {
+function handleGraphQLError(error: unknown, operation: string) {
+  const err = error as { errors?: Array<{ errorType?: string; message?: string }>; name?: string; message?: string };
+  
   logger.error(`GraphQL error in ${operation}`, { 
-    errorType: error?.errors?.[0]?.errorType,
-    message: error?.message 
+    errorType: err?.errors?.[0]?.errorType,
+    message: err?.message 
   });
   
-  if (error?.errors) {
-    const firstError = error.errors[0];
+  if (err?.errors) {
+    const firstError = err.errors[0];
     if (firstError?.errorType === 'Unauthorized') {
       throw new Error('No autorizado. Verifica tu sesión.');
     }
@@ -36,11 +38,11 @@ function handleGraphQLError(error: any, operation: string) {
     throw new Error(firstError?.message || 'Error en la API GraphQL');
   }
   
-  if (error?.name === 'NetworkError') {
+  if (err?.name === 'NetworkError') {
     throw new Error('Error de red. Verifica tu conexión.');
   }
   
-  throw new Error(error?.message || 'Error desconocido en la API');
+  throw new Error(err?.message || 'Error desconocido en la API');
 }
 
 // Hook para marketplace feed con validación de permisos
@@ -94,7 +96,7 @@ export function useMarketplaceFeed() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error) => {
       logger.debug(`Retry attempt ${failureCount} for marketplace feed`, { error: error?.message });
       
       // No reintentar errores de autorización
@@ -158,7 +160,7 @@ export function useActiveCircuits() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error) => {
       if (error?.message?.includes('autorizado') || 
           error?.message?.includes('CORS') || 
           error?.message?.includes('Network')) {
@@ -229,7 +231,7 @@ export function useActivePackages() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error) => {
       if (error?.message?.includes('autorizado') || 
           error?.message?.includes('CORS') || 
           error?.message?.includes('Network')) {
@@ -291,7 +293,7 @@ export function useActiveMoments() {
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: (failureCount, error: any) => {
+    retry: (failureCount, error: Error) => {
       if (error?.message?.includes('autorizado') || 
           error?.message?.includes('CORS') || 
           error?.message?.includes('Network')) {
@@ -380,7 +382,7 @@ export function useToggleLike() {
         throw error;
       }
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       logger.info('Like actualizado exitosamente');
       queryClient.invalidateQueries({ queryKey: ['moments', 'active'] });
       queryClient.invalidateQueries({ queryKey: ['marketplace', 'feed'] });

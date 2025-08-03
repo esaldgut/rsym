@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Circuit, CircuitLocation } from '../../types/graphql';
+import { Circuit } from '../../types/graphql';
 
 interface CreateCircuitFormProps {
   onSubmit: (circuit: Partial<Circuit>) => void;

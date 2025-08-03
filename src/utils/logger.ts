@@ -6,7 +6,7 @@
 type LogLevel = 'info' | 'warn' | 'error' | 'debug';
 
 interface LogData {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 class SecureLogger {
@@ -65,7 +65,7 @@ class SecureLogger {
     console.info(`${prefix} ${message}`);
   }
   
-  graphql(operation: string, success: boolean, data?: any) {
+  graphql(operation: string, success: boolean) {
     if (!this.isDevelopment) return;
     const status = success ? '✅' : '❌';
     console.info(`[GraphQL] ${status} ${operation}`);

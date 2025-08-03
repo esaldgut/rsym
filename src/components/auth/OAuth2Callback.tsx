@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { getCurrentUser, fetchUserAttributes } from 'aws-amplify/auth';
+// Remove unused imports - OAuth handled by Hub events
 import { Hub } from 'aws-amplify/utils';
 
 interface OAuth2CallbackProps {

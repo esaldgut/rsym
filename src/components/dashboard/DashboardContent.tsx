@@ -37,20 +37,17 @@ export function DashboardContent({ userType }: DashboardContentProps) {
 
   const { 
     data: circuitsData = [], 
-    isLoading: isLoadingCircuits,
-    refetch: refetchCircuits
+    isLoading: isLoadingCircuits
   } = useActiveCircuits();
 
   const { 
     data: packagesData = [], 
-    isLoading: isLoadingPackages,
-    refetch: refetchPackages
+    isLoading: isLoadingPackages
   } = useActivePackages();
 
   const { 
     data: momentsData = [], 
-    isLoading: isLoadingMoments,
-    refetch: refetchMoments
+    isLoading: isLoadingMoments
   } = useActiveMoments();
 
   // Mutations
@@ -390,7 +387,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
             <div>
               <h3 className="font-semibold text-purple-900">Panel de Proveedor</h3>
               <p className="text-sm text-purple-700">
-                Como proveedor, puedes crear y gestionar circuitos y paquetes turísticos en las secciones "Mis Circuitos" y "Mis Paquetes".
+                Como proveedor, puedes crear y gestionar circuitos y paquetes turísticos en las secciones &quot;Mis Circuitos&quot; y &quot;Mis Paquetes&quot;.
               </p>
             </div>
           </div>
@@ -465,7 +462,7 @@ function LoadingSpinner() {
   );
 }
 
-function ErrorMessage({ error, onRetry }: { error: any; onRetry?: () => void }) {
+function ErrorMessage({ error, onRetry }: { error: Error; onRetry?: () => void }) {
   return (
     <div className="bg-red-50 border border-red-200 rounded-md p-4">
       <h3 className="text-red-800 font-medium">Error cargando datos</h3>
