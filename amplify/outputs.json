@@ -74,7 +74,7 @@
       }
     },
     "oauth": {
-      "identity_providers": ["GOOGLE", "Apple", "Facebook"],
+      "identity_providers": ["Google", "Apple", "Facebook"],
       "domain": "auth.yaan.com.mx",
       "scopes": ["email", "openid", "profile"],
       "redirect_sign_in": "http://localhost:3000/oauth2/idpresponse,https://yaan.com.mx/oauth2/idpresponse",

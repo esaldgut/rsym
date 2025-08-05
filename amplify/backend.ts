@@ -1,11 +1,11 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { auth } from './auth/resource';
 import { data } from './data/resource';
 
 /**
- * @see https://docs.amplify.aws/react/build-a-backend/ to add storage, functions, and more
+ * Este archivo no se usa para despliegue ya que los recursos
+ * se provisionan con AWS CDK Go v2 en otro repositorio.
+ * Solo mantenemos data/resource.ts para referencia del esquema.
  */
 defineBackend({
-  auth,
   data,
 });
