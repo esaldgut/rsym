@@ -5,6 +5,7 @@ import { generateClient } from 'aws-amplify/data';
 import { logger } from '../utils/logger';
 import { canExecuteGraphQLOperation } from '../lib/permission-matrix';
 import { useAmplifyAuth } from './useAmplifyAuth';
+import { GraphQLAuthInspector } from '../utils/graphql-auth-inspector';
 import type {
   MarketplaceFeed,
   Circuit,
@@ -58,34 +59,37 @@ export function useMarketplaceFeed() {
       }
       
       try {
-        const result = await client.graphql({
-          query: `
-            query GetAllMarketplaceFeed {
-              getAllMarketplaceFeed {
-                id
+        // Verificar autenticación antes de ejecutar la query
+        const query = `
+          query GetAllMarketplaceFeed {
+            getAllMarketplaceFeed {
+              id
+              name
+              description
+              cover_image_url
+              location
+              product_pricing
+              startDate
+              preferences
+              collection_type
+              provider_id
+              published
+              followerNumber
+              user_data {
+                bio
+                email
                 name
-                description
-                cover_image_url
-                location
-                product_pricing
-                startDate
-                preferences
-                collection_type
-                provider_id
-                published
-                followerNumber
-                user_data {
-                  bio
-                  email
-                  name
-                  avatar_url
-                  username
-                  sub
-                }
+                avatar_url
+                username
+                sub
               }
             }
-          `
-        });
+          }
+        `;
+        
+        await GraphQLAuthInspector.interceptGraphQLRequest('getAllMarketplaceFeed', query);
+        
+        const result = await client.graphql({ query });
         
         logger.graphql('getAllMarketplaceFeed', true);
         return result.data.getAllMarketplaceFeed as MarketplaceFeed[];

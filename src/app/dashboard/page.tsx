@@ -2,60 +2,47 @@
 
 import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { DashboardContent } from '../../components/dashboard/DashboardContent';
-import { AuthSecurityWrapper } from '../../components/auth/AuthSecurityWrapper';
+import { AuthGuard } from '../../components/guards/AuthGuard';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading, user, signOut, userType } = useAmplifyAuth();
+  const { user, signOut, userType } = useAmplifyAuth();
   const searchParams = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
 
-  // Manejar errores de autenticación del middleware
+  // Manejar errores de autenticación
   useEffect(() => {
     const error = searchParams.get('error');
     if (error) {
       switch (error) {
+        case 'authentication_required':
+          setAuthError('Debes iniciar sesión para acceder al dashboard.');
+          break;
         case 'email_verification_required':
           setAuthError('Debes verificar tu correo electrónico antes de continuar.');
           break;
         case 'session_expired':
           setAuthError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
           break;
-        case 'middleware_error':
-          setAuthError('Error de autenticación. Por favor, intenta nuevamente.');
-          break;
         default:
-          setAuthError('Error de autenticación desconocido.');
+          setAuthError('Error de autenticación. Por favor, intenta iniciar sesión.');
       }
     }
   }, [searchParams]);
 
-  // El middleware ya maneja la redirección de usuarios no autenticados
-  // No duplicar lógica de redirect aquí para evitar conflictos
-  // Hub.listen en OAuthHandler maneja los eventos de autenticación
-
-  // Mostrar loading mientras se verifica el estado de autenticación
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Cargando dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Si no está autenticado, el middleware lo redirigirá automáticamente
-  // Este código solo se ejecuta si hay un problema con el middleware
-  if (!isAuthenticated) {
-    console.warn('⚠️ Dashboard: Usuario no autenticado - el middleware debería haber redirigido');
-    return null;
-  }
-
   return (
-    <AuthSecurityWrapper>
+    <AuthGuard 
+      redirectTo="/auth/login?error=authentication_required&redirect=/dashboard"
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Verificando autenticación...</p>
+          </div>
+        </div>
+      }
+    >
       <div className="min-h-screen bg-gray-50">
         {/* Mostrar error de autenticación si existe */}
         {authError && (
@@ -124,6 +111,6 @@ export default function DashboardPage() {
           </div>
         </main>
       </div>
-    </AuthSecurityWrapper>
+    </AuthGuard>
   );
 }

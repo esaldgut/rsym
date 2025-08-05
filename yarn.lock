@@ -61,10 +61,10 @@
     relay-runtime "12.0.0"
     signedsource "^1.0.0"
 
-"@aws-amplify/adapter-nextjs@1.6.4":
-  version "1.6.4"
-  resolved "https://registry.yarnpkg.com/@aws-amplify/adapter-nextjs/-/adapter-nextjs-1.6.4.tgz#292f7756685898459dcd686081488c802fc4a92a"
-  integrity sha512-17Uw3rMNipcgF9Rc4OxHvkPGmYtg0S/X12Wxcj/WOAa7F2yReN6cMLMvFScAkRu4X4lWK08WlwueTPB8FM0LFQ==
+"@aws-amplify/adapter-nextjs@^1.6.4":
+  version "1.6.7"
+  resolved "https://registry.yarnpkg.com/@aws-amplify/adapter-nextjs/-/adapter-nextjs-1.6.7.tgz#ef913bc06080ad6f60d7e5ce6aa192475eb5d277"
+  integrity sha512-et+LgbmkHFRVpKP7MLr4Hji+/A2WTlD5J5DGwZr0u9M9zKQ7TpucMNCqmfupTvhIYtRYd+UJCJjyiHoY++PfKw==
   dependencies:
     aws-jwt-verify "^4.0.1"
 
@@ -9410,9 +9410,9 @@ fs-extra@11.1.1:
     universalify "^2.0.0"
 
 fs-extra@^11.3.0:
-  version "11.3.0"
-  resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-11.3.0.tgz#0daced136bbaf65a555a326719af931adc7a314d"
-  integrity sha512-Z4XaCL6dUDHfP/jT25jJKMmtxvuwbkrD1vNSMFlo9lNLY2c5FHYSQgHPRZUjAB26TpDEoW9HCOgplrdbaPV/ew==
+  version "11.3.1"
+  resolved "https://registry.yarnpkg.com/fs-extra/-/fs-extra-11.3.1.tgz#ba7a1f97a85f94c6db2e52ff69570db3671d5a74"
+  integrity sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==
   dependencies:
     graceful-fs "^4.2.0"
     jsonfile "^6.0.1"
