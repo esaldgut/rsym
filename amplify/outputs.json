@@ -3,9 +3,9 @@
   "version": "1",
   "auth": {
     "aws_region": "us-west-2",
-    "user_pool_id": "us-west-2_S0R408BOa",
-    "user_pool_client_id": "pi3jecnooc25adjrdrj5m80it",
-    "identity_pool_id": "us-west-2:718d9fcf-0e50-4956-8118-1697f0b26c82",
+    "user_pool_id": "us-west-2_5KihhA96d",
+    "user_pool_client_id": "1pl4af8dkahimtriqoqeqek18i",
+    "identity_pool_id": "us-west-2:f3b57f68-f1c8-4fd1-b592-6b83b81aa282",
     "password_policy": {
       "min_length": 8,
       "require_numbers": true,
@@ -61,7 +61,6 @@
       "custom:secturPath",
       "custom:profilePreferences",
       "custom:have_a_passport",
-      "custom:service_hours",
       "custom:proofOfTaxStatusPath",
       "custom:req_special_services"
     ],

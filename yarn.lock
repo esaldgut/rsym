@@ -1169,9 +1169,9 @@
     table "^6"
 
 "@aws-cdk/cx-api@^2", "@aws-cdk/cx-api@^2.200.1":
-  version "2.208.0"
-  resolved "https://registry.yarnpkg.com/@aws-cdk/cx-api/-/cx-api-2.208.0.tgz#08dc5d9d209a80ff93675b3b56fe8fc304308cc7"
-  integrity sha512-B9BAqunA7LbBxSqH2HOl+V/EXcP+c78Td4vP5UoKdWEDfAGm4N2enwOyJu5tYDurHHbgwZjpDXMDiilQAfPIaA==
+  version "2.209.0"
+  resolved "https://registry.yarnpkg.com/@aws-cdk/cx-api/-/cx-api-2.209.0.tgz#91fd2700b8dc28306ae5cfb2de622e2a3cd6d6ed"
+  integrity sha512-KT4H3Ep23+eMnhfGk28Dq/oezglEtRrQE6MXvQe4/ekwZ+Vmu0FAiHjnXcR2ULnQxHgshLbWJUzXxRLSIlaJKg==
   dependencies:
     semver "^7.7.2"
 
@@ -1496,9 +1496,9 @@
     tslib "^2.6.2"
 
 "@aws-sdk/client-bedrock-runtime@^3.622.0":
-  version "3.859.0"
-  resolved "https://registry.yarnpkg.com/@aws-sdk/client-bedrock-runtime/-/client-bedrock-runtime-3.859.0.tgz#d2f1dff746893bbb41854fc8495cfcbfe79c52be"
-  integrity sha512-L2Mf4ubfTrtOydxP5GDRYK0oNz55fGNnevH2aJZ9be8Dd0XGi2Irh1JMqmQnbqoRwmGZrNhV1nl9FTUzgWt3Vg==
+  version "3.861.0"
+  resolved "https://registry.yarnpkg.com/@aws-sdk/client-bedrock-runtime/-/client-bedrock-runtime-3.861.0.tgz#86d101552db4798fa7f4e821a87ca73f7291a659"
+  integrity sha512-98gAq/aS8nXj4RqYhPEMVt3I5ninXciBvlVPvPe0vSRnLNDlv18qBa/NsuNpIFym6GuWUtgV7ePAnMOd3Nz6KQ==
   dependencies:
     "@aws-crypto/sha256-browser" "5.2.0"
     "@aws-crypto/sha256-js" "5.2.0"
@@ -8721,9 +8721,9 @@ eastasianwidth@^0.2.0:
   integrity sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==
 
 electron-to-chromium@^1.5.173:
-  version "1.5.195"
-  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.195.tgz#2fe0d9b644726292189f227be73740868617b6d5"
-  integrity sha512-URclP0iIaDUzqcAyV1v2PgduJ9N0IdXmWsnPzPfelvBmjmZzEy6xJcjb1cXj+TbYqXgtLrjHEoaSIdTYhw4ezg==
+  version "1.5.196"
+  resolved "https://registry.yarnpkg.com/electron-to-chromium/-/electron-to-chromium-1.5.196.tgz#bb9bfe456d03328f3aaf6d2723e052e70396c376"
+  integrity sha512-FnnXV0dXANe7YNtKl/Af1raw+sBBUPuwcNEWfLOJyumXBvfQEBsnc0Gn+yEnVscq4x3makTtrlf4TjAo7lcXTQ==
 
 emoji-regex@^10.3.0:
   version "10.4.0"
