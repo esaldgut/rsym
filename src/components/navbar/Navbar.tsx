@@ -87,6 +87,16 @@ export const Navbar = () => {
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/profile"
+                  className={`text-sm font-medium transition-all duration-300 px-6 py-2.5 rounded-full ${
+                    isScrolled
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'text-white hover:bg-white/10'
+                  }`}
+                >
                   Mi cuenta
                 </Link>
                 <button
@@ -181,6 +191,17 @@ export const Navbar = () => {
               <>
                 <Link
                   href="/dashboard"
+                  className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
+                    isScrolled
+                      ? 'text-gray-700 hover:bg-gray-100'
+                      : 'text-white hover:bg-white/10'
+                  }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  href="/profile"
                   className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
                     isScrolled
                       ? 'text-gray-700 hover:bg-gray-100'
