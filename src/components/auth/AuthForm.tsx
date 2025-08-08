@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { signIn, signUp, confirmSignUp, resetPassword, confirmResetPassword } from 'aws-amplify/auth';
 import { useRouter, useSearchParams } from 'next/navigation';
 import YaanLogo from '../ui/YaanLogo';
@@ -72,16 +72,28 @@ export function AuthForm() {
   };
 
   useEffect(() => {
+    // Actualizar URL cuando cambie el modo
     const url = new URL(window.location.href);
     url.searchParams.set('mode', mode);
     window.history.replaceState({}, '', url.toString());
   }, [mode]);
 
-  const clearMessages = () => {
+  const clearMessages = useCallback(() => {
     setError(null);
     setSuccess(null);
     setFieldErrors({});
-  };
+  }, []);
+
+  // Función helper para cambiar de modo con logging
+  const changeMode = useCallback((newMode: AuthMode) => {
+    console.log('🔄 Cambiando modo de auth:', { from: mode, to: newMode });
+    if (newMode !== mode) {
+      setMode(newMode);
+      setError(null);
+      setSuccess(null);
+      setFieldErrors({});
+    }
+  }, [mode]);
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,7 +122,7 @@ export function AuthForm() {
 
       setPendingEmail(signUpData.email);
       setSuccess('Te hemos enviado un código de confirmación a tu correo electrónico.');
-      setMode('confirm-signup');
+      changeMode('confirm-signup');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear la cuenta');
     } finally {
@@ -146,7 +158,7 @@ export function AuthForm() {
         // Usuario no confirmado
         setPendingEmail(signInData.email);
         setError('Tu cuenta no está verificada. Te hemos enviado un nuevo código.');
-        setMode('confirm-signup');
+        changeMode('confirm-signup');
       } else if (nextStep.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
         // Usuario necesita cambiar contraseña temporal
         setError('Debes cambiar tu contraseña temporal.');
@@ -163,7 +175,7 @@ export function AuthForm() {
       if (err instanceof Error && err.name === 'UserNotConfirmedException') {
         setPendingEmail(signInData.email);
         setError('Tu cuenta no está verificada. Te hemos enviado un nuevo código.');
-        setMode('confirm-signup');
+        changeMode('confirm-signup');
       } else {
         setError(err instanceof Error ? err.message : 'Error al iniciar sesión');
       }
@@ -190,7 +202,7 @@ export function AuthForm() {
       });
 
       setSuccess('¡Cuenta verificada exitosamente! Ya puedes iniciar sesión.');
-      setMode('signin');
+      changeMode('signin');
       setConfirmationCode('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al verificar la cuenta');
@@ -216,7 +228,7 @@ export function AuthForm() {
       setPendingEmail(forgotPasswordData.email);
       setResetPasswordData(prev => ({ ...prev, email: forgotPasswordData.email }));
       setSuccess('Te hemos enviado un código para restablecer tu contraseña.');
-      setMode('reset-password');
+      changeMode('reset-password');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al solicitar el restablecimiento');
     } finally {
@@ -244,7 +256,7 @@ export function AuthForm() {
       });
 
       setSuccess('Contraseña restablecida exitosamente. Ya puedes iniciar sesión.');
-      setMode('signin');
+      changeMode('signin');
       setResetPasswordData({
         email: '',
         confirmation_code: '',
@@ -366,8 +378,8 @@ export function AuthForm() {
                 <div className="flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => setMode('forgot-password')}
-                    className="text-sm text-pink-600 hover:text-pink-500 font-medium"
+                    onClick={() => changeMode('forgot-password')}
+                    className="text-sm text-pink-600 hover:text-pink-500 font-medium transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
                   >
                     ¿Olvidaste tu contraseña?
                   </button>
@@ -385,13 +397,16 @@ export function AuthForm() {
               <SocialAuthButtons onError={setError} />
 
               <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setMode('signup')}
-                  className="text-sm text-gray-600 hover:text-gray-500"
-                >
-                  ¿No tienes cuenta? <span className="text-pink-600 font-medium">Créala aquí</span>
-                </button>
+                <p className="text-sm text-gray-600">
+                  ¿No tienes cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={() => changeMode('signup')}
+                    className="text-pink-600 font-medium hover:text-pink-500 transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
+                  >
+                    Créala aquí
+                  </button>
+                </p>
               </div>
             </>
           )}
@@ -528,13 +543,16 @@ export function AuthForm() {
               <SocialAuthButtons onError={setError} />
 
               <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setMode('signin')}
-                  className="text-sm text-gray-600 hover:text-gray-500"
-                >
-                  ¿Ya tienes cuenta? <span className="text-pink-600 font-medium">Inicia sesión</span>
-                </button>
+                <p className="text-sm text-gray-600">
+                  ¿Ya tienes cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={() => changeMode('signin')}
+                    className="text-pink-600 font-medium hover:text-pink-500 transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
+                  >
+                    Inicia sesión
+                  </button>
+                </p>
               </div>
             </>
           )}
@@ -575,8 +593,8 @@ export function AuthForm() {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setMode('signin')}
-                  className="text-sm text-gray-600 hover:text-gray-500"
+                  onClick={() => changeMode('signin')}
+                  className="text-sm text-pink-600 font-medium hover:text-pink-500 transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
                 >
                   Volver al inicio de sesión
                 </button>
@@ -616,8 +634,8 @@ export function AuthForm() {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setMode('signin')}
-                  className="text-sm text-gray-600 hover:text-gray-500"
+                  onClick={() => changeMode('signin')}
+                  className="text-sm text-pink-600 font-medium hover:text-pink-500 transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
                 >
                   Volver al inicio de sesión
                 </button>
@@ -724,8 +742,8 @@ export function AuthForm() {
               <div className="text-center">
                 <button
                   type="button"
-                  onClick={() => setMode('signin')}
-                  className="text-sm text-gray-600 hover:text-gray-500"
+                  onClick={() => changeMode('signin')}
+                  className="text-sm text-pink-600 font-medium hover:text-pink-500 transition-colors duration-200 underline-offset-2 hover:underline focus:outline-none focus:underline"
                 >
                   Volver al inicio de sesión
                 </button>
