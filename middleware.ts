@@ -64,11 +64,15 @@ export async function middleware(request: NextRequest) {
     response.headers.set('set-cookie', secureCookie);
   }
   
-  // Protección básica para rutas del dashboard
-  // Nota: La verificación completa se hace en el layout del dashboard con SSR
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
+  // Protección para rutas que requieren autenticación
+  const protectedPaths = ['/dashboard', '/profile', '/settings'];
+  const isProtectedRoute = protectedPaths.some(path => 
+    request.nextUrl.pathname.startsWith(path)
+  );
+  
+  if (isProtectedRoute) {
     // Agregar header para identificar ruta protegida
-    response.headers.set('X-Protected-Route', 'dashboard');
+    response.headers.set('X-Protected-Route', request.nextUrl.pathname);
     
     // Headers para prevenir cache de datos sensibles
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
