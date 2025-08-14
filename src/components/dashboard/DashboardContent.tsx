@@ -308,7 +308,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
                       
                       <div className="flex items-center space-x-4">
                         <button
-                          onClick={() => moment.id && handleToggleLike(moment.id, 'moment')}
+                          onClick={() => moment.id && handleToggleLike(moment.id, 'Moment')}
                           disabled={toggleLikeMutation.isPending}
                           className={`flex items-center space-x-1 transition-colors ${
                             moment.viewerHasLiked ? 'text-red-500' : 'text-gray-500'

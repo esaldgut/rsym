@@ -32,5 +32,35 @@ const nextConfig = {
         ]
       }
     ];
+  },
+  // Configuración para permitir imágenes de S3
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'yaan-provider-documents.s3.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.s3.*.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Para imágenes de ejemplo de Unsplash
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+        port: '',
+        pathname: '/**',
+      }
+    ],
   }
 };

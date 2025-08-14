@@ -6,7 +6,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '../../components/guards/AuthGuard';
 import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
+import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { fetchUserAttributes } from 'aws-amplify/auth';
+import { ProfileImage } from '../../components/ui/ProfileImage';
 
 // Tipos para los datos del perfil
 interface ProfileData {
@@ -14,7 +16,7 @@ interface ProfileData {
   email: string;
   givenName: string;
   familyName: string;
-  profilePhoto?: string;
+  profilePhotoPath?: string; // Path en S3, no URL
   preferredUsername?: string;
   details?: string;
   website?: string;
@@ -40,6 +42,7 @@ function StatItem({ label, value }: { label: string; value: number }) {
 export default function ProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAmplifyAuth();
+  const { isComplete: isProfileComplete, missingFields } = useProfileCompletion();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'tagged'>('posts');
@@ -52,12 +55,14 @@ export default function ProfilePage() {
         const attributes = await fetchUserAttributes();
         
         // Construir los datos del perfil desde los atributos de Cognito
+        const profilePhotoPath = attributes['custom:profilePhotoPath'];
+        
         setProfileData({
           username: user.username || '',
           email: attributes.email || '',
           givenName: attributes.given_name || '',
           familyName: attributes.family_name || '',
-          profilePhoto: attributes['custom:profilePhotoPath'] || undefined,
+          profilePhotoPath: profilePhotoPath || undefined, // Guardamos el path, no la URL
           preferredUsername: attributes.preferred_username || user.username,
           details: attributes['custom:details'] || undefined,
           website: attributes.website || undefined,
@@ -131,24 +136,59 @@ export default function ProfilePage() {
     <AuthGuard>
       <div className="min-h-screen bg-gray-50">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Profile Incomplete Alert */}
+          {!isProfileComplete && missingFields.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 mb-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-6 w-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div className="ml-3 flex-1">
+                  <h3 className="text-sm font-semibold text-orange-800">
+                    Completa tu perfil
+                  </h3>
+                  <div className="mt-2 text-sm text-orange-700">
+                    <p className="mb-3">Para acceder a todas las funciones de YAAN, completa la información faltante de tu perfil.</p>
+                    <Link
+                      href="/settings/profile"
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-orange-500 hover:bg-orange-600 transition-colors duration-200"
+                    >
+                      Completar perfil
+                      <svg className="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </div>
+                </div>
+                <div className="ml-auto pl-3">
+                  <button
+                    onClick={() => {/* TODO: Permitir ocultar alerta temporalmente */}}
+                    className="text-orange-400 hover:text-orange-600 transition-colors duration-200"
+                  >
+                    <span className="sr-only">Cerrar</span>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Profile Header */}
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
             <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
               {/* Profile Picture */}
-              <div className="relative w-32 h-32 sm:w-40 sm:h-40 flex-shrink-0">
-                {profileData.profilePhoto ? (
-                  <Image
-                    src={profileData.profilePhoto}
-                    alt={`${profileData.givenName} ${profileData.familyName}`}
-                    fill
-                    className="rounded-full object-cover border-4 border-gray-100"
-                  />
-                ) : (
-                  <div className="w-full h-full rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white text-4xl font-bold">
-                    {profileData.givenName.charAt(0)}{profileData.familyName.charAt(0)}
-                  </div>
-                )}
-              </div>
+              <ProfileImage
+                path={profileData.profilePhotoPath}
+                alt={`${profileData.givenName} ${profileData.familyName}`}
+                fallbackText={`${profileData.givenName.charAt(0)}${profileData.familyName.charAt(0)}`}
+                size="xl"
+                className="flex-shrink-0"
+                accessLevel="protected"
+              />
 
               {/* Profile Info and Stats */}
               <div className="flex-grow text-center sm:text-left">

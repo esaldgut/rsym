@@ -6,7 +6,8 @@ import { AuthGuard } from '../../../components/guards/AuthGuard';
 import { useAmplifyAuth } from '../../../hooks/useAmplifyAuth';
 import { updateUserAttributes, fetchUserAttributes } from 'aws-amplify/auth';
 import { Preferences } from '@/utils/preferences';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadProfileImage } from '@/utils/storage-helpers';
+import { ProfileImage } from '@/components/ui/ProfileImage';
 import Image from 'next/image';
 
 // Tipos para el formulario
@@ -118,23 +119,38 @@ export default function ProfileSettingsPage() {
   }, []);
 
   // Función para manejar la carga de imágenes
-  const handleImageUpload = async (file: File, field: string) => {
+  const handleImageUpload = async (file: File) => {
+    if (!user) return null;
+    
     try {
-      const fileExtension = file.name.split('.').pop();
-      const fileName = `${user?.userId}-${field}-${Date.now()}.${fileExtension}`;
+      setIsLoading(true);
       
-      const result = await uploadData({
-        path: `public/profiles/${fileName}`,
-        data: file,
-        options: {
-          contentType: file.type,
+      const path = await uploadProfileImage(file, user.userId, {
+        accessLevel: 'protected',
+        onProgress: (progress) => {
+          console.log('Progreso de carga:', progress);
         }
-      }).result;
+      });
 
-      return result.path;
+      if (path) {
+        // Actualizar el estado local
+        setFormData(prev => ({ ...prev, profilePhotoPath: path }));
+        
+        // Actualizar en Cognito inmediatamente
+        await updateUserAttributes({
+          userAttributes: {
+            'custom:profilePhotoPath': path
+          }
+        });
+      }
+
+      return path;
     } catch (error) {
       console.error('Error subiendo imagen:', error);
-      throw error;
+      setErrors(prev => ({ ...prev, profilePhoto: 'Error al subir la imagen' }));
+      return null;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -324,6 +340,37 @@ export default function ProfileSettingsPage() {
             )}
 
             <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="space-y-6">
+              {/* Foto de perfil */}
+              <div className="flex items-center space-x-6">
+                <ProfileImage
+                  path={formData.profilePhotoPath}
+                  alt="Foto de perfil"
+                  fallbackText={user?.username?.substring(0, 2).toUpperCase() || 'U'}
+                  size="lg"
+                  accessLevel="protected"
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Foto de perfil
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        await handleImageUpload(file);
+                      }
+                    }}
+                    disabled={isLoading}
+                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 disabled:opacity-50"
+                  />
+                  {errors.profilePhoto && (
+                    <p className="mt-1 text-sm text-red-600">{errors.profilePhoto}</p>
+                  )}
+                </div>
+              </div>
+
               {/* Campos comunes */}
               <div className="grid md:grid-cols-2 gap-6">
                 <div>

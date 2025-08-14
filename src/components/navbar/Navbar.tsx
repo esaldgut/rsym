@@ -29,7 +29,8 @@ export const Navbar = () => {
 
   const navLinks = [
     { href: '/', label: 'Inicio' },
-    { href: '/marketplace', label: 'Explora' },
+    { href: '/marketplace', label: 'Marketplace' },
+    { href: '/moments', label: 'Momentos' },
     { href: '/circuits', label: 'Circuitos' },
     { href: '/packages', label: 'Paquetes' },
   ];
