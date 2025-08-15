@@ -1,115 +1,146 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '../../../components/guards/AuthGuard';
 import { useAmplifyAuth } from '../../../hooks/useAmplifyAuth';
-import { updateUserAttributes, fetchUserAttributes } from 'aws-amplify/auth';
-import { Preferences } from '@/utils/preferences';
+import { 
+  updateUserProfile, 
+  getUserProfile, 
+  validateProfileData,
+  type ProfileFormData,
+  type SocialMediaPlatform,
+  type ServiceSchedule,
+  type ContactInfo,
+  type DocumentPath,
+  type Address
+} from '@/lib/auth/user-attributes';
 import { uploadProfileImage } from '@/utils/storage-helpers';
 import { ProfileImage } from '@/components/ui/ProfileImage';
-import Image from 'next/image';
+import { SocialMediaManager } from '@/components/profile/SocialMediaManager';
+import { ServiceScheduleSelector } from '@/components/profile/ServiceScheduleSelector';
+import { DocumentUploader } from '@/components/profile/DocumentUploader';
 
 // Tipos para el formulario
 type UserType = 'traveler' | 'influencer' | 'provider';
 
-interface FormData {
-  // Campos comunes
-  profilePhotoPath?: string;
-  phone_number: string;
-  birthdate: string;
-  preferred_username: string;
-  details: string;
-  have_a_passport: boolean;
-  have_a_Visa: boolean;
-  
-  // Campos para influencer
-  uniq_influencer_ID?: string;
-  social_media_plfms?: Array<{
-    name: string;
-    target: string;
-    socialMedia: 'instagram' | 'facebook' | 'twitter' | 'tiktok' | 'linkedin' | 'youtube' | 'twitch';
-  }>;
-  profilePreferences?: string[];
-  
-  // Campos para provider
-  company_profile?: string;
-  days_of_service?: Array<{
-    day: 'mo' | 'tu' | 'we' | 'th' | 'fr' | 'sa' | 'su';
-    sd: string;
-    ed: string;
-  }>;
-  locale?: string;
-  contact_information?: {
-    contact_name: string;
-    contact_phone: string;
-    contact_email: string;
-  };
-  emgcy_details?: {
-    contact_name: string;
-    contact_phone: string;
-    contact_email: string;
-  };
-  proofOfTaxStatusPath?: { uri: string; name: string };
-  secturPath?: { uri: string; name: string };
-  complianceOpinPath?: { uri: string; name: string };
-  
-  // Campos para provider e influencer
-  address?: {
-    cp: string;
-    c: string;
-    ne: string;
-    ni?: string;
-    col: string;
-    mun: string;
-    est: string;
-  };
-  name?: string;
-  banking_details?: string;
-  interest_rate?: string;
-  req_special_services?: boolean;
-  credentials?: string;
-}
+// Países disponibles para providers
+const COUNTRIES = [
+  { code: 'MX', name: 'México' },
+  { code: 'US', name: 'Estados Unidos' },
+  { code: 'CA', name: 'Canadá' },
+  { code: 'GT', name: 'Guatemala' },
+  { code: 'BZ', name: 'Belice' },
+  { code: 'CR', name: 'Costa Rica' },
+  { code: 'PA', name: 'Panamá' },
+];
 
-export default function ProfileSettingsPage() {
+export default function EnhancedProfileSettingsPage() {
   const router = useRouter();
   const { user } = useAmplifyAuth();
   const [userType, setUserType] = useState<UserType | null>(null);
-  const [formData, setFormData] = useState<FormData>({
+  const [formData, setFormData] = useState<ProfileFormData>({
     phone_number: '',
     birthdate: '',
     preferred_username: '',
     details: '',
     have_a_passport: false,
     have_a_Visa: false,
+    social_media_plfms: [],
+    days_of_service: [],
+    contact_information: {
+      contact_name: '',
+      contact_phone: '',
+      contact_email: ''
+    },
+    emgcy_details: {
+      contact_name: '',
+      contact_phone: '',
+      contact_email: ''
+    },
+    address: {
+      cp: '',
+      c: '',
+      ne: '',
+      ni: '',
+      col: '',
+      mun: '',
+      est: ''
+    }
   });
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [step, setStep] = useState(1); // 1: Selección de tipo, 2: Formulario
+  const [isUploading, setIsUploading] = useState(false);
 
   // Cargar datos existentes del usuario
   useEffect(() => {
     const loadUserData = async () => {
       try {
-        const attributes = await fetchUserAttributes();
+        const attributes = await getUserProfile();
+        console.log('🔍 Atributos de Cognito cargados:', attributes);
         const existingUserType = attributes['custom:user_type'] as UserType;
         
         if (existingUserType) {
+          console.log('✅ Usuario existente tipo:', existingUserType);
           setUserType(existingUserType);
           setStep(2);
+          
+          // Cargar datos existentes en el formulario
+          console.log('📸 ProfilePhotoPath de Cognito:', attributes['custom:profilePhotoPath']);
+          
+          const existingData: ProfileFormData = {
+            phone_number: attributes.phone_number || '',
+            birthdate: attributes.birthdate || '',
+            preferred_username: attributes.preferred_username || '',
+            details: attributes['custom:details'] || '',
+            profilePhotoPath: attributes['custom:profilePhotoPath'] || undefined,
+            have_a_passport: attributes['custom:have_a_passport'] === 'true',
+            have_a_Visa: attributes['custom:have_a_Visa'] === 'true',
+            
+            // Campos de influencer
+            uniq_influencer_ID: attributes['custom:uniq_influencer_ID'] || '',
+            social_media_plfms: attributes['custom:social_media_plfms'] 
+              ? JSON.parse(attributes['custom:social_media_plfms']) 
+              : [],
+            
+            // Campos de provider
+            company_profile: attributes['custom:company_profile'] || '',
+            locale: attributes.locale || 'MX',
+            days_of_service: attributes['custom:days_of_service']
+              ? JSON.parse(attributes['custom:days_of_service'])
+              : [],
+            contact_information: attributes['custom:contact_information']
+              ? JSON.parse(attributes['custom:contact_information'])
+              : { contact_name: '', contact_phone: '', contact_email: '' },
+            emgcy_details: attributes['custom:emgcy_details']
+              ? JSON.parse(attributes['custom:emgcy_details'])
+              : { contact_name: '', contact_phone: '', contact_email: '' },
+            
+            // Documentos
+            proofOfTaxStatusPath: attributes['custom:proofOfTaxStatusPath']
+              ? JSON.parse(attributes['custom:proofOfTaxStatusPath'])
+              : undefined,
+            secturPath: attributes['custom:secturPath']
+              ? JSON.parse(attributes['custom:secturPath'])
+              : undefined,
+            complianceOpinPath: attributes['custom:complianceOpinPath']
+              ? JSON.parse(attributes['custom:complianceOpinPath'])
+              : undefined,
+            
+            // Campos compartidos
+            address: attributes.address ? JSON.parse(attributes.address) : {
+              cp: '', c: '', ne: '', ni: '', col: '', mun: '', est: ''
+            },
+            name: attributes.name || '',
+            banking_details: attributes['custom:banking_details'] || '',
+            interest_rate: attributes['custom:interest_rate'] || '',
+            req_special_services: attributes['custom:req_special_services'] === 'true',
+            credentials: attributes['custom:credentials'] || ''
+          };
+          
+          setFormData(existingData);
         }
-
-        // Cargar datos existentes en el formulario
-        setFormData(prev => ({
-          ...prev,
-          phone_number: attributes.phone_number || '',
-          birthdate: attributes.birthdate || '',
-          preferred_username: attributes.preferred_username || '',
-          details: attributes['custom:details'] || '',
-          have_a_passport: attributes['custom:have_a_passport'] === 'true',
-          have_a_Visa: attributes['custom:have_a_Visa'] === 'true',
-          profilePhotoPath: attributes['custom:profilePhotoPath'] || undefined,
-        }));
       } catch (error) {
         console.error('Error cargando datos del usuario:', error);
       }
@@ -118,116 +149,37 @@ export default function ProfileSettingsPage() {
     loadUserData();
   }, []);
 
-  // Función para manejar la carga de imágenes
-  const handleImageUpload = async (file: File) => {
-    if (!user) return null;
-    
-    try {
-      setIsLoading(true);
-      
-      const path = await uploadProfileImage(file, user.userId, {
-        accessLevel: 'protected',
-        onProgress: (progress) => {
-          console.log('Progreso de carga:', progress);
-        }
-      });
-
-      if (path) {
-        // Actualizar el estado local
-        setFormData(prev => ({ ...prev, profilePhotoPath: path }));
-        
-        // Actualizar en Cognito inmediatamente
-        await updateUserAttributes({
-          userAttributes: {
-            'custom:profilePhotoPath': path
-          }
-        });
-      }
-
-      return path;
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      setErrors(prev => ({ ...prev, profilePhoto: 'Error al subir la imagen' }));
-      return null;
-    } finally {
-      setIsLoading(false);
+  const handleSubmit = async () => {
+    console.log('🚀 handleSubmit - userType:', userType);
+    if (!userType) {
+      console.error('❌ No hay userType definido');
+      return;
     }
-  };
-
-  // Validar formulario
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Validaciones comunes
-    if (!formData.phone_number) newErrors.phone_number = 'Teléfono es obligatorio';
-    if (!formData.birthdate) newErrors.birthdate = 'Fecha de nacimiento es obligatoria';
-    if (!formData.preferred_username) newErrors.preferred_username = 'Nombre de usuario es obligatorio';
-    if (!formData.details) newErrors.details = 'Descripción es obligatoria';
-
-    // Validaciones específicas por tipo
-    if (userType === 'influencer') {
-      if (!formData.uniq_influencer_ID) newErrors.uniq_influencer_ID = 'ID de influencer es obligatorio';
-      if (!formData.social_media_plfms || formData.social_media_plfms.length === 0) {
-        newErrors.social_media_plfms = 'Debes agregar al menos una red social';
-      }
-    }
-
-    if (userType === 'provider') {
-      if (!formData.company_profile) newErrors.company_profile = 'Perfil de empresa es obligatorio';
-      if (!formData.days_of_service || formData.days_of_service.length === 0) {
-        newErrors.days_of_service = 'Debes agregar horarios de servicio';
-      }
-      if (!formData.locale) newErrors.locale = 'País es obligatorio';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  // Función para guardar el perfil
-  const handleSaveProfile = async () => {
-    if (!validateForm()) return;
 
     setIsLoading(true);
+    setErrors({});
+
     try {
-      const updates: Record<string, string> = {
-        'custom:user_type': userType!,
-        phone_number: formData.phone_number,
-        birthdate: formData.birthdate,
-        preferred_username: formData.preferred_username,
-        'custom:details': formData.details,
-        'custom:have_a_passport': String(formData.have_a_passport),
-        'custom:have_a_Visa': String(formData.have_a_Visa),
-      };
-
-      // Agregar campos específicos según el tipo
-      if (userType === 'influencer') {
-        updates['custom:uniq_influencer_ID'] = formData.uniq_influencer_ID!;
-        updates['custom:social_media_plfms'] = JSON.stringify(formData.social_media_plfms || []);
-        if (formData.profilePreferences) {
-          updates['custom:profilePreferences'] = formData.profilePreferences.join(':');
-        }
+      // Validar datos del formulario
+      const validation = validateProfileData(userType, formData);
+      console.log('📋 Validación:', validation.isValid ? '✅' : '❌', validation.errors);
+      if (!validation.isValid) {
+        setErrors(validation.errors);
+        setIsLoading(false);
+        return;
       }
 
-      if (userType === 'provider') {
-        updates['custom:company_profile'] = formData.company_profile!;
-        updates['custom:days_of_service'] = JSON.stringify(formData.days_of_service || []);
-        updates.locale = formData.locale!;
-        if (formData.contact_information) {
-          updates['custom:contact_information'] = JSON.stringify(formData.contact_information);
-        }
-        if (formData.emgcy_details) {
-          updates['custom:emgcy_details'] = JSON.stringify(formData.emgcy_details);
-        }
-      }
-
-      // Actualizar atributos en Cognito
-      await updateUserAttributes({ userAttributes: updates });
+      // Actualizar perfil usando el servicio
+      await updateUserProfile(userType, formData);
 
       // Redirigir según el contexto de origen
       const returnUrl = sessionStorage.getItem('profileCompleteReturnUrl');
+      const returnAction = sessionStorage.getItem('profileCompleteAction');
+      
       if (returnUrl) {
         sessionStorage.removeItem('profileCompleteReturnUrl');
+        sessionStorage.removeItem('profileCompleteAction');
+        sessionStorage.removeItem('profileCompleteData');
         router.push(returnUrl);
       } else {
         router.push('/profile');
@@ -237,6 +189,33 @@ export default function ProfileSettingsPage() {
       setErrors({ general: 'Error al guardar el perfil. Por favor intenta de nuevo.' });
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const updateFormData = (field: keyof ProfileFormData, value: any) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateNestedFormData = (field: keyof ProfileFormData, nestedField: string, value: any) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: {
+        ...(prev[field] as any),
+        [nestedField]: value
+      }
+    }));
+  };
+
+  const handleImageUpload = async (file: File) => {
+    setIsUploading(true);
+    try {
+      const imagePath = await uploadProfileImage(file);
+      updateFormData('profilePhotoPath', imagePath);
+    } catch (error) {
+      console.error('Error subiendo imagen:', error);
+      setErrors({ profilePhoto: 'Error al subir la imagen. Intenta de nuevo.' });
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -309,7 +288,7 @@ export default function ProfileSettingsPage() {
                 </div>
                 <h3 className="text-xl font-semibold text-gray-900 mb-2">Proveedor de Experiencias</h3>
                 <p className="text-gray-600 text-sm">
-                  Ofrece servicios turísticos, crea paquetes y gestiona reservas
+                  Ofrece tours, experiencias y servicios turísticos únicos
                 </p>
               </button>
             </div>
@@ -319,75 +298,80 @@ export default function ProfileSettingsPage() {
     );
   }
 
-  // Renderizar formulario según el tipo de usuario
+  // Renderizar formulario principal
   return (
     <AuthGuard>
       <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-3xl mx-auto px-4">
-          <div className="bg-white rounded-2xl shadow-sm p-8">
-            <h1 className="text-2xl font-bold text-gray-900 mb-6">
-              Completa tu perfil de {
-                userType === 'traveler' ? 'Viajero' :
-                userType === 'influencer' ? 'Influencer' :
-                'Proveedor'
-              }
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="text-center mb-8">
+            <button
+              onClick={() => setStep(1)}
+              className="text-pink-600 hover:text-pink-700 mb-4 inline-flex items-center"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Cambiar tipo de cuenta
+            </button>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              Configuración de Perfil {userType === 'traveler' ? 'Viajero' : 
+                userType === 'influencer' ? 'Influencer' : 'Proveedor'}
             </h1>
+            <p className="text-gray-600">
+              Completa la información para activar todas las funciones de tu cuenta
+            </p>
+          </div>
 
-            {errors.general && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-700">
-                {errors.general}
-              </div>
-            )}
-
-            <form onSubmit={(e) => { e.preventDefault(); handleSaveProfile(); }} className="space-y-6">
+          <div className="bg-white rounded-2xl shadow-sm p-8">
+            <form className="space-y-8">
               {/* Foto de perfil */}
-              <div className="flex items-center space-x-6">
-                <ProfileImage
-                  path={formData.profilePhotoPath}
-                  alt="Foto de perfil"
-                  fallbackText={user?.username?.substring(0, 2).toUpperCase() || 'U'}
-                  size="lg"
-                  accessLevel="protected"
-                />
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Foto de perfil
-                  </label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        await handleImageUpload(file);
-                      }
-                    }}
-                    disabled={isLoading}
-                    className="text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-pink-50 file:text-pink-700 hover:file:bg-pink-100 disabled:opacity-50"
+              <div className="text-center">
+                <div className="relative inline-block">
+                  <ProfileImage
+                    path={formData.profilePhotoPath}
+                    alt="Foto de perfil del usuario"
+                    className="w-32 h-32"
+                    fallbackText={user?.signInDetails?.loginId?.charAt(0).toUpperCase() || 'U'}
                   />
-                  {errors.profilePhoto && (
-                    <p className="mt-1 text-sm text-red-600">{errors.profilePhoto}</p>
-                  )}
+                  <label className="absolute bottom-0 right-0 bg-pink-500 text-white rounded-full p-2 cursor-pointer hover:bg-pink-600 transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleImageUpload(file);
+                      }}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
+                {isUploading && (
+                  <p className="text-sm text-gray-500 mt-2">Subiendo imagen...</p>
+                )}
+                {errors.profilePhoto && (
+                  <p className="text-sm text-red-600 mt-2">{errors.profilePhoto}</p>
+                )}
               </div>
 
               {/* Campos comunes */}
-              <div className="grid md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Teléfono *
+                    Número de teléfono *
                   </label>
                   <input
                     type="tel"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                      errors.phone_number ? 'border-red-300' : 'border-gray-300'
-                    }`}
-                    placeholder="+52 123 456 7890"
+                    value={formData.phone_number || ''}
+                    onChange={(e) => updateFormData('phone_number', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                    placeholder="+52 555 123 4567"
                   />
                   {errors.phone_number && (
-                    <p className="mt-1 text-sm text-red-600">{errors.phone_number}</p>
+                    <p className="text-sm text-red-600 mt-1">{errors.phone_number}</p>
                   )}
                 </div>
 
@@ -397,14 +381,12 @@ export default function ProfileSettingsPage() {
                   </label>
                   <input
                     type="date"
-                    value={formData.birthdate}
-                    onChange={(e) => setFormData(prev => ({ ...prev, birthdate: e.target.value }))}
-                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                      errors.birthdate ? 'border-red-300' : 'border-gray-300'
-                    }`}
+                    value={formData.birthdate || ''}
+                    onChange={(e) => updateFormData('birthdate', e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   />
                   {errors.birthdate && (
-                    <p className="mt-1 text-sm text-red-600">{errors.birthdate}</p>
+                    <p className="text-sm text-red-600 mt-1">{errors.birthdate}</p>
                   )}
                 </div>
               </div>
@@ -415,15 +397,13 @@ export default function ProfileSettingsPage() {
                 </label>
                 <input
                   type="text"
-                  value={formData.preferred_username}
-                  onChange={(e) => setFormData(prev => ({ ...prev, preferred_username: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                    errors.preferred_username ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  value={formData.preferred_username || ''}
+                  onChange={(e) => updateFormData('preferred_username', e.target.value)}
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                   placeholder="@tunombre"
                 />
                 {errors.preferred_username && (
-                  <p className="mt-1 text-sm text-red-600">{errors.preferred_username}</p>
+                  <p className="text-sm text-red-600 mt-1">{errors.preferred_username}</p>
                 )}
               </div>
 
@@ -432,44 +412,47 @@ export default function ProfileSettingsPage() {
                   Descripción del perfil *
                 </label>
                 <textarea
-                  value={formData.details}
-                  onChange={(e) => setFormData(prev => ({ ...prev, details: e.target.value }))}
-                  className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                    errors.details ? 'border-red-300' : 'border-gray-300'
-                  }`}
+                  value={formData.details || ''}
+                  onChange={(e) => updateFormData('details', e.target.value)}
                   rows={4}
-                  placeholder="Cuéntanos sobre ti..."
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  placeholder="Cuéntanos sobre ti, tus intereses de viaje..."
                 />
                 {errors.details && (
-                  <p className="mt-1 text-sm text-red-600">{errors.details}</p>
+                  <p className="text-sm text-red-600 mt-1">{errors.details}</p>
                 )}
               </div>
 
-              <div className="space-y-3">
-                <label className="flex items-center">
+              {/* Checkboxes para documentos */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="flex items-center space-x-3">
                   <input
                     type="checkbox"
-                    checked={formData.have_a_passport}
-                    onChange={(e) => setFormData(prev => ({ ...prev, have_a_passport: e.target.checked }))}
-                    className="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
+                    checked={formData.have_a_passport || false}
+                    onChange={(e) => updateFormData('have_a_passport', e.target.checked)}
+                    className="w-5 h-5 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Cuento con pasaporte</span>
+                  <span className="text-sm text-gray-700">Tengo pasaporte</span>
                 </label>
 
-                <label className="flex items-center">
+                <label className="flex items-center space-x-3">
                   <input
                     type="checkbox"
-                    checked={formData.have_a_Visa}
-                    onChange={(e) => setFormData(prev => ({ ...prev, have_a_Visa: e.target.checked }))}
-                    className="w-4 h-4 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
+                    checked={formData.have_a_Visa || false}
+                    onChange={(e) => updateFormData('have_a_Visa', e.target.checked)}
+                    className="w-5 h-5 text-pink-600 border-gray-300 rounded focus:ring-pink-500"
                   />
-                  <span className="ml-2 text-sm text-gray-700">Cuento con VISA</span>
+                  <span className="text-sm text-gray-700">Tengo visa</span>
                 </label>
               </div>
 
-              {/* Campos específicos para influencer */}
+              {/* Campos específicos de Influencer */}
               {userType === 'influencer' && (
-                <>
+                <div className="space-y-6 bg-pink-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-pink-200 pb-2">
+                    Información de Influencer
+                  </h3>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       ID único de influencer *
@@ -477,87 +460,206 @@ export default function ProfileSettingsPage() {
                     <input
                       type="text"
                       value={formData.uniq_influencer_ID || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, uniq_influencer_ID: e.target.value }))}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                        errors.uniq_influencer_ID ? 'border-red-300' : 'border-gray-300'
-                      }`}
-                      placeholder="INF-123456"
+                      onChange={(e) => updateFormData('uniq_influencer_ID', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                      placeholder="Tu ID único como influencer"
                     />
                     {errors.uniq_influencer_ID && (
-                      <p className="mt-1 text-sm text-red-600">{errors.uniq_influencer_ID}</p>
+                      <p className="text-sm text-red-600 mt-1">{errors.uniq_influencer_ID}</p>
                     )}
                   </div>
 
-                  {/* TODO: Agregar componente para gestionar redes sociales */}
-                  {/* TODO: Agregar selector de preferencias de viaje */}
-                </>
+                  <SocialMediaManager
+                    platforms={formData.social_media_plfms || []}
+                    onChange={(platforms) => updateFormData('social_media_plfms', platforms)}
+                  />
+                  {errors.social_media_plfms && (
+                    <p className="text-sm text-red-600 mt-1">{errors.social_media_plfms}</p>
+                  )}
+                </div>
               )}
 
-              {/* Campos específicos para provider */}
+              {/* Campos específicos de Provider */}
               {userType === 'provider' && (
-                <>
+                <div className="space-y-6 bg-purple-50 rounded-lg p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 border-b border-purple-200 pb-2">
+                    Información de Proveedor
+                  </h3>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Perfil de la empresa *
+                      Perfil de empresa *
                     </label>
                     <textarea
                       value={formData.company_profile || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, company_profile: e.target.value }))}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                        errors.company_profile ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      onChange={(e) => updateFormData('company_profile', e.target.value)}
                       rows={3}
-                      placeholder="Describe tu empresa..."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Describe tu empresa y servicios..."
                     />
                     {errors.company_profile && (
-                      <p className="mt-1 text-sm text-red-600">{errors.company_profile}</p>
+                      <p className="text-sm text-red-600 mt-1">{errors.company_profile}</p>
                     )}
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      País *
+                      País de operación *
                     </label>
                     <select
-                      value={formData.locale || ''}
-                      onChange={(e) => setFormData(prev => ({ ...prev, locale: e.target.value }))}
-                      className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-pink-500 ${
-                        errors.locale ? 'border-red-300' : 'border-gray-300'
-                      }`}
+                      value={formData.locale || 'MX'}
+                      onChange={(e) => updateFormData('locale', e.target.value)}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                     >
-                      <option value="">Selecciona un país</option>
-                      <option value="MX">México</option>
-                      <option value="US">Estados Unidos</option>
-                      <option value="ES">España</option>
-                      {/* Agregar más países según necesidad */}
+                      {COUNTRIES.map(country => (
+                        <option key={country.code} value={country.code}>
+                          {country.name}
+                        </option>
+                      ))}
                     </select>
                     {errors.locale && (
-                      <p className="mt-1 text-sm text-red-600">{errors.locale}</p>
+                      <p className="text-sm text-red-600 mt-1">{errors.locale}</p>
                     )}
                   </div>
 
-                  {/* TODO: Agregar componente para horarios de servicio */}
-                  {/* TODO: Agregar campos para información de contacto */}
-                  {/* TODO: Agregar carga de documentos */}
-                </>
+                  <ServiceScheduleSelector
+                    schedule={formData.days_of_service || []}
+                    onChange={(schedule) => updateFormData('days_of_service', schedule)}
+                  />
+                  {errors.days_of_service && (
+                    <p className="text-sm text-red-600 mt-1">{errors.days_of_service}</p>
+                  )}
+
+                  {/* Información de contacto */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Nombre de contacto *
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.contact_information?.contact_name || ''}
+                        onChange={(e) => updateNestedFormData('contact_information', 'contact_name', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      {errors.contact_name && (
+                        <p className="text-sm text-red-600 mt-1">{errors.contact_name}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Teléfono de contacto *
+                      </label>
+                      <input
+                        type="tel"
+                        value={formData.contact_information?.contact_phone || ''}
+                        onChange={(e) => updateNestedFormData('contact_information', 'contact_phone', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      {errors.contact_phone && (
+                        <p className="text-sm text-red-600 mt-1">{errors.contact_phone}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Email de contacto *
+                      </label>
+                      <input
+                        type="email"
+                        value={formData.contact_information?.contact_email || ''}
+                        onChange={(e) => updateNestedFormData('contact_information', 'contact_email', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      {errors.contact_email && (
+                        <p className="text-sm text-red-600 mt-1">{errors.contact_email}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Contacto de emergencia */}
+                  <div>
+                    <h4 className="text-md font-medium text-gray-900 mb-3">Contacto de Emergencia</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <input
+                        type="text"
+                        placeholder="Nombre"
+                        value={formData.emgcy_details?.contact_name || ''}
+                        onChange={(e) => updateNestedFormData('emgcy_details', 'contact_name', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <input
+                        type="tel"
+                        placeholder="Teléfono"
+                        value={formData.emgcy_details?.contact_phone || ''}
+                        onChange={(e) => updateNestedFormData('emgcy_details', 'contact_phone', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                      <input
+                        type="email"
+                        placeholder="Email"
+                        value={formData.emgcy_details?.contact_email || ''}
+                        onChange={(e) => updateNestedFormData('emgcy_details', 'contact_email', e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Documentos obligatorios */}
+                  <div className="space-y-6">
+                    <h4 className="text-md font-medium text-gray-900">Documentos Obligatorios</h4>
+                    
+                    <DocumentUploader
+                      label="Constancia de Situación Fiscal"
+                      description="Documento que acredite tu situación fiscal actualizada"
+                      value={formData.proofOfTaxStatusPath}
+                      onChange={(doc) => updateFormData('proofOfTaxStatusPath', doc)}
+                      required
+                    />
+
+                    <DocumentUploader
+                      label="Registro Nacional de Turismo"
+                      description="Registro SECTUR que acredite tu actividad turística"
+                      value={formData.secturPath}
+                      onChange={(doc) => updateFormData('secturPath', doc)}
+                      required
+                    />
+
+                    <DocumentUploader
+                      label="Opinión de Cumplimiento"
+                      description="Documento de cumplimiento de obligaciones fiscales"
+                      value={formData.complianceOpinPath}
+                      onChange={(doc) => updateFormData('complianceOpinPath', doc)}
+                      required
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Errores generales */}
+              {errors.general && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <p className="text-red-600">{errors.general}</p>
+                </div>
               )}
 
               {/* Botones de acción */}
-              <div className="flex gap-4 pt-6">
+              <div className="flex justify-between pt-6 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={() => router.back()}
-                  className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition-colors"
-                  disabled={isLoading}
+                  onClick={() => router.push('/profile')}
+                  className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancelar
                 </button>
                 <button
-                  type="submit"
-                  className="flex-1 px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl hover:from-pink-600 hover:to-purple-700 transition-all duration-300 disabled:opacity-50"
+                  type="button"
+                  onClick={handleSubmit}
                   disabled={isLoading}
+                  className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg hover:from-pink-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                 >
-                  {isLoading ? 'Guardando...' : 'Guardar perfil'}
+                  {isLoading ? 'Guardando...' : 'Guardar Perfil'}
                 </button>
               </div>
             </form>
