@@ -8,7 +8,7 @@ import {
   validateProfileData,
   type ProfileFormData,
 } from '@/lib/auth/user-attributes';
-import { uploadProfileImage } from '@/utils/storage-helpers';
+import { useProfileImageUpload } from '@/hooks/useProfileImageUpload';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { SocialMediaManager } from '@/components/profile/SocialMediaManager';
 import { ServiceScheduleSelector } from '@/components/profile/ServiceScheduleSelector';
@@ -39,7 +39,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   const [step, setStep] = useState(initialAttributes.userType ? 2 : 1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isUploading, setIsUploading] = useState(false);
+  const { uploadImage, isUploading, uploadProgress, error: imageUploadError, resetError } = useProfileImageUpload();
   
   // Inicializar formData con los datos del servidor
   const [formData, setFormData] = useState<ProfileFormData>(() => {
@@ -152,16 +152,20 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   };
 
   const handleImageUpload = async (file: File) => {
-    setIsUploading(true);
-    try {
-      const imagePath = await uploadProfileImage(file);
-      updateFormData('profilePhotoPath', imagePath);
-    } catch (error) {
-      console.error('Error subiendo imagen:', error);
-      setErrors({ profilePhoto: 'Error al subir la imagen. Intenta de nuevo.' });
-    } finally {
-      setIsUploading(false);
-    }
+    // Limpiar errores previos
+    resetError();
+    setErrors(prev => ({ ...prev, profilePhoto: '' }));
+    
+    const imagePath = await uploadImage(file, {
+      onSuccess: (path) => {
+        updateFormData('profilePhotoPath', path);
+        console.log('🎉 Imagen actualizada y datos sincronizados con Cognito y token ID');
+      },
+      onError: (error) => {
+        setErrors(prev => ({ ...prev, profilePhoto: error }));
+      },
+      forceReload: false // Cambiar a true si quieres recargar automáticamente
+    });
   };
 
   // Renderizar selección de tipo de usuario
@@ -292,10 +296,21 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                 </label>
               </div>
               {isUploading && (
-                <p className="text-sm text-gray-500 mt-2">Subiendo imagen...</p>
+                <div className="mt-2">
+                  <p className="text-sm text-gray-500">Subiendo imagen...</p>
+                  <div className="w-full bg-gray-200 rounded-full h-2 mt-1">
+                    <div 
+                      className="bg-pink-500 h-2 rounded-full transition-all duration-300" 
+                      style={{ width: `${uploadProgress}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">{uploadProgress}%</p>
+                </div>
               )}
-              {errors.profilePhoto && (
-                <p className="text-sm text-red-600 mt-2">{errors.profilePhoto}</p>
+              {(errors.profilePhoto || imageUploadError) && (
+                <p className="text-sm text-red-600 mt-2">
+                  {errors.profilePhoto || imageUploadError}
+                </p>
               )}
             </div>
 

@@ -1,4 +1,5 @@
 import { getUrl, uploadData, remove } from 'aws-amplify/storage';
+import { updateUserAttributes, fetchAuthSession } from 'aws-amplify/auth';
 
 /**
  * Utilidades para manejo de imágenes usando AWS Amplify Storage
@@ -55,7 +56,7 @@ export async function getSignedImageUrl(
  */
 export async function uploadProfileImage(
   file: File,
-  userId: string,
+  userId?: string,
   options: {
     accessLevel?: 'guest' | 'private' | 'protected';
     onProgress?: (progress: { transferredBytes: number; totalBytes?: number }) => void;
@@ -64,7 +65,9 @@ export async function uploadProfileImage(
   try {
     const fileExtension = file.name.split('.').pop();
     const timestamp = Date.now();
-    const path = `profiles/${userId}/avatar-${timestamp}.${fileExtension}`;
+    const path = userId 
+      ? `profiles/${userId}/avatar-${timestamp}.${fileExtension}`
+      : `profiles/avatar-${timestamp}.${fileExtension}`;
 
     const result = await uploadData({
       path,
@@ -123,4 +126,65 @@ export function generateSecurePath(
   const randomString = Math.random().toString(36).substring(2, 8);
   
   return `${type}s/${userId}/${timestamp}-${randomString}-${sanitizedFileName}`;
+}
+
+/**
+ * Sube imagen de perfil, actualiza Cognito y refresca el token ID
+ * @param file - Archivo de imagen a subir
+ * @param userId - ID del usuario (opcional, se obtiene automáticamente si no se proporciona)
+ * @param options - Opciones de configuración
+ * @returns Path de la imagen subida o null si falla
+ */
+export async function uploadAndUpdateProfileImage(
+  file: File,
+  userId?: string,
+  options: {
+    accessLevel?: 'guest' | 'private' | 'protected';
+    onProgress?: (progress: { transferredBytes: number; totalBytes?: number }) => void;
+    onCognitoUpdate?: () => void;
+    onTokenRefresh?: () => void;
+  } = {}
+): Promise<string | null> {
+  try {
+    console.log('🚀 Iniciando flujo completo de actualización de imagen de perfil');
+    
+    // 1. Subir imagen a S3
+    console.log('📤 Subiendo imagen a S3...');
+    const imagePath = await uploadProfileImage(file, userId, {
+      accessLevel: options.accessLevel,
+      onProgress: options.onProgress
+    });
+    
+    if (!imagePath) {
+      console.error('❌ Error: No se pudo subir la imagen a S3');
+      return null;
+    }
+    
+    console.log('✅ Imagen subida exitosamente a S3:', imagePath);
+    
+    // 2. Actualizar atributo en Cognito
+    console.log('🔄 Actualizando atributo custom:profilePhotoPath en Cognito...');
+    await updateUserAttributes({
+      userAttributes: {
+        'custom:profilePhotoPath': imagePath
+      }
+    });
+    
+    console.log('✅ Atributo custom:profilePhotoPath actualizado en Cognito');
+    options.onCognitoUpdate?.();
+    
+    // 3. Refrescar la sesión para obtener el nuevo ID token
+    console.log('🔄 Refrescando ID token con nuevos atributos...');
+    await fetchAuthSession({ forceRefresh: true });
+    
+    console.log('✅ ID token refrescado exitosamente');
+    options.onTokenRefresh?.();
+    
+    console.log('🎉 Flujo completo de actualización completado exitosamente');
+    return imagePath;
+    
+  } catch (error) {
+    console.error('❌ Error en el flujo de actualización de imagen de perfil:', error);
+    return null;
+  }
 }
