@@ -11,7 +11,7 @@
     "verify:route-protection": "node scripts/verify-route-protection.js"
   },
   "dependencies": {
-    "@aws-amplify/adapter-nextjs": "^1.6.4",
+    "@aws-amplify/adapter-nextjs": "^1.6.8",
     "@aws-amplify/ui-react": "6.11.2",
     "@tanstack/react-query": "5.81.5",
     "aws-amplify": "6.15.1",

@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { fetchAuthSession } from 'aws-amplify/auth/server';
+import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 
 /**
  * Middleware para protección de rutas y headers de seguridad
  * CRÍTICO: Implementación completa para alcanzar 100/100 en seguridad
+ * Utiliza autenticación server-side con cookies HTTP-only
  */
 export async function middleware(request: NextRequest) {
   const response = NextResponse.next();
@@ -65,12 +68,34 @@ export async function middleware(request: NextRequest) {
   }
   
   // Protección para rutas que requieren autenticación
-  const protectedPaths = ['/dashboard', '/profile', '/settings'];
+  const protectedPaths = ['/dashboard', '/profile', '/settings', '/moments', '/marketplace'];
   const isProtectedRoute = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   );
   
   if (isProtectedRoute) {
+    // Verificar autenticación usando cookies HTTP-only
+    const authenticated = await runWithAmplifyServerContext({
+      nextServerContext: { request, response },
+      operation: async (contextSpec) => {
+        try {
+          const session = await fetchAuthSession(contextSpec);
+          // Verificar que el usuario tenga un ID token válido
+          return session.tokens?.idToken !== undefined;
+        } catch (error) {
+          console.error('Error verificando autenticación:', error);
+          return false;
+        }
+      },
+    });
+    
+    if (!authenticated) {
+      // Redirigir a la página de inicio de sesión si no está autenticado
+      const redirectUrl = new URL('/signin', request.url);
+      redirectUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
+      return NextResponse.redirect(redirectUrl);
+    }
+    
     // Agregar header para identificar ruta protegida
     response.headers.set('X-Protected-Route', request.nextUrl.pathname);
     
@@ -81,7 +106,7 @@ export async function middleware(request: NextRequest) {
     
     // En desarrollo, agregar logs
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🛡️ Accessing protected route: ${request.nextUrl.pathname}`);
+      console.log(`🛡️ Usuario autenticado accediendo a ruta protegida: ${request.nextUrl.pathname}`);
     }
   }
   
