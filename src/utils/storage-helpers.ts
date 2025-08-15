@@ -33,9 +33,9 @@ export async function getSignedImageUrl(
     const result = await getUrl({
       path: path,
       options: {
-        accessLevel: options.accessLevel || 'guest',
-        expiresIn: options.expiresIn || 900, // 15 minutos por defecto
-        validateObjectExistence: options.validateObjectExistence ?? true
+        accessLevel: options.accessLevel || 'protected',
+        expiresIn: options.expiresIn || 3600, // 1 hora por defecto
+        validateObjectExistence: options.validateObjectExistence ?? false // No validar para evitar errores
       }
     });
 

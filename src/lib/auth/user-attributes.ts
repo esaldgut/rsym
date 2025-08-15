@@ -1,7 +1,6 @@
 import { 
   updateUserAttributes,
   fetchUserAttributes,
-  getCurrentUser,
   type UpdateUserAttributesOutput
 } from 'aws-amplify/auth';
 

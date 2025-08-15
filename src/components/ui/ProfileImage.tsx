@@ -41,14 +41,19 @@ export function ProfileImage({
 
       // Si hay un path de S3, obtener URL firmada
       if (path) {
-        const signedUrl = await getSignedImageUrl(path, {
-          accessLevel,
-          expiresIn: 3600 // 1 hora
-        });
-        
-        if (signedUrl) {
-          setImageUrl(signedUrl);
-        } else {
+        try {
+          const signedUrl = await getSignedImageUrl(path, {
+            accessLevel,
+            expiresIn: 7200 // 2 horas para evitar expiraciones frecuentes
+          });
+          
+          if (signedUrl) {
+            setImageUrl(signedUrl);
+          } else {
+            setImageError(true);
+          }
+        } catch (error) {
+          console.error('Error cargando imagen desde S3:', error);
           setImageError(true);
         }
       } 
@@ -87,7 +92,26 @@ export function ProfileImage({
         alt={alt}
         fill
         className="rounded-full object-cover border-4 border-gray-100"
-        onError={() => setImageError(true)}
+        onError={async () => {
+          console.warn('Error cargando imagen, intentando regenerar URL...');
+          setImageError(true);
+          
+          // Intentar regenerar la URL firmada una vez
+          if (path) {
+            try {
+              const newUrl = await getSignedImageUrl(path, {
+                accessLevel,
+                expiresIn: 7200
+              });
+              if (newUrl && newUrl !== imageUrl) {
+                setImageUrl(newUrl);
+                setImageError(false);
+              }
+            } catch (error) {
+              console.error('No se pudo regenerar la URL de imagen:', error);
+            }
+          }
+        }}
         unoptimized // URLs firmadas necesitan unoptimized
       />
     </div>
