@@ -124,7 +124,7 @@ export default function MomentsPage() {
       try {
         const result = await executeMutation(toggleLike, {
           item_id: momentId,
-          item_type: 'moment'
+          item_type: 'Moment'
         });
 
         if (result?.toggleLike) {
