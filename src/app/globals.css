@@ -27,36 +27,61 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
-/* ===== CORRECCIÓN DE CONTRASTE PARA LABELS DE FORMULARIOS ===== */
-/* Solución con especificidad CSS mayor que Tailwind para sobrescribir text-gray-700 */
+/* ===== YAAN GLOBAL - CORRECCIÓN DE CONTRASTE ===== */
+/* Patrón Tailwind CSS v4: Layer Components para sobrescribir utilidades */
 
-/* Especificidad alta: form + clase de Tailwind + pseudo-selectores */
-form label.text-gray-700,
-form .text-gray-700,
-.bg-white form label.text-gray-700,
-div form label.text-gray-700 {
-  color: #1f2937 !important; /* text-gray-800 - más oscuro para mejor contraste */
+@layer components {
+  /* SOLUCIÓN GLOBAL: Todos los labels con text-gray-* en toda la app */
+  label.text-gray-700,
+  label.text-gray-600,
+  label.text-gray-500,
+  label.text-gray-400 {
+    color: #1f2937 !important; /* text-gray-800 para mejor contraste */
+    font-weight: 500;
+  }
+
+  /* Labels dentro de cualquier estructura de formulario */
+  .bg-white label[class*="text-gray"],
+  .bg-gray-50 label[class*="text-gray"],
+  .bg-white .text-gray-700,
+  .bg-gray-50 .text-gray-700,
+  div label.text-gray-700,
+  section label.text-gray-700 {
+    color: #1f2937 !important;
+  }
+
+  /* Específico para formularios y contenedores comunes */
+  form label,
+  .space-y-4 label,
+  .space-y-6 label,
+  .space-y-8 label,
+  .rounded-2xl label,
+  .shadow-sm label {
+    color: #1f2937 !important;
+    font-weight: 500;
+  }
+
+  /* Mejorar contraste en inputs */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    color: #111827 !important; /* text-gray-900 */
+  }
+
+  /* Focus states con colores de marca YAAN */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none !important;
+    border-color: #ec4899 !important; /* pink-500 */
+    box-shadow: 0 0 0 3px rgba(236, 72, 153, 0.1) !important;
+  }
+
+  /* Checkboxes con accent color de marca */
+  input[type="checkbox"],
+  input[type="radio"] {
+    accent-color: #ec4899 !important; /* pink-500 */
+  }
 }
 
-/* También para elementos label dentro de divs de formulario */
-form div label,
-form .form-group label,
-form .space-y-6 label,
-form .space-y-8 label {
-  color: #1f2937 !important; /* text-gray-800 */
-  font-weight: 500;
-}
-
-/* Para asegurar que todos los labels sean visibles */
-label[class*="text-gray"] {
-  color: #1f2937 !important; /* text-gray-800 */
-}
-
-/* Mejorar contraste en inputs también */
-form input:not([type="checkbox"]):not([type="radio"]),
-form textarea,
-form select {
-  color: #111827; /* text-gray-900 */
-}
-
-/* ===== FIN CORRECCIÓN DE CONTRASTE ===== */
+/* ===== FIN CORRECCIÓN GLOBAL YAAN ===== */
