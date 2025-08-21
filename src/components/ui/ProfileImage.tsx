@@ -9,16 +9,18 @@ interface ProfileImageProps {
   src?: string | null;  // URL directa (fallback)
   alt: string;
   fallbackText: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
   accessLevel?: 'guest' | 'private' | 'protected';
 }
 
 const sizeClasses = {
-  sm: 'w-10 h-10 text-sm',
-  md: 'w-16 h-16 text-lg',
-  lg: 'w-32 h-32 text-4xl',
-  xl: 'w-40 h-40 text-5xl'
+  xs: 'w-8 h-8 text-xs',
+  sm: 'w-12 h-12 text-sm',
+  md: 'w-20 h-20 text-lg',
+  lg: 'w-36 h-36 text-4xl',
+  xl: 'w-48 h-48 text-5xl',
+  '2xl': 'w-60 h-60 text-6xl'
 };
 
 export function ProfileImage({ 

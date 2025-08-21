@@ -170,7 +170,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
     return (
       <div className="min-h-screen">
         <SettingsHero 
-          title="🎆 Elige tu perfil YAAN"
+          title="Elige tu perfil YAAN"
           subtitle="Selecciona el tipo de cuenta que mejor se adapte a tu estilo de viajar"
         />
         

@@ -29,15 +29,6 @@ interface ProfileData {
   };
 }
 
-// Componente para las estadísticas
-function StatItem({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex flex-col items-center">
-      <span className="text-lg font-bold text-gray-900">{value.toLocaleString()}</span>
-      <span className="text-xs text-gray-500">{label}</span>
-    </div>
-  );
-}
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -139,12 +130,12 @@ export default function ProfilePage() {
         <HeroSection 
           title={
             <div className="flex flex-col items-center gap-3">
-              <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-xl p-1 border border-white/30 shadow-2xl">
+              <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur-xl p-1 border border-white/30 shadow-2xl">
                 <ProfileImage
                   path={profileData?.profilePhotoPath}
                   alt={profileData ? `${profileData.givenName} ${profileData.familyName}` : 'Usuario'}
                   fallbackText={profileData ? `${profileData.givenName.charAt(0)}${profileData.familyName.charAt(0)}` : 'U'}
-                  size="lg"
+                  size="xl"
                   className="w-full h-full"
                   accessLevel="protected"
                 />

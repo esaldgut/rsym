@@ -281,9 +281,9 @@ function ExperienceCard({ experience, onReserve }: ExperienceCardProps) {
               path={experience.user_data?.avatar_url}
               alt={experience.user_data?.name || 'Proveedor'}
               fallbackText={experience.user_data?.username?.substring(0, 2).toUpperCase() || 'P'}
-              size="sm"
+              size="md"
             />
-            <p className="text-sm text-gray-600 ml-2">
+            <p className="text-sm text-gray-600 ml-3">
               por {experience.user_data?.name || experience.user_data?.username}
             </p>
           </div>

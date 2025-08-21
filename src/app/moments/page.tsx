@@ -250,9 +250,9 @@ export default function MomentsPage() {
                         path={moment.user_data?.avatar_url}
                         alt={moment.user_data?.name || 'Usuario'}
                         fallbackText={moment.user_data?.username?.substring(0, 2).toUpperCase() || 'U'}
-                        size="md"
+                        size="lg"
                       />
-                      <div className="ml-3">
+                      <div className="ml-4">
                         <h3 className="font-semibold text-gray-900">
                           {moment.user_data?.name || moment.user_data?.username}
                         </h3>
