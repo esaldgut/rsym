@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { AuthGuard } from '../../components/guards/AuthGuard';
@@ -9,6 +8,7 @@ import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { useProfileCompletion } from '../../hooks/useProfileCompletion';
 import { fetchUserAttributes } from 'aws-amplify/auth';
 import { ProfileImage } from '../../components/ui/ProfileImage';
+import { HeroSection } from '../../components/ui/HeroSection';
 
 // Tipos para los datos del perfil
 interface ProfileData {
@@ -41,7 +41,7 @@ function StatItem({ label, value }: { label: string; value: number }) {
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated } = useAmplifyAuth();
+  const { user } = useAmplifyAuth();
   const { isComplete: isProfileComplete, missingFields } = useProfileCompletion();
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,216 +134,239 @@ export default function ProfilePage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Profile Incomplete Alert */}
-          {!isProfileComplete && missingFields.length > 0 && (
-            <div className="bg-orange-50 border border-orange-200 rounded-2xl p-6 mb-6">
-              <div className="flex items-start">
-                <div className="flex-shrink-0">
-                  <svg className="h-6 w-6 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-                <div className="ml-3 flex-1">
-                  <h3 className="text-sm font-semibold text-orange-800">
-                    Completa tu perfil
-                  </h3>
-                  <div className="mt-2 text-sm text-orange-700">
-                    <p className="mb-3">Para acceder a todas las funciones de YAAN, completa la información faltante de tu perfil.</p>
-                    <Link
-                      href="/settings/profile"
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-lg text-white bg-orange-500 hover:bg-orange-600 transition-colors duration-200"
-                    >
-                      Completar perfil
-                      <svg className="ml-2 -mr-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
-                    </Link>
-                  </div>
-                </div>
-                <div className="ml-auto pl-3">
-                  <button
-                    onClick={() => {/* TODO: Permitir ocultar alerta temporalmente */}}
-                    className="text-orange-400 hover:text-orange-600 transition-colors duration-200"
-                  >
-                    <span className="sr-only">Cerrar</span>
-                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
+      <div className="min-h-screen">
+        {/* Hero Section con identidad YAAN */}
+        <HeroSection 
+          title={
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-24 h-24 rounded-full bg-white/20 backdrop-blur-xl p-1 border border-white/30 shadow-2xl">
+                <ProfileImage
+                  path={profileData?.profilePhotoPath}
+                  alt={profileData ? `${profileData.givenName} ${profileData.familyName}` : 'Usuario'}
+                  fallbackText={profileData ? `${profileData.givenName.charAt(0)}${profileData.familyName.charAt(0)}` : 'U'}
+                  size="lg"
+                  className="w-full h-full"
+                  accessLevel="protected"
+                />
+              </div>
+              <span className="text-white font-bold">
+                {profileData?.preferredUsername || 'Mi Perfil'}
+              </span>
+            </div>
+          }
+          size="md"
+          showShapes={true}
+        >
+          {profileData && (
+            <div className="flex flex-wrap justify-center gap-6 mt-8">
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{profileData.stats.posts}</div>
+                <div className="text-white/80 text-sm">Publicaciones</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{profileData.stats.followers}</div>
+                <div className="text-white/80 text-sm">Seguidores</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{profileData.stats.following}</div>
+                <div className="text-white/80 text-sm">Siguiendo</div>
+              </div>
+              <div className="text-center">
+                <div className="text-2xl font-bold text-white">{profileData.stats.likes}</div>
+                <div className="text-white/80 text-sm">Me gusta</div>
               </div>
             </div>
           )}
+        </HeroSection>
 
-          {/* Profile Header */}
-          <div className="bg-white rounded-2xl shadow-sm p-6 mb-6">
-            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
-              {/* Profile Picture */}
-              <ProfileImage
-                path={profileData.profilePhotoPath}
-                alt={`${profileData.givenName} ${profileData.familyName}`}
-                fallbackText={`${profileData.givenName.charAt(0)}${profileData.familyName.charAt(0)}`}
-                size="xl"
-                className="flex-shrink-0"
-                accessLevel="protected"
-              />
-
-              {/* Profile Info and Stats */}
-              <div className="flex-grow text-center sm:text-left">
-                <div className="mb-4">
-                  <div className="flex items-center justify-center sm:justify-start gap-3 mb-2">
-                    <h1 className="text-2xl font-semibold text-gray-900">
-                      {profileData.preferredUsername}
-                    </h1>
-                    {getUserBadge(profileData.userType)}
+        {/* Contenido Principal */}
+        <div className="bg-gray-50 -mt-8 relative z-10">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            {/* Profile Incomplete Alert */}
+            {!isProfileComplete && missingFields.length > 0 && (
+              <div className="bg-gradient-to-r from-orange-500/10 to-pink-500/10 border border-orange-200/50 backdrop-blur-sm rounded-2xl p-6 mb-8 shadow-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-r from-orange-500 to-pink-500 rounded-full flex items-center justify-center">
+                      <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
                   </div>
-                  
-                  {/* Stats - Mobile */}
-                  <div className="grid grid-cols-4 gap-4 sm:hidden mt-4 mb-4">
-                    <StatItem label="Publicaciones" value={profileData.stats.posts} />
-                    <StatItem label="Seguidores" value={profileData.stats.followers} />
-                    <StatItem label="Siguiendo" value={profileData.stats.following} />
-                    <StatItem label="Me gusta" value={profileData.stats.likes} />
+                  <div className="ml-4 flex-1">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      🚀 Potencia tu experiencia YAAN
+                    </h3>
+                    <div className="text-gray-700">
+                      <p className="mb-4">Completa tu perfil para desbloquear todas las funciones y conectar mejor con la comunidad.</p>
+                      <Link
+                        href="/settings/profile"
+                        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium rounded-xl hover:from-pink-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                      >
+                        Completar perfil
+                        <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        </svg>
+                      </Link>
+                    </div>
                   </div>
+                </div>
+              </div>
+            )}
 
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 justify-center sm:justify-start">
-                    <Link
-                      href="/settings/profile"
-                      className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200"
-                    >
-                      Editar perfil
-                    </Link>
-                    <button className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition-colors duration-200">
-                      Compartir
+            {/* Profile Info Card */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-8">
+              <div className="bg-gradient-to-r from-pink-500/5 to-purple-500/5 p-8">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6">
+                  {/* Profile Info */}
+                  <div className="flex-grow text-center sm:text-left">
+                    <div className="mb-6">
+                      <div className="flex items-center justify-center sm:justify-start gap-3 mb-3">
+                        <h1 className="text-3xl font-bold bg-gradient-to-r from-pink-600 to-purple-600 bg-clip-text text-transparent">
+                          {profileData.givenName} {profileData.familyName}
+                        </h1>
+                        {getUserBadge(profileData.userType)}
+                      </div>
+                      <p className="text-gray-600 text-lg mb-4">@{profileData.preferredUsername}</p>
+                      
+                      {/* Action Buttons */}
+                      <div className="flex gap-3 justify-center sm:justify-start mb-6">
+                        <Link
+                          href="/settings/profile"
+                          className="px-6 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-xl font-medium hover:from-pink-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg"
+                        >
+                          Editar perfil
+                        </Link>
+                        <button className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium hover:bg-gray-200 transition-all duration-200">
+                          Compartir
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bio Section */}
+                {(profileData.details || profileData.website) && (
+                  <div className="pt-6 border-t border-gray-100">
+                    <div className="space-y-3">
+                      {profileData.details && (
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{profileData.details}</p>
+                      )}
+                      {profileData.website && (
+                        <a
+                          href={profileData.website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-pink-600 hover:text-pink-500 font-medium inline-flex items-center gap-2 text-lg"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
+                          {profileData.website.replace(/^https?:\/\//, '')}
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Content Tabs */}
+            <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Tab Navigation */}
+              <div className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
+                <nav className="flex justify-around sm:justify-start sm:gap-8 px-6" aria-label="Tabs">
+                  <button
+                    onClick={() => setActiveTab('posts')}
+                    className={`py-4 px-3 border-b-3 font-semibold text-sm transition-all duration-200 transform ${
+                      activeTab === 'posts'
+                        ? 'border-pink-500 text-pink-600 scale-105'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:scale-102'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                      </svg>
+                      <span className="hidden sm:inline">PUBLICACIONES</span>
+                      <span className="sm:hidden">Posts</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('saved')}
+                    className={`py-4 px-3 border-b-3 font-semibold text-sm transition-all duration-200 transform ${
+                      activeTab === 'saved'
+                        ? 'border-pink-500 text-pink-600 scale-105'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:scale-102'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                      <span className="hidden sm:inline">GUARDADOS</span>
+                      <span className="sm:hidden">Guardados</span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('tagged')}
+                    className={`py-4 px-3 border-b-3 font-semibold text-sm transition-all duration-200 transform ${
+                      activeTab === 'tagged'
+                        ? 'border-pink-500 text-pink-600 scale-105'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:scale-102'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="hidden sm:inline">ETIQUETADOS</span>
+                      <span className="sm:hidden">Tags</span>
+                    </div>
+                  </button>
+                </nav>
+              </div>
+
+              {/* Content Grid */}
+              <div className="p-8">
+                {activeTab === 'posts' && (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-pink-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
+                      <svg className="w-10 h-10 text-pink-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">¡Comienza tu aventura visual!</h3>
+                    <p className="text-gray-600 mb-6 max-w-md mx-auto">Comparte tus experiencias y momentos favoritos con la comunidad YAAN</p>
+                    <button className="px-8 py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white font-medium rounded-xl hover:from-pink-600 hover:to-purple-700 transform hover:scale-105 transition-all duration-200 shadow-lg">
+                      Crear primera publicación
                     </button>
                   </div>
-                </div>
-
-                {/* Stats - Desktop */}
-                <div className="hidden sm:grid grid-cols-4 gap-8 max-w-md">
-                  <StatItem label="Publicaciones" value={profileData.stats.posts} />
-                  <StatItem label="Seguidores" value={profileData.stats.followers} />
-                  <StatItem label="Siguiendo" value={profileData.stats.following} />
-                  <StatItem label="Me gusta" value={profileData.stats.likes} />
-                </div>
-              </div>
-            </div>
-
-            {/* Bio Section */}
-            <div className="mt-6 pt-6 border-t border-gray-100">
-              <div className="space-y-2">
-                <h2 className="font-semibold text-gray-900">
-                  {profileData.givenName} {profileData.familyName}
-                </h2>
-                {profileData.details && (
-                  <p className="text-gray-600 whitespace-pre-wrap">{profileData.details}</p>
                 )}
-                {profileData.website && (
-                  <a
-                    href={profileData.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-pink-600 hover:text-pink-500 font-medium inline-flex items-center gap-1"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                    </svg>
-                    {profileData.website.replace(/^https?:\/\//, '')}
-                  </a>
+                {activeTab === 'saved' && (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-blue-500/20 to-indigo-500/20 rounded-full flex items-center justify-center">
+                      <svg className="w-10 h-10 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Tus publicaciones guardadas</h3>
+                    <p className="text-gray-600">Explora y guarda contenido que te inspire para futuras aventuras</p>
+                  </div>
+                )}
+                {activeTab === 'tagged' && (
+                  <div className="text-center py-16">
+                    <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-r from-green-500/20 to-teal-500/20 rounded-full flex items-center justify-center">
+                      <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-3">Etiquetas y menciones</h3>
+                    <p className="text-gray-600">Aquí aparecerán las publicaciones donde otros usuarios te hayan etiquetado</p>
+                  </div>
                 )}
               </div>
-            </div>
           </div>
-
-          {/* Content Tabs */}
-          <div className="bg-white rounded-2xl shadow-sm">
-            {/* Tab Navigation */}
-            <div className="border-b border-gray-200">
-              <nav className="flex justify-around sm:justify-start sm:gap-8 px-6" aria-label="Tabs">
-                <button
-                  onClick={() => setActiveTab('posts')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                    activeTab === 'posts'
-                      ? 'border-pink-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                    </svg>
-                    <span className="hidden sm:inline">PUBLICACIONES</span>
-                    <span className="sm:hidden">Publicaciones</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('saved')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                    activeTab === 'saved'
-                      ? 'border-pink-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                    </svg>
-                    <span className="hidden sm:inline">GUARDADOS</span>
-                    <span className="sm:hidden">Guardados</span>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setActiveTab('tagged')}
-                  className={`py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200 ${
-                    activeTab === 'tagged'
-                      ? 'border-pink-500 text-gray-900'
-                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                    </svg>
-                    <span className="hidden sm:inline">ETIQUETADOS</span>
-                    <span className="sm:hidden">Etiquetas</span>
-                  </div>
-                </button>
-              </nav>
-            </div>
-
-            {/* Content Grid */}
-            <div className="p-6">
-              {activeTab === 'posts' && (
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-gray-500 mb-4">Aún no has publicado nada</p>
-                  <button className="text-pink-600 hover:text-pink-500 font-medium">
-                    Crear tu primera publicación
-                  </button>
-                </div>
-              )}
-              {activeTab === 'saved' && (
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                  </svg>
-                  <p className="text-gray-500">No tienes publicaciones guardadas</p>
-                </div>
-              )}
-              {activeTab === 'tagged' && (
-                <div className="text-center py-12">
-                  <svg className="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <p className="text-gray-500">No has sido etiquetado en ninguna publicación</p>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       </div>
