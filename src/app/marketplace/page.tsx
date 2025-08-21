@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ProfileImage } from '../../components/ui/ProfileImage';
+import { HeroSection } from '../../components/ui/HeroSection';
 import { useRequireCompleteProfile } from '../../components/guards/ProfileCompletionGuard';
 import { executeQuery, executeMutation } from '@/lib/graphql/client';
 import { getAllMarketplaceFeed, createReservation, generatePaymentLink } from '@/lib/graphql/operations';
@@ -117,16 +118,17 @@ export default function MarketplacePage() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Marketplace de Experiencias
-          </h1>
-          <p className="text-gray-600">
-            Descubre experiencias únicas creadas por proveedores locales
-          </p>
-        </div>
+    <div className="min-h-screen">
+      {/* Hero Section reutilizable con gradiente consistente */}
+      <HeroSection
+        title="Marketplace de Experiencias"
+        subtitle="Descubre experiencias únicas creadas por proveedores locales"
+        size="md"
+        showShapes={true}
+      />
+      
+      <div className="bg-gray-50 -mt-8 relative z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Filtros */}
         <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
@@ -238,6 +240,7 @@ export default function MarketplacePage() {
             </div>
           </>
         )}
+        </div>
       </div>
     </div>
   );

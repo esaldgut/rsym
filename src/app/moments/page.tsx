@@ -5,6 +5,7 @@ import { AuthGuard } from '../../components/guards/AuthGuard';
 import { useRequireCompleteProfile } from '../../components/guards/ProfileCompletionGuard';
 import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
 import { ProfileImage } from '../../components/ui/ProfileImage';
+import { HeroSection } from '../../components/ui/HeroSection';
 import { uploadData } from 'aws-amplify/storage';
 import { executeQuery, executeMutation } from '@/lib/graphql/client';
 import { getAllActiveMoments, createMoment, toggleLike } from '@/lib/graphql/operations';
@@ -163,9 +164,17 @@ export default function MomentsPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-8">Momentos</h1>
+      <div className="min-h-screen">
+        {/* Hero Section consistente con el branding */}
+        <HeroSection
+          title="Momentos"
+          subtitle="Comparte tus experiencias de viaje y conecta con otros aventureros"
+          size="sm"
+          showShapes={true}
+        />
+        
+        <div className="bg-gray-50 -mt-8 relative z-10">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
           {/* Create Moment Section */}
           <div className="bg-white rounded-2xl shadow-sm p-6 mb-8">
@@ -342,6 +351,7 @@ export default function MomentsPage() {
               </p>
             </div>
           )}
+          </div>
         </div>
       </div>
     </AuthGuard>

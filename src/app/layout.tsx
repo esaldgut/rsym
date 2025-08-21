@@ -6,6 +6,7 @@ import 'aws-amplify/auth/enable-oauth-listener';
 import { ConfigureAmplifyClientSide } from './amplify-client-config';
 import { QueryProvider } from '../components/providers/QueryProvider';
 import { Navbar } from '@/components';
+import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { OAuthHandler } from '../components/auth/OAuthHandler';
 
 const geistSans = Geist({
@@ -35,7 +36,9 @@ export default function RootLayout({
         <OAuthHandler />
         <QueryProvider>
           <Navbar />
-          {children}
+          <MainContentWrapper>
+            {children}
+          </MainContentWrapper>
         </QueryProvider>
       </body>
     </html>
