@@ -53,7 +53,7 @@ export const Navbar = () => {
             <YaanLogo
               size="lg"
               responsive={true}
-              variant={isScrolled ? 'default' : 'white'}
+              variant={isScrolled ? 'black-diamond' : 'white-diamond'}
               className="transition-all duration-300"
             />
           </Link>
