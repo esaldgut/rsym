@@ -26,3 +26,37 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ===== CORRECCIÓN DE CONTRASTE PARA LABELS DE FORMULARIOS ===== */
+/* Solución con especificidad CSS mayor que Tailwind para sobrescribir text-gray-700 */
+
+/* Especificidad alta: form + clase de Tailwind + pseudo-selectores */
+form label.text-gray-700,
+form .text-gray-700,
+.bg-white form label.text-gray-700,
+div form label.text-gray-700 {
+  color: #1f2937 !important; /* text-gray-800 - más oscuro para mejor contraste */
+}
+
+/* También para elementos label dentro de divs de formulario */
+form div label,
+form .form-group label,
+form .space-y-6 label,
+form .space-y-8 label {
+  color: #1f2937 !important; /* text-gray-800 */
+  font-weight: 500;
+}
+
+/* Para asegurar que todos los labels sean visibles */
+label[class*="text-gray"] {
+  color: #1f2937 !important; /* text-gray-800 */
+}
+
+/* Mejorar contraste en inputs también */
+form input:not([type="checkbox"]):not([type="radio"]),
+form textarea,
+form select {
+  color: #111827; /* text-gray-900 */
+}
+
+/* ===== FIN CORRECCIÓN DE CONTRASTE ===== */
