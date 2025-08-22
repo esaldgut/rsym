@@ -1,6 +1,8 @@
 // next.config.mjs
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Configuración para Docker standalone
+  output: 'standalone',
   // Configuración específica para Amplify v6 + Next.js 15.3.4
   experimental: {
     // Habilitar server actions para auth y uploads
