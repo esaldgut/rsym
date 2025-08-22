@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 interface AppleSignInButtonProps {
   customState?: string;
   onSuccess?: () => void;
-  onError?: (error: any) => void;
+  onError?: (error: Error | string) => void;
   className?: string;
 }
 
@@ -48,7 +48,7 @@ export default function AppleSignInButton({
       await signInWithOAuth('Apple', customState);
     } catch (error) {
       console.error('Error iniciando Apple Sign-In:', error);
-      onError?.(error);
+      onError?.(error as string | Error);
     }
   };
 

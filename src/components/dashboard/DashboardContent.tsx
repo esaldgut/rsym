@@ -94,7 +94,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
       } else {
         setProviderPackagesError(result.error || 'Error al cargar paquetes');
       }
-    } catch (error) {
+    } catch {
       setProviderPackagesError('Error interno del servidor');
     } finally {
       setLoadingProviderPackages(false);
@@ -147,7 +147,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
                     <span className="text-blue-600 font-bold">
                       ${item.product_pricing?.toFixed(2) || 'N/A'}
                     </span>
-                    <LocationDescription locations={item.location} className="text-sm text-gray-600" />
+                    <LocationDescription locations={item.location || []} className="text-sm text-gray-600" />
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center gap-2">

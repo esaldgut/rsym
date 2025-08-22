@@ -5,7 +5,7 @@
 import { CookieStorage } from 'aws-amplify/adapter-core';
 
 // CRÍTICO: Implementación correcta de CookieStorage para HTTP-Only
-export class AmplifyHttpOnlyCookieAdapter implements CookieStorage {
+export class AmplifyHttpOnlyCookieAdapter {
   constructor(
     private config: {
       domain?: string;
@@ -18,22 +18,25 @@ export class AmplifyHttpOnlyCookieAdapter implements CookieStorage {
 
   // Los métodos están vacíos porque las cookies HTTP-Only 
   // no pueden ser accedidas desde JavaScript
-  setItem(key: string, value: string): void {
+  setItem(_key: string, _value: string): Promise<void> {
     // HTTP-Only cookies son manejadas por el servidor
     // No hacer nada aquí es correcto
+    return Promise.resolve();
   }
 
-  getItem(key: string): string | null {
+  getItem(_key: string): Promise<string | null> {
     // HTTP-Only cookies no pueden ser leídas desde JavaScript
-    return null;
+    return Promise.resolve(null);
   }
 
-  removeItem(key: string): void {
+  removeItem(_key: string): Promise<void> {
     // HTTP-Only cookies son manejadas por el servidor
+    return Promise.resolve();
   }
 
-  clear(): void {
+  clear(): Promise<void> {
     // HTTP-Only cookies son manejadas por el servidor
+    return Promise.resolve();
   }
 }
 

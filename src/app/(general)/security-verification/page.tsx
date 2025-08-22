@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
 
+// Force dynamic rendering since we use browser APIs
+export const dynamic = 'force-dynamic';
+
 interface SecurityCheck {
   name: string;
   description: string;
@@ -224,10 +227,10 @@ export default function SecurityVerificationPage() {
             {overallScore < 40 && (
               <li>• Activar cookies HTTP-Only correctamente en Amplify</li>
             )}
-            {checks[1].status === 'fail' && (
+            {checks[1]?.status === 'fail' && (
               <li>• Limpiar tokens de localStorage</li>
             )}
-            {checks[2].status === 'fail' && (
+            {checks[2]?.status === 'fail' && (
               <li>• Limpiar tokens de sessionStorage</li>
             )}
             <li>• Verificar headers de seguridad en Network tab</li>

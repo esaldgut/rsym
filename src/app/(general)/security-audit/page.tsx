@@ -154,7 +154,7 @@ export default function SecurityAuditPage() {
                   </div>
                 ))}
                 
-                {auditResult.headerAudit.recommendations.map((rec, index) => (
+                {auditResult.headerAudit.recommendations.map((rec: string, index: number) => (
                   <div key={index} className="flex items-center text-yellow-600">
                     <span className="mr-2">⚠️</span>
                     <span className="text-xs">{rec}</span>
@@ -177,7 +177,7 @@ export default function SecurityAuditPage() {
               </h3>
               
               <div className="space-y-3">
-                {auditResult.xssAudit.tests.map((test, index) => (
+                {auditResult.xssAudit.tests.map((test: any, index: number) => (
                   <div key={index} className="border rounded p-3">
                     <div className="flex justify-between items-center mb-1">
                       <span className="font-medium text-sm">{test.name}</span>

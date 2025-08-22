@@ -53,7 +53,7 @@ export function useSocialAuth(): UseSocialAuthReturn {
       
       // Implementar timeout para evitar colgado indefinido
       const signInPromise = signInWithRedirect({ 
-        provider: cognitoProvider
+        provider: cognitoProvider as any
       });
       
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -76,7 +76,7 @@ export function useSocialAuth(): UseSocialAuthReturn {
         name: err instanceof Error ? err.name : 'Unknown',
         message: err instanceof Error ? err.message : err,
         stack: err instanceof Error ? err.stack : null,
-        provider: cognitoProvider,
+        provider: cognitoProvider as any,
         fullError: JSON.stringify(err, null, 2)
       });
       

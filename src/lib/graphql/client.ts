@@ -30,7 +30,7 @@ export async function executeQuery<T = any>(
 
     const result = await client.graphql({
       query,
-      variables,
+      variables: variables as any,
       authMode: 'userPool', // Forzar uso de ID token
     }) as GraphQLResult<T>;
 
@@ -64,7 +64,7 @@ export async function executeMutation<T = any>(
 
     const result = await client.graphql({
       query: mutation,
-      variables,
+      variables: variables as any,
       authMode: 'userPool', // Forzar uso de ID token
     }) as GraphQLResult<T>;
 

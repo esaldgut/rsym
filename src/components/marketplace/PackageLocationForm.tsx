@@ -62,8 +62,7 @@ export function PackageLocationForm({
     selectedLocation,
     selectLocation,
     removeLocation,
-    error,
-    clearError
+    error
   } = useLocationSelector({
     initialLocation,
     onLocationChange,
@@ -84,7 +83,7 @@ export function PackageLocationForm({
         showCoordinates={false}
         label="Ubicación del Package"
         helpText="Selecciona el destino principal donde se realizará tu package turístico. Esta ubicación será visible para los clientes."
-        error={externalError || error}
+        error={externalError || error || undefined}
       />
       
       {/* Información adicional para packages */}

@@ -211,7 +211,7 @@ export async function updateUserProfile(
     
     // Actualizar atributos en Cognito
     const result = await updateUserAttributes({
-      userAttributes: attributes
+      userAttributes: attributes as any
     });
     
     console.log('Atributos actualizados exitosamente:', result);

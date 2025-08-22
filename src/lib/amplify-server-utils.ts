@@ -15,14 +15,7 @@ export const { runWithAmplifyServerContext } = createServerRunner({
             redirectSignIn: outputs.auth.oauth.redirect_sign_in.split(','),
             redirectSignOut: outputs.auth.oauth.redirect_sign_out.split(','),
             responseType: outputs.auth.oauth.response_type as 'code',
-            providers: {
-              Google: {
-                clientId: process.env.GOOGLE_CLIENT_ID || ''
-              },
-              Apple: {
-                clientId: process.env.APPLE_CLIENT_ID || ''
-              }
-            }
+            providers: {} as any
           }
         }
       }

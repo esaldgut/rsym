@@ -69,7 +69,7 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
         username: currentUser.username,
         email: userAttributes.email,
         userType: securityValidation.userType,
-        signInDetails: currentUser.signInDetails,
+        signInDetails: currentUser.signInDetails as any,
         securityValidation
       };
       

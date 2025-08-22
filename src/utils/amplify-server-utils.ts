@@ -7,7 +7,8 @@ import {
   getCurrentUser 
 } from 'aws-amplify/auth/server';
 import type { JWT } from 'aws-amplify/auth';
-import { type Schema } from '@/amplify/data/resource';
+// import { type Schema } from '@/amplify/data/resource';
+type Schema = any;
 import outputs from '../../amplify/outputs.json';
 
 /**

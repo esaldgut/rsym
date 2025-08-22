@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useCallback } from 'react';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 
 interface FileUploadProps {
@@ -59,6 +59,7 @@ export function FileUpload({
         onUploadSuccess(result.url, file.name);
       }
     } catch (error) {
+      console.error('Upload error:', error);
       // Error handling ya está en el hook
     } finally {
       // Limpiar el input

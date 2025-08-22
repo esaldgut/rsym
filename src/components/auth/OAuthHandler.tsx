@@ -25,15 +25,15 @@ export function OAuthHandler() {
           break;
           
         case 'signInWithRedirect_failure':
-          logger.error('OAuth sign in failed', { error: payload.data?.message });
-          const errorMessage = payload.data?.message || 'Error en autenticación social';
+          logger.error('OAuth sign in failed', { error: (payload.data as any)?.message });
+          const errorMessage = (payload.data as any)?.message || 'Error en autenticación social';
           router.push(`/auth?error=oauth_failed&error_description=${encodeURIComponent(errorMessage)}`);
           break;
           
         case 'customOAuthState':
           logger.auth('Custom OAuth state received', 'customOAuthState');
-          if (payload.data?.redirect) {
-            router.push(payload.data.redirect);
+          if ((payload.data as any)?.redirect) {
+            router.push((payload.data as any).redirect);
           }
           break;
           

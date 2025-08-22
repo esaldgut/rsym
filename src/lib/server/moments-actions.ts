@@ -87,7 +87,6 @@ export async function createMomentAction(formData: FormData) {
             path: fileName,
             data: mediaFile,
             options: {
-              accessLevel: 'protected',
               contentType: mediaFile.type,
               metadata: {
                 userId: user.userId,
@@ -105,7 +104,7 @@ export async function createMomentAction(formData: FormData) {
     }
 
     // Crear momento en GraphQL
-    const _input: CreateMomentInput = {
+    const _momentInput: CreateMomentInput = {
       description,
       resourceType,
       resourceUrl: resourceUrl ? [resourceUrl] : undefined,
@@ -152,7 +151,8 @@ export async function createMomentAction(formData: FormData) {
 }
 
 // Server Action: Toggle Like
-export async function toggleLikeAction(itemId: string, _itemType: 'Moment' | 'MarketplaceFeed' = 'Moment') {
+export async function toggleLikeAction(itemId: string, itemType: 'Moment' | 'MarketplaceFeed' = 'Moment') {
+  console.log('Toggle like for item:', itemId, 'type:', itemType);
   try {
     const user = await runWithAmplifyServerContext({
       nextServerContext: { cookies },
@@ -191,7 +191,8 @@ export async function toggleLikeAction(itemId: string, _itemType: 'Moment' | 'Ma
 }
 
 // Server Action: Obtener momentos (con cache)
-export async function getMomentsAction(limit: number = 20, _nextToken?: string) {
+export async function getMomentsAction(limit: number = 20, nextToken?: string) {
+  console.log('Getting moments with limit:', limit, 'nextToken:', nextToken);
   try {
     // TODO: Implementar con GraphQL cuando esté listo
     // Por ahora devolvemos datos mock
@@ -228,7 +229,8 @@ export async function getMomentsAction(limit: number = 20, _nextToken?: string) 
 }
 
 // Server Action: Eliminar momento (solo el propietario)
-export async function deleteMomentAction(_momentId: string) {
+export async function deleteMomentAction(momentId: string) {
+  console.log('Deleting moment:', momentId);
   try {
     const user = await runWithAmplifyServerContext({
       nextServerContext: { cookies },

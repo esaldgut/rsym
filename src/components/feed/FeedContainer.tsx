@@ -36,7 +36,7 @@ export async function FeedContainer({
 async function loadPosts(type: string): Promise<Moment[]> {
   if (type === 'moments') {
     const result = await getMomentsAction(20);
-    return result.success ? result.moments : [];
+    return result.success ? (result.moments as any[]) : [];
   }
   
   // Para marketplace usaríamos otra action

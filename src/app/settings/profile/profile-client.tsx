@@ -36,7 +36,7 @@ interface ProfileSettingsClientProps {
 export default function ProfileSettingsClient({ initialAttributes }: ProfileSettingsClientProps) {
   const router = useRouter();
   const { user } = useAmplifyAuth();
-  const [userType, setUserType] = useState<UserType | null>(initialAttributes.userType || null);
+  const [userType, setUserType] = useState<UserType | null>((initialAttributes.userType as UserType) || null);
   const [step, setStep] = useState(initialAttributes.userType ? 2 : 1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -146,7 +146,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
     setFormData(prev => ({
       ...prev,
       [field]: {
-        ...(prev[field] as Record<string, string>),
+        ...(prev[field] as any),
         [nestedField]: value
       }
     }));
@@ -155,8 +155,13 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   const handleImageUpload = async (file: File) => {
     setIsUploading(true);
     try {
-      const imagePath = await uploadProfileImage(file);
-      updateFormData('profilePhotoPath', imagePath);
+      const userId = user?.userId || user?.username || 'anonymous';
+      const imagePath = await uploadProfileImage(file, userId, { accessLevel: 'protected' });
+      if (imagePath) {
+        updateFormData('profilePhotoPath', imagePath);
+      } else {
+        throw new Error('Failed to get image path after upload');
+      }
     } catch (error) {
       console.error('Error subiendo imagen:', error);
       setErrors({ profilePhoto: 'Error al subir la imagen. Intenta de nuevo.' });
@@ -303,7 +308,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                   path={formData.profilePhotoPath}
                   alt="Foto de perfil del usuario"
                   className="w-32 h-32"
-                  fallbackText={user?.signInDetails?.loginId?.charAt(0).toUpperCase() || 'U'}
+                  fallbackText={(user?.signInDetails?.loginId as string)?.charAt(0).toUpperCase() || 'U'}
                 />
                 <label className="absolute bottom-0 right-0 bg-pink-500 text-white rounded-full p-2 cursor-pointer hover:bg-pink-600 transition-colors">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -586,7 +591,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                     label="Constancia de Situación Fiscal"
                     description="Documento que acredite tu situación fiscal actualizada"
                     value={formData.proofOfTaxStatusPath}
-                    onChange={(doc) => updateFormData('proofOfTaxStatusPath', doc)}
+                    onChange={(doc) => updateFormData('proofOfTaxStatusPath', doc as any)}
                     required
                   />
 
@@ -594,7 +599,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                     label="Registro Nacional de Turismo"
                     description="Registro SECTUR que acredite tu actividad turística"
                     value={formData.secturPath}
-                    onChange={(doc) => updateFormData('secturPath', doc)}
+                    onChange={(doc) => updateFormData('secturPath', doc as any)}
                     required
                   />
 
@@ -602,7 +607,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                     label="Opinión de Cumplimiento"
                     description="Documento de cumplimiento de obligaciones fiscales"
                     value={formData.complianceOpinPath}
-                    onChange={(doc) => updateFormData('complianceOpinPath', doc)}
+                    onChange={(doc) => updateFormData('complianceOpinPath', doc as any)}
                     required
                   />
                 </div>

@@ -85,8 +85,8 @@ const YaanLogo = forwardRef<SVGSVGElement, YaanLogoProps & React.SVGProps<SVGSVG
   } : {};
 
   // Determinar las clases finales
-  const finalSizeClass = responsive && responsiveClasses[size] 
-    ? responsiveClasses[size] 
+  const finalSizeClass = responsive && (responsiveClasses as any)[size] 
+    ? (responsiveClasses as any)[size] 
     : sizeClasses[size];
 
   // Aplicar clases de gradiente especiales

@@ -49,7 +49,7 @@ export default function AuthTestPage() {
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="font-semibold mb-4">¿Qué buscar en Console?</h2>
             <p className="text-sm text-gray-600">
-              Abre DevTools > Console y busca mensajes como:
+              Abre DevTools &gt; Console y busca mensajes como:
               <br />
               <code className="bg-gray-100 px-2 py-1 rounded text-xs">
                 🔄 Cambiando modo de auth: {'{'} from: "signin", to: "signup" {'}'}

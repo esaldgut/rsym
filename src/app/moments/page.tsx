@@ -29,7 +29,7 @@ export default async function MomentsPage() {
           <Suspense fallback={<FeedSkeleton />}>
             <FeedContainer 
               type="moments"
-              initialPosts={initialData}
+              initialPosts={initialData as any}
               showCreatePost={true}
             />
           </Suspense>

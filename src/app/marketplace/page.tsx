@@ -25,7 +25,7 @@ export default function MarketplacePage() {
       try {
         const result = await executeQuery(getAllMarketplaceFeed);
         if (result?.getAllMarketplaceFeed) {
-          setExperiences(result.getAllMarketplaceFeed.filter(exp => exp.published));
+          setExperiences(result.getAllMarketplaceFeed.filter((exp: any) => exp.published));
         }
       } catch (error) {
         console.error('Error cargando experiencias:', error);

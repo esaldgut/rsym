@@ -152,7 +152,7 @@ export async function searchPlacesByText(
     
     // Convertir resultados a CircuitLocation
     const locations: CircuitLocation[] = response.Results.map(result => 
-      convertToCircuitLocation(result, response)
+      convertToCircuitLocation(result as any, response)
     );
     
     // Revalidar cache de búsquedas
@@ -243,11 +243,11 @@ export async function searchPlacesByCoordinates(
     const locations: CircuitLocation[] = response.Results.map(result => ({
       place: result.Place?.Label || '',
       placeSub: [
-        result.Place?.Address?.Municipality,
-        result.Place?.Address?.Region,
-        result.Place?.Address?.Country
+        (result.Place as any)?.Address?.Municipality,
+        (result.Place as any)?.Address?.Region,
+        (result.Place as any)?.Address?.Country
       ].filter(Boolean).join(', ') || undefined,
-      complementaryDescription: result.Place?.Address?.Street || undefined,
+      complementaryDescription: (result.Place as any)?.Address?.Street || undefined,
       coordinates: result.Place?.Geometry?.Point as [number, number] || coordinates,
       amazon_location_service_response: JSON.stringify(result)
     }));
@@ -304,14 +304,14 @@ export async function getPlaceDetails(
       id: placeId,
       place: response.Place.Label || '',
       placeSub: [
-        response.Place.Address?.Municipality,
-        response.Place.Address?.Region,
-        response.Place.Address?.Country
+        (response.Place as any).Address?.Municipality,
+        (response.Place as any).Address?.Region,
+        (response.Place as any).Address?.Country
       ].filter(Boolean).join(', ') || undefined,
       complementaryDescription: [
-        response.Place.Address?.Street,
-        response.Place.Address?.District,
-        response.Place.Address?.PostalCode
+        (response.Place as any).Address?.Street,
+        (response.Place as any).Address?.District,
+        (response.Place as any).Address?.PostalCode
       ].filter(Boolean).join(' ') || undefined,
       coordinates: response.Place.Geometry?.Point as [number, number] || [0, 0],
       amazon_location_service_response: JSON.stringify(response)

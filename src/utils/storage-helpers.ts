@@ -33,7 +33,6 @@ export async function getSignedImageUrl(
     const result = await getUrl({
       path: path,
       options: {
-        accessLevel: options.accessLevel || 'protected',
         expiresIn: options.expiresIn || 3600, // 1 hora por defecto
         validateObjectExistence: options.validateObjectExistence ?? false // No validar para evitar errores
       }
@@ -70,7 +69,6 @@ export async function uploadProfileImage(
       path,
       data: file,
       options: {
-        accessLevel: options.accessLevel || 'protected',
         contentType: file.type,
         onProgress: options.onProgress
       }
@@ -94,11 +92,8 @@ export async function deleteProfileImage(
 ): Promise<boolean> {
   try {
     await remove({
-      path,
-      options: {
-        accessLevel
-      }
-    });
+      path
+    } as any);
     return true;
   } catch (error) {
     console.error('Error eliminando imagen:', error);

@@ -92,7 +92,7 @@ export function useMarketplaceFeed() {
         const result = await client.graphql({ query });
         
         logger.graphql('getAllMarketplaceFeed', true);
-        return result.data.getAllMarketplaceFeed as MarketplaceFeed[];
+        return (result as any).data.getAllMarketplaceFeed as MarketplaceFeed[];
       } catch (error) {
         logger.graphql('getAllMarketplaceFeed', false);
         handleGraphQLError(error, 'getAllMarketplaceFeed');
@@ -156,7 +156,7 @@ export function useActiveCircuits() {
         });
         
         logger.graphql('getAllActiveCircuits', true);
-        return result.data.getAllActiveCircuits as Circuit[];
+        return (result as any).data.getAllActiveCircuits as Circuit[];
       } catch (error) {
         logger.graphql('getAllActiveCircuits', false);
         handleGraphQLError(error, 'getAllActiveCircuits');
@@ -227,7 +227,7 @@ export function useActivePackages() {
         });
         
         logger.graphql('getAllActivePackages', true);
-        return result.data.getAllActivePackages as Package[];
+        return (result as any).data.getAllActivePackages as Package[];
       } catch (error) {
         logger.graphql('getAllActivePackages', false);
         handleGraphQLError(error, 'getAllActivePackages');
@@ -289,7 +289,7 @@ export function useActiveMoments() {
         });
         
         logger.graphql('getAllActiveMoments', true);
-        return result.data.getAllActiveMoments as Moment[];
+        return (result as any).data.getAllActiveMoments as Moment[];
       } catch (error) {
         logger.graphql('getAllActiveMoments', false);
         handleGraphQLError(error, 'getAllActiveMoments');
@@ -341,7 +341,7 @@ export function useCreateMoment() {
         });
         
         logger.graphql('createMoment', true);
-        return result.data.createMoment as Moment;
+        return (result as any).data.createMoment as Moment;
       } catch (error) {
         logger.graphql('createMoment', false);
         handleGraphQLError(error, 'createMoment');
@@ -379,7 +379,7 @@ export function useToggleLike() {
         });
         
         logger.graphql('toggleLike', true);
-        return result.data.toggleLike;
+        return (result as any).data.toggleLike;
       } catch (error) {
         logger.graphql('toggleLike', false);
         handleGraphQLError(error, 'toggleLike');

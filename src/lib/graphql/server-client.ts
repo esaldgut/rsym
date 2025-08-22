@@ -1,6 +1,7 @@
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
-import { type Schema } from '@/amplify/data/resource';
+// import { type Schema } from '@/amplify/data/resource';
+type Schema = any;
 import outputs from '../../../amplify/outputs.json';
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
 import { getIdTokenServer } from '@/utils/amplify-server-utils';
@@ -33,7 +34,7 @@ export async function executeServerQuery<T = any>(
 
     const result = await serverClient.graphql({
       query,
-      variables,
+      variables: variables as any,
       authMode: 'userPool', // Asegurar que use el ID token
     }) as GraphQLResult<T>;
 
@@ -67,7 +68,7 @@ export async function executeServerMutation<T = any>(
 
     const result = await serverClient.graphql({
       query: mutation,
-      variables,
+      variables: variables as any,
       authMode: 'userPool', // Asegurar que use el ID token
     }) as GraphQLResult<T>;
 
@@ -119,7 +120,7 @@ export async function executeGraphQLOperation<T = any>(
 
     const result = await serverClient.graphql({
       query: options.query,
-      variables: options.variables,
+      variables: options.variables as any,
       authMode: 'userPool', // Asegurar que use el ID token
     }) as GraphQLResult<T>;
 

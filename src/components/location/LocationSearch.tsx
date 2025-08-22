@@ -34,7 +34,7 @@ export function LocationSearch({
   
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const debounceTimerRef = useRef<NodeJS.Timeout | undefined>(undefined);
 
   // Búsqueda con debounce
   const performSearch = useCallback((text: string) => {

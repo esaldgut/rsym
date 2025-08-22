@@ -24,11 +24,11 @@ export class SecurityAudit {
 
     // Verificar configuración de Amplify
     try {
-      // @ts-ignore - Access to global Amplify config
+      // @ts-expect-error - Access to global Amplify config
       const amplifyConfig = window.Amplify?._config;
       result.hasAmplifyConfig = !!amplifyConfig;
       result.usingHttpOnlyCookies = amplifyConfig?.ssr === true;
-    } catch (e) {
+    } catch {
       // Silently handle if Amplify not available
     }
 
@@ -141,7 +141,7 @@ export class SecurityAudit {
         securityScore += 10;
       }
 
-    } catch (error) {
+    } catch {
       recommendations.push('No se pudieron verificar headers de seguridad');
     }
 
@@ -256,7 +256,7 @@ export class SecurityAudit {
     
     // Calcular puntuación general
     let totalScore = 0;
-    let maxScore = 100;
+    const maxScore = 100;
     
     // Puntuación cookies (40 puntos)
     if (cookieAudit.usingHttpOnlyCookies) totalScore += 40;

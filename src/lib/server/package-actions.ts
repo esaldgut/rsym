@@ -4,7 +4,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createPackage, getAllActivePackagesByProvider } from '@/lib/graphql/operations';
 import { getIdTokenServer, getAuthenticatedUser } from '@/utils/amplify-server-utils';
-import { SecurityValidator } from '@/lib/security-validator';
+// import { SecurityValidator } from '@/lib/security-validator';
 import { canExecuteGraphQLOperation } from '@/lib/permission-matrix';
 import type { 
   CreatePackageInput, 
@@ -201,7 +201,7 @@ function validatePackageInput(input: CreatePackageInput): Record<string, string>
 function sanitizePackageInput(input: CreatePackageInput): CreatePackageInput {
   // Función helper para limpiar objetos de ubicación
   const cleanLocation = (location: CircuitLocationInput): CircuitLocationInput => {
-    const { amazon_location_service_response, ...cleanedLocation } = location as any;
+    const { amazon_location_service_response: _unused, ...cleanedLocation } = location as any;
     return cleanedLocation;
   };
 

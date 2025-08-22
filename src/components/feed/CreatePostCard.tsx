@@ -84,7 +84,7 @@ export function CreatePostCard({ onPostCreated }: CreatePostCardProps) {
         
         // Notificar al parent
         if (result.data && onPostCreated) {
-          onPostCreated(result.data);
+          onPostCreated(result.data as any);
         }
       } else {
         setError(result.error || 'Error al crear el momento');
@@ -116,9 +116,9 @@ export function CreatePostCard({ onPostCreated }: CreatePostCardProps) {
           className="w-full flex items-center space-x-3 text-left"
         >
           <ProfileImage
-            path={user?.profilePhotoPath}
-            alt={user?.name || 'Usuario'}
-            fallbackText={user?.name?.substring(0, 2).toUpperCase() || 'U'}
+            path={(user as any)?.profilePhotoPath}
+            alt={(user as any)?.name || 'Usuario'}
+            fallbackText={(user as any)?.name?.substring(0, 2).toUpperCase() || 'U'}
             size="md"
           />
           <div className="flex-1">
@@ -142,9 +142,9 @@ export function CreatePostCard({ onPostCreated }: CreatePostCardProps) {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="flex items-start space-x-3">
             <ProfileImage
-              path={user?.profilePhotoPath}
-              alt={user?.name || 'Usuario'}
-              fallbackText={user?.name?.substring(0, 2).toUpperCase() || 'U'}
+              path={(user as any)?.profilePhotoPath}
+              alt={(user as any)?.name || 'Usuario'}
+              fallbackText={(user as any)?.name?.substring(0, 2).toUpperCase() || 'U'}
               size="md"
             />
             <div className="flex-1">

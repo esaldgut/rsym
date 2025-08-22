@@ -461,7 +461,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                 required={true}
                 label="Destino Principal *"
                 helpText="Selecciona la ubicación principal donde se desarrollará el paquete turístico"
-                error={destinationSelector.error}
+                error={destinationSelector.error || undefined}
               />
 
               <LocationSelector
@@ -472,7 +472,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                 countries={['MEX', 'USA', 'CAN', 'GTM', 'BLZ']}
                 label="Punto de Partida (Opcional)"
                 helpText="Si aplica, selecciona desde dónde inicia el paquete"
-                error={originSelector.error}
+                error={originSelector.error || undefined}
               />
             </div>
           </div>
@@ -1052,6 +1052,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
  * Componente principal que verifica permisos antes de renderizar
  */
 export function CreatePackageFormFixed({ onSubmit, onCancel }: CreatePackageFormProps) {
+  // Always call hooks at the top level
   const { userType, isLoading } = useAmplifyAuth();
 
   // Loading state

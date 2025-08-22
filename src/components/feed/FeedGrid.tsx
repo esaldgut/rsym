@@ -32,7 +32,7 @@ export function FeedGrid({
       const result = await getMomentsAction(10, nextToken);
       
       if (result.success && result.moments.length > 0) {
-        setPosts(prev => [...prev, ...result.moments]);
+        setPosts(prev => [...prev, ...(result.moments as any[])]);
         setNextToken(result.nextToken);
         setHasMore(!!result.nextToken);
       } else {

@@ -151,14 +151,14 @@ export class SecurityValidator {
       return { isValid: false, error: 'UserType no encontrado' };
     }
 
-    if (!this.VALID_USER_TYPES.includes(userType)) {
+    if (!this.VALID_USER_TYPES.includes(userType as any)) {
       return { 
         isValid: false, 
         error: `UserType inválido: ${userType}. Válidos: ${this.VALID_USER_TYPES.join(', ')}` 
       };
     }
 
-    return { isValid: true, userType };
+    return { isValid: true, userType: userType as any };
   }
 
   /**

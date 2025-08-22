@@ -60,7 +60,6 @@ export function DocumentUploader({
         path: fileName,
         data: file,
         options: {
-          accessLevel: 'private', // Documentos sensibles solo accesibles por el dueño
           contentType: file.type,
           onProgress: ({ transferredBytes, totalBytes }) => {
             if (totalBytes) {
@@ -93,11 +92,8 @@ export function DocumentUploader({
     try {
       // Eliminar archivo de S3
       await remove({
-        path: value.uri,
-        options: {
-          accessLevel: 'private'
-        }
-      });
+        path: value.uri
+      } as any);
 
       // Actualizar estado
       onChange(undefined);

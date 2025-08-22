@@ -380,7 +380,7 @@ export function CreatePackageFormNew({ onSubmit, onCancel }: CreatePackageFormPr
                 required={true}
                 label="Destino Principal *"
                 helpText="Selecciona la ubicación principal donde se desarrollará el paquete turístico"
-                error={destinationError}
+                error={destinationError || undefined}
               />
 
               {/* Origen (opcional) */}
@@ -392,7 +392,7 @@ export function CreatePackageFormNew({ onSubmit, onCancel }: CreatePackageFormPr
                 countries={['MEX', 'USA', 'CAN', 'GTM', 'BLZ']}
                 label="Punto de Partida (Opcional)"
                 helpText="Si aplica, selecciona desde dónde inicia el paquete"
-                error={originError}
+                error={originError || undefined}
               />
             </div>
           </div>

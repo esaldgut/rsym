@@ -13,7 +13,11 @@ export default function RouteProtectionTestPage() {
   }>>([]);
 
   const runProtectionTests = async () => {
-    const results = [];
+    const results: Array<{
+      test: string;
+      result: string;
+      status: 'success' | 'fail' | 'info';
+    }> = [];
     
     // Test 1: Acceso directo a dashboard
     try {
@@ -23,7 +27,7 @@ export default function RouteProtectionTestPage() {
         result: `HTTP ${response.status} - ${response.status === 307 ? 'Redirigido correctamente' : 'Posible problema'}`,
         status: response.status === 307 ? 'success' : 'fail'
       });
-    } catch (error) {
+    } catch {
       results.push({
         test: 'Acceso directo a /dashboard',
         result: 'Error de conexión',
@@ -40,7 +44,7 @@ export default function RouteProtectionTestPage() {
         result: protectedHeader ? `Presente: ${protectedHeader}` : 'Ausente',
         status: protectedHeader ? 'success' : 'fail'
       });
-    } catch (error) {
+    } catch {
       results.push({
         test: 'Header X-Protected-Route',
         result: 'No se pudo verificar',

@@ -43,14 +43,14 @@ export function setupOAuthListeners(
     switch (payload.event) {
       case 'signInWithRedirect':
         // Usuario autenticado exitosamente con OAuth
-        console.log('OAuth sign-in exitoso:', payload.data);
-        onSuccess?.(payload.data);
+        console.log('OAuth sign-in exitoso:', (payload as any).data);
+        onSuccess?.((payload as any).data);
         break;
         
       case 'signInWithRedirect_failure':
         // Error en el flujo OAuth
-        console.error('OAuth sign-in falló:', payload.error);
-        onError?.(payload.error);
+        console.error('OAuth sign-in falló:', (payload as any).error);
+        onError?.((payload as any).error);
         break;
         
       case 'customOAuthState':
@@ -60,7 +60,7 @@ export function setupOAuthListeners(
         handleCustomState(payload.data);
         break;
         
-      case 'signOut':
+      case 'signedOut':
         // Usuario cerró sesión
         console.log('Usuario cerró sesión');
         break;

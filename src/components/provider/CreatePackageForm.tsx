@@ -24,7 +24,7 @@ export function CreatePackageForm({ onSubmit, onCancel }: CreatePackageFormProps
 
   const [newPreference, setNewPreference] = useState('');
   const [newCategory, setNewCategory] = useState('');
-  const [basePrice, setBasePrice] = useState<Partial<Price>>({
+  const [basePrice, setBasePrice] = useState<any>({
     price: 0,
     currency: 'USD',
     roomType: 'standard'
