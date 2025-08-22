@@ -14,6 +14,7 @@ export interface CircuitLocation {
   placeSub?: string;
   coordinates?: number[];
   complementaryDescription?: string;
+  amazon_location_service_response?: string;
 }
 
 export interface Price {
@@ -206,6 +207,67 @@ export interface Payment {
 }
 
 // Input Types
+export interface CircuitLocationInput {
+  id?: string;
+  place?: string;
+  placeSub?: string;
+  coordinates?: number[];
+  complementaryDescription?: string;
+  amazon_location_service_response?: string;
+}
+
+export interface PriceInput {
+  id?: string;
+  currency?: string;
+  price?: number;
+  roomName?: string;
+}
+
+export interface CreatePackageInput {
+  aditional_services?: string;
+  capacity?: number;
+  categories?: string[];
+  cover_image_url?: string;
+  created_at?: AWSDateTime;
+  description?: string;
+  destination?: CircuitLocationInput[];
+  endDate?: AWSDateTime;
+  extraPrices?: PriceInput[];
+  image_url?: string[];
+  included_services?: string;
+  language?: string[];
+  name: string; // Required field
+  numberOfNights?: string;
+  origin?: CircuitLocationInput[];
+  preferences?: string[];
+  prices?: PriceInput[];
+  provider_id?: string;
+  startDate?: AWSDateTime;
+  video_url?: string[];
+}
+
+export interface UpdatePackageInput {
+  aditional_services?: string;
+  capacity?: number;
+  categories?: string[];
+  cover_image_url?: string;
+  description?: string;
+  destination?: CircuitLocationInput[];
+  endDate?: AWSDateTime;
+  extraPrices?: PriceInput[];
+  image_url?: string[];
+  included_services?: string;
+  language?: string[];
+  name?: string;
+  numberOfNights?: string;
+  origin?: CircuitLocationInput[];
+  preferences?: string[];
+  prices?: PriceInput[];
+  published?: boolean;
+  startDate?: AWSDateTime;
+  video_url?: string[];
+}
+
 export interface CreateMomentInput {
   description?: string;
   destination?: CircuitLocation[];

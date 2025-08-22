@@ -21,7 +21,7 @@ export function OAuthHandler() {
       switch (payload.event) {
         case 'signInWithRedirect':
           logger.auth('OAuth sign in successful', 'signInWithRedirect');
-          router.push('/dashboard');
+          router.push('/marketplace');
           break;
           
         case 'signInWithRedirect_failure':

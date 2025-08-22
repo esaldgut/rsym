@@ -48,7 +48,7 @@ export async function getServerSession(forceRefresh = false) {
 }
 
 /**
- * Obtiene el usuario autenticado y sus atributos
+ * Obtiene el usuario autenticado y sus atributos incluye userType
  * Para usar en Server Components
  */
 export async function getAuthenticatedUser() {
@@ -58,8 +58,24 @@ export async function getAuthenticatedUser() {
       try {
         const user = await getCurrentUser(contextSpec);
         const attributes = await fetchUserAttributes(contextSpec);
-        return { user, attributes };
-      } catch {
+        const session = await fetchAuthSession(contextSpec);
+        
+        // Extraer userType del atributo personalizado
+        const userType = (attributes['custom:user_type'] as 'provider' | 'consumer') || null;
+        
+        // Obtener sub del ID token (más confiable)
+        const idTokenSub = session.tokens?.idToken?.payload?.sub as string;
+        
+        return { 
+          user, 
+          attributes, 
+          userType,
+          userId: user.userId,
+          username: user.username,
+          sub: idTokenSub || attributes.sub || user.userId // Prioridad: token -> attributes -> userId
+        };
+      } catch (error) {
+        console.error('Error getting authenticated user:', error);
         return null;
       }
     }

@@ -82,3 +82,65 @@ export async function executeServerMutation<T = any>(
     return null;
   }
 }
+
+/**
+ * Interfaz para operaciones GraphQL genéricas
+ */
+interface GraphQLOperationOptions {
+  query: string;
+  variables?: Record<string, any>;
+}
+
+/**
+ * Resultado de operación GraphQL con éxito/error
+ */
+interface GraphQLOperationResult<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
+/**
+ * Función genérica para ejecutar operaciones GraphQL (queries y mutations)
+ * Compatible con el formato esperado por package-actions.ts
+ */
+export async function executeGraphQLOperation<T = any>(
+  options: GraphQLOperationOptions
+): Promise<GraphQLOperationResult<T>> {
+  try {
+    // Verificar que tengamos un ID token válido
+    const idToken = await getIdTokenServer();
+    if (!idToken) {
+      return {
+        success: false,
+        error: 'No ID token disponible para petición GraphQL'
+      };
+    }
+
+    const result = await serverClient.graphql({
+      query: options.query,
+      variables: options.variables,
+      authMode: 'userPool', // Asegurar que use el ID token
+    }) as GraphQLResult<T>;
+
+    if (result.errors) {
+      console.error('GraphQL errors:', result.errors);
+      return {
+        success: false,
+        error: result.errors[0]?.message || 'GraphQL error',
+        data: result.data
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data
+    };
+  } catch (error) {
+    console.error('Error ejecutando operación GraphQL en servidor:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error desconocido'
+    };
+  }
+}

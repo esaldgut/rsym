@@ -108,6 +108,13 @@ export const getPackageByID = /* GraphQL */ `
         place
         placeSub
         coordinates
+        complementaryDescription
+      }
+      origin {
+        place
+        placeSub
+        coordinates
+        complementaryDescription
       }
       startDate
       endDate
@@ -118,10 +125,65 @@ export const getPackageByID = /* GraphQL */ `
         price
         roomName
       }
+      extraPrices {
+        currency
+        price
+        roomName
+      }
       capacity
       numberOfNights
       preferences
       categories
+      published
+      status
+      created_at
+    }
+  }
+`;
+
+export const getAllActivePackagesByProvider = /* GraphQL */ `
+  query GetAllActivePackagesByProvider($provider_id: ID!) {
+    getAllActivePackagesByProvider(provider_id: $provider_id) {
+      id
+      name
+      description
+      cover_image_url
+      image_url
+      video_url
+      provider_id
+      destination {
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      origin {
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      startDate
+      endDate
+      included_services
+      aditional_services
+      prices {
+        currency
+        price
+        roomName
+      }
+      extraPrices {
+        currency
+        price
+        roomName
+      }
+      capacity
+      numberOfNights
+      preferences
+      categories
+      published
+      status
+      created_at
     }
   }
 `;
@@ -251,6 +313,122 @@ export const generatePaymentLink = /* GraphQL */ `
       total
       currency
       payment_method
+      created_at
+    }
+  }
+`;
+
+// Package Mutations
+export const createPackage = /* GraphQL */ `
+  mutation CreatePackage($input: CreatePackageInput!) {
+    createPackage(input: $input) {
+      id
+      name
+      description
+      cover_image_url
+      image_url
+      video_url
+      provider_id
+      destination {
+        id
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      origin {
+        id
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      startDate
+      endDate
+      included_services
+      aditional_services
+      language
+      preferences
+      categories
+      capacity
+      numberOfNights
+      prices {
+        id
+        currency
+        price
+        roomName
+      }
+      extraPrices {
+        id
+        currency
+        price
+        roomName
+      }
+      published
+      status
+      created_at
+    }
+  }
+`;
+
+export const updatePackage = /* GraphQL */ `
+  mutation UpdatePackage($id: ID!, $input: UpdatePackageInput!) {
+    updatePackage(id: $id, input: $input) {
+      id
+      name
+      description
+      cover_image_url
+      image_url
+      video_url
+      provider_id
+      destination {
+        id
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      origin {
+        id
+        place
+        placeSub
+        coordinates
+        complementaryDescription
+      }
+      startDate
+      endDate
+      included_services
+      aditional_services
+      language
+      preferences
+      categories
+      capacity
+      numberOfNights
+      prices {
+        id
+        currency
+        price
+        roomName
+      }
+      extraPrices {
+        id
+        currency
+        price
+        roomName
+      }
+      published
+      status
+      created_at
+    }
+  }
+`;
+
+export const deletePackage = /* GraphQL */ `
+  mutation DeletePackage($id: ID!) {
+    deletePackage(id: $id) {
+      id
+      name
+      status
       created_at
     }
   }

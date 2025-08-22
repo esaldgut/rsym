@@ -13,7 +13,10 @@ import { StorageImage } from '../../components/StorageImage';
 import { LocationDescription } from './LocationDescription';
 export type UserType = 'provider' | 'consumer';
 import { CreateCircuitForm } from '../provider/CreateCircuitForm';
-import { CreatePackageForm } from '../provider/CreatePackageForm';
+import { CreatePackageFormFixed } from '../provider/CreatePackageFormFixed';
+import { getProviderPackagesAction } from '@/lib/server/package-actions';
+import { useEffect } from 'react';
+import type { Package } from '@/lib/graphql/types';
 
 type TabType = 'marketplace' | 'circuits' | 'packages' | 'moments' | 'my-circuits' | 'my-packages';
 
@@ -25,6 +28,9 @@ export function DashboardContent({ userType }: DashboardContentProps) {
   const [activeTab, setActiveTab] = useState<TabType>('marketplace');
   const [showCreateCircuit, setShowCreateCircuit] = useState(false);
   const [showCreatePackage, setShowCreatePackage] = useState(false);
+  const [providerPackages, setProviderPackages] = useState<Package[]>([]);
+  const [loadingProviderPackages, setLoadingProviderPackages] = useState(false);
+  const [providerPackagesError, setProviderPackagesError] = useState<string | null>(null);
   const isProvider = userType === 'provider';
 
   // Queries optimizadas siguiendo patrones de aws-samples
@@ -70,6 +76,31 @@ export function DashboardContent({ userType }: DashboardContentProps) {
     });
   };
 
+  // Cargar paquetes del provider cuando sea necesario
+  useEffect(() => {
+    if (isProvider && activeTab === 'my-packages') {
+      loadProviderPackages();
+    }
+  }, [isProvider, activeTab]);
+
+  const loadProviderPackages = async () => {
+    setLoadingProviderPackages(true);
+    setProviderPackagesError(null);
+    
+    try {
+      const result = await getProviderPackagesAction();
+      if (result.success) {
+        setProviderPackages(result.data || []);
+      } else {
+        setProviderPackagesError(result.error || 'Error al cargar paquetes');
+      }
+    } catch (error) {
+      setProviderPackagesError('Error interno del servidor');
+    } finally {
+      setLoadingProviderPackages(false);
+    }
+  };
+
   const tabs = [
     { id: 'marketplace', label: 'Marketplace', count: marketplaceData?.length ?? 0 },
     { id: 'circuits', label: 'Circuitos', count: circuitsData?.length ?? 0 },
@@ -77,7 +108,7 @@ export function DashboardContent({ userType }: DashboardContentProps) {
     { id: 'moments', label: 'Momentos', count: momentsData?.length ?? 0 },
     ...(isProvider ? [
       { id: 'my-circuits', label: 'Mis Circuitos', count: 0 },
-      { id: 'my-packages', label: 'Mis Paquetes', count: 0 },
+      { id: 'my-packages', label: 'Mis Paquetes', count: providerPackages.length },
     ] : [])
   ];
 
@@ -348,23 +379,151 @@ export function DashboardContent({ userType }: DashboardContentProps) {
         );
 
       case 'my-packages':
+        if (loadingProviderPackages) return <LoadingSpinner />;
+        
         return (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-semibold">Mis Paquetes</h3>
-              <button
-                onClick={() => setShowCreatePackage(true)}
-                className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
-              >
-                Crear Nuevo Paquete
-              </button>
+              <div>
+                <h3 className="text-lg font-semibold">Mis Paquetes</h3>
+                <p className="text-sm text-gray-600">Gestiona tus paquetes turísticos</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={loadProviderPackages}
+                  disabled={loadingProviderPackages}
+                  className="bg-gray-500 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded transition-colors disabled:opacity-50"
+                >
+                  {loadingProviderPackages ? 'Cargando...' : 'Actualizar'}
+                </button>
+                <button
+                  onClick={() => setShowCreatePackage(true)}
+                  className="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded transition-colors"
+                >
+                  Crear Nuevo Paquete
+                </button>
+              </div>
             </div>
-            <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-              <p className="text-gray-500">No tienes paquetes creados</p>
-              <p className="text-sm text-gray-400 mt-1">
-                Crea tu primer paquete turístico para ofrecerlo en el marketplace
-              </p>
-            </div>
+            
+            {providerPackagesError && (
+              <div className="bg-red-50 border border-red-200 rounded-md p-4">
+                <p className="text-red-600 text-sm">{providerPackagesError}</p>
+              </div>
+            )}
+            
+            {providerPackages.length === 0 ? (
+              <div className="text-center py-12 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <div className="mx-auto w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <p className="text-gray-500 font-medium">No tienes paquetes creados</p>
+                <p className="text-sm text-gray-400 mt-1">
+                  Crea tu primer paquete turístico para ofrecerlo en el marketplace
+                </p>
+                <button
+                  onClick={() => setShowCreatePackage(true)}
+                  className="mt-4 bg-purple-500 hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-lg transition-colors"
+                >
+                  Crear Primer Paquete
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {providerPackages.map((pkg) => (
+                  <div key={pkg.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow border border-gray-200">
+                    {pkg.cover_image_url && (
+                      <StorageImage 
+                        path={pkg.cover_image_url}
+                        alt={pkg.name || 'Package'}
+                        className="w-full h-40 object-cover"
+                      />
+                    )}
+                    <div className="p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <h3 className="font-semibold text-lg">{pkg.name}</h3>
+                        <div className="flex items-center gap-2">
+                          {pkg.published ? (
+                            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
+                              ✓ Publicado
+                            </span>
+                          ) : (
+                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs font-medium">
+                              ⏳ Borrador
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      
+                      <p className="text-gray-600 text-sm mb-3 line-clamp-2">{pkg.description}</p>
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm mb-3">
+                        <div>
+                          <span className="text-gray-500">Noches:</span>
+                          <span className="ml-1 font-medium">{pkg.numberOfNights || 'N/A'}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Capacidad:</span>
+                          <span className="ml-1 font-medium">{pkg.capacity || 'N/A'}</span>
+                        </div>
+                      </div>
+                      
+                      {pkg.prices && pkg.prices.length > 0 && (
+                        <div className="mb-3">
+                          <span className="text-green-600 font-bold text-lg">
+                            ${pkg.prices[0].price?.toFixed(2)} {pkg.prices[0].currency}
+                          </span>
+                          {pkg.prices[0].roomName && (
+                            <span className="text-gray-500 text-sm ml-2">({pkg.prices[0].roomName})</span>
+                          )}
+                        </div>
+                      )}
+                      
+                      {pkg.destination && pkg.destination.length > 0 && (
+                        <div className="mb-3">
+                          <p className="text-sm text-gray-600">
+                            📍 {pkg.destination[0].place}
+                            {pkg.destination[0].placeSub && (
+                              <span className="text-gray-400"> • {pkg.destination[0].placeSub}</span>
+                            )}
+                          </p>
+                        </div>
+                      )}
+                      
+                      {pkg.preferences && pkg.preferences.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-3">
+                          {pkg.preferences.slice(0, 3).map((pref, index) => (
+                            <span key={index} className="bg-purple-100 text-purple-800 px-2 py-1 rounded text-xs">
+                              {pref}
+                            </span>
+                          ))}
+                          {pkg.preferences.length > 3 && (
+                            <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
+                              +{pkg.preferences.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-100">
+                        <span className="text-xs text-gray-400">
+                          {pkg.created_at ? new Date(pkg.created_at).toLocaleDateString('es-ES') : ''}
+                        </span>
+                        <div className="flex gap-2">
+                          <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                            Editar
+                          </button>
+                          <button className="text-green-600 hover:text-green-800 text-sm font-medium">
+                            Ver
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         );
 
@@ -440,11 +599,16 @@ export function DashboardContent({ userType }: DashboardContentProps) {
       )}
 
       {showCreatePackage && (
-        <CreatePackageForm
-          onSubmit={(packageData) => {
-            console.log('Crear paquete:', packageData);
-            // TODO: Implementar la mutación para crear paquete
-            setShowCreatePackage(false);
+        <CreatePackageFormFixed
+          onSubmit={(success: boolean, packageId?: string) => {
+            if (success) {
+              console.log('✅ Paquete creado exitosamente:', packageId);
+              setShowCreatePackage(false);
+              // Recargar la lista de paquetes si estamos en esa tab
+              if (activeTab === 'my-packages') {
+                loadProviderPackages();
+              }
+            }
           }}
           onCancel={() => setShowCreatePackage(false)}
         />

@@ -1,0 +1,31 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "YAANLocationServiceAccess",
+      "Effect": "Allow",
+      "Action": [
+        "geo:SearchPlaceIndexForText",
+        "geo:SearchPlaceIndexForPosition", 
+        "geo:GetPlace"
+      ],
+      "Resource": [
+        "arn:aws:geo:us-west-2:288761749126:place-index/YAANPlaceIndex"
+      ]
+    },
+    {
+      "Sid": "YAANLocationServiceList",
+      "Effect": "Allow", 
+      "Action": [
+        "geo:ListPlaceIndexes",
+        "geo:DescribePlaceIndex"
+      ],
+      "Resource": "*",
+      "Condition": {
+        "StringEquals": {
+          "aws:RequestedRegion": "us-west-2"
+        }
+      }
+    }
+  ]
+}
