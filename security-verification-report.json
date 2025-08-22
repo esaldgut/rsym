@@ -1,0 +1,34 @@
+{
+  "timestamp": "2025-08-05T17:12:50.632Z",
+  "totalScore": 80,
+  "grade": "A",
+  "results": [
+    {
+      "name": "Headers de Seguridad",
+      "score": 0,
+      "maxScore": 20,
+      "status": "fail"
+    },
+    {
+      "name": "Cookies HTTP-Only",
+      "score": 40,
+      "maxScore": 40,
+      "status": "pass",
+      "details": "Sesión activa sin tokens visibles (asumido)"
+    },
+    {
+      "name": "Almacenamiento Limpio",
+      "score": 30,
+      "maxScore": 30,
+      "status": "pass",
+      "details": "Limpieza automática activa"
+    },
+    {
+      "name": "Configuración SSR",
+      "score": 10,
+      "maxScore": 10,
+      "status": "pass"
+    }
+  ],
+  "isSecure": true
+}

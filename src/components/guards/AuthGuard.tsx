@@ -3,6 +3,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+//import { useAmplifyAuth } from '@/hooks/useAmplifyAuth-mock';
 
 interface AuthGuardProps {
   children: ReactNode;

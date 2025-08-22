@@ -5,6 +5,9 @@ const nextConfig = {
   experimental: {
     // Habilitar server actions para auth
     serverActions: true,
+    // Habilitar PPR y cache
+    ppr: 'incremental',
+    dynamicIO: true,
     // Optimización para SSR
     serverComponentsExternalPackages: ['@aws-amplify/adapter-nextjs']
   },
