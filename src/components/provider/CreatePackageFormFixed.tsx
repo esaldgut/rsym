@@ -10,6 +10,7 @@ import type { CircuitLocation } from '@/types/location';
 import type { PriceInput } from '@/lib/graphql/types';
 import { Preferences } from '@/utils/preferences';
 import { ImageUpload, VideoUpload } from '@/components/ui/FileUpload';
+import { ImagePreview, VideoPreview } from '@/components/ui/MediaPreview';
 
 interface CreatePackageFormProps {
   onSubmit?: (success: boolean, packageId?: string) => void;
@@ -158,6 +159,13 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
     console.log('✅ Imagen adicional subida:', fileName, url);
   }, []);
 
+  const handleRemoveImage = useCallback((index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      image_url: prev.image_url.filter((_, i) => i !== index)
+    }));
+  }, []);
+
   // Manejar upload exitoso de video
   const handleVideoUpload = useCallback((url: string, fileName: string) => {
     setFormData(prev => ({
@@ -166,6 +174,13 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
     }));
     setUploadError(null);
     console.log('✅ Video subido:', fileName, url);
+  }, []);
+
+  const handleRemoveVideo = useCallback((index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      video_url: prev.video_url.filter((_, i) => i !== index)
+    }));
   }, []);
 
   // Manejar errores de upload
@@ -819,31 +834,14 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                   <p className="mt-1 text-sm text-gray-500">Agrega más imágenes para mostrar diferentes aspectos del paquete</p>
                 </div>
 
-                {/* Galería de imágenes */}
-                {formData.image_url.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {formData.image_url.map((url, index) => (
-                      <div key={index} className="relative group">
-                        <div className="aspect-square rounded-lg overflow-hidden border border-gray-200">
-                          <img
-                            src={url}
-                            alt={`Imagen adicional ${index + 1}`}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFromArray('image_url', index)}
-                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                        >
-                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Preview de imágenes con nuevo componente */}
+                <ImagePreview
+                  images={formData.image_url.map((url, index) => ({
+                    url,
+                    name: `Imagen ${index + 1}`
+                  }))}
+                  onRemove={handleRemoveImage}
+                />
               </div>
 
               {/* Videos */}
@@ -865,35 +863,17 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                   <p className="mt-1 text-sm text-gray-500">Formatos: MP4, MOV, AVI, MKV, WEBM (máx. 100MB)</p>
                 </div>
 
-                {/* Lista de videos */}
-                {formData.video_url.length > 0 && (
-                  <div className="space-y-3">
-                    {formData.video_url.map((url, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex items-center gap-3">
-                          <div className="flex-shrink-0">
-                            <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-900">Video {index + 1}</p>
-                            <p className="text-xs text-gray-500 truncate">{url}</p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => removeFromArray('video_url', index)}
-                          className="flex-shrink-0 text-red-500 hover:text-red-700 p-1"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                {/* Preview de videos con nuevo componente */}
+                <VideoPreview
+                  videos={formData.video_url.map((url, index) => {
+                    const fileName = url.split('/').pop() || `video-${index + 1}`;
+                    return {
+                      url,
+                      name: fileName
+                    };
+                  })}
+                  onRemove={handleRemoveVideo}
+                />
               </div>
             </div>
           </div>
