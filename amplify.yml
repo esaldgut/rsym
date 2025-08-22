@@ -5,13 +5,19 @@ applications:
       phases:
         preBuild:
           commands:
+            - echo "Installing dependencies..."
             - npm ci --cache .npm --prefer-offline
-            - echo "AWS_BRANCH=$AWS_BRANCH"
+            - echo "Branch: $AWS_BRANCH"
+            - echo "Commit: $AWS_COMMIT_ID"
         build:
           commands:
-            - env | grep -e NEXT_PUBLIC_ >> .env.production
-            - env | grep -e AWS_ >> .env.production
+            - echo "Setting up environment variables..."
+            - env | grep -e NEXT_PUBLIC_ >> .env.production || true
+            - env | grep -e AWS_ >> .env.production || true
+            - echo "Building Next.js application..."
             - npm run build
+            - echo "Build completed successfully"
+            - ls -la .next/
       artifacts:
         baseDirectory: .next
         files:
@@ -21,6 +27,15 @@ applications:
           - .next/cache/**/*
           - .npm/**/*
           - node_modules/**/*
+    # Configuración específica para Next.js 15 SSR
     platform:
       name: WEB_COMPUTE
       runtime: nodejs20.x
+    # Variables de entorno por defecto
+    environmentVariables:
+      - name: AMPLIFY_MONOREPO_APP_ROOT
+        value: .
+      - name: AMPLIFY_DIFF_DEPLOY
+        value: false
+      - name: _LIVE_UPDATES
+        value: '[{"pkg":"next","type":"framework","version":"15.3.4"}]'
