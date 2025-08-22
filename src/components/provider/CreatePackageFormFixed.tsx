@@ -8,6 +8,8 @@ import { useLocationSelector } from '@/hooks/useLocationSelector';
 import { createPackageAction } from '@/lib/server/package-actions';
 import type { CircuitLocation } from '@/types/location';
 import type { PriceInput } from '@/lib/graphql/types';
+import { Preferences } from '@/utils/preferences';
+import { ImageUpload, VideoUpload } from '@/components/ui/FileUpload';
 
 interface CreatePackageFormProps {
   onSubmit?: (success: boolean, packageId?: string) => void;
@@ -44,6 +46,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Estados del formulario
@@ -68,13 +71,13 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
   });
 
   // Estados para agregar elementos
-  const [newPreference, setNewPreference] = useState('');
   const [newLanguage, setNewLanguage] = useState('');
-  const [newImageUrl, setNewImageUrl] = useState('');
-  const [newVideoUrl, setNewVideoUrl] = useState('');
   
   // Opciones de categoría predefinidas
   const categoryOptions = ['Primera', 'Primera superior', 'Lujo'];
+  
+  // Tipos de habitación fijos (solo estas 3 opciones)
+  const roomTypeOptions = ['Sencilla', 'Doble', 'Triple'];
   
   // Idiomas más comunes
   const languageOptions = ['es', 'en', 'fr', 'de', 'it', 'pt', 'ja', 'zh', 'ar', 'ru'];
@@ -99,10 +102,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
     }));
     
     // Limpiar input correspondiente
-    if (key === 'preferences') setNewPreference('');
     if (key === 'language') setNewLanguage('');
-    if (key === 'image_url') setNewImageUrl('');
-    if (key === 'video_url') setNewVideoUrl('');
   }, []);
   
   // Helper específico para categoría (solo una opción)
@@ -120,13 +120,76 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
     }));
   }, []);
 
-  // Manejar precios
-  const addPrice = useCallback(() => {
+  // Manejar selección de preferencias
+  const togglePreference = useCallback((preferenceId: string) => {
+    setFormData(prev => {
+      const isSelected = prev.preferences.includes(preferenceId);
+      return {
+        ...prev,
+        preferences: isSelected 
+          ? prev.preferences.filter(id => id !== preferenceId)
+          : [...prev.preferences, preferenceId]
+      };
+    });
+  }, []);
+
+  // Verificar si una preferencia está seleccionada
+  const isPreferenceSelected = useCallback((preferenceId: string) => {
+    return formData.preferences.includes(preferenceId);
+  }, [formData.preferences]);
+
+  // Manejar upload exitoso de imagen de portada
+  const handleCoverImageUpload = useCallback((url: string, fileName: string) => {
     setFormData(prev => ({
       ...prev,
-      prices: [...prev.prices, { currency: 'USD', price: 0, roomName: '' }]
+      cover_image_url: url
     }));
+    setUploadError(null);
+    console.log('✅ Imagen de portada subida:', fileName, url);
   }, []);
+
+  // Manejar upload exitoso de imagen adicional
+  const handleImageUpload = useCallback((url: string, fileName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      image_url: [...prev.image_url, url]
+    }));
+    setUploadError(null);
+    console.log('✅ Imagen adicional subida:', fileName, url);
+  }, []);
+
+  // Manejar upload exitoso de video
+  const handleVideoUpload = useCallback((url: string, fileName: string) => {
+    setFormData(prev => ({
+      ...prev,
+      video_url: [...prev.video_url, url]
+    }));
+    setUploadError(null);
+    console.log('✅ Video subido:', fileName, url);
+  }, []);
+
+  // Manejar errores de upload
+  const handleUploadError = useCallback((error: string) => {
+    setUploadError(error);
+    console.error('❌ Error de upload:', error);
+  }, []);
+
+  // Manejar precios con tipos de habitación fijos
+  const addPrice = useCallback(() => {
+    // Solo permitir máximo 3 precios
+    if (formData.prices.length >= 3) return;
+    
+    // Encontrar el primer tipo de habitación disponible
+    const usedRoomTypes = formData.prices.map(p => p.roomName);
+    const availableRoomType = roomTypeOptions.find(roomType => !usedRoomTypes.includes(roomType));
+    
+    if (availableRoomType) {
+      setFormData(prev => ({
+        ...prev,
+        prices: [...prev.prices, { currency: 'MXN', price: 0, roomName: availableRoomType }]
+      }));
+    }
+  }, [formData.prices, roomTypeOptions]);
 
   const updatePrice = useCallback((index: number, field: keyof PriceInput, value: string | number) => {
     setFormData(prev => ({
@@ -146,13 +209,31 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
     }
   }, [formData.prices.length]);
 
-  // Manejar precios extra (noches adicionales)
+  // Obtener tipos de habitación disponibles para un precio específico
+  const getAvailableRoomTypes = useCallback((currentIndex: number) => {
+    const usedRoomTypes = formData.prices
+      .map((p, i) => i !== currentIndex ? p.roomName : null)
+      .filter(Boolean);
+    
+    return roomTypeOptions.filter(roomType => !usedRoomTypes.includes(roomType));
+  }, [formData.prices, roomTypeOptions]);
+
+  // Manejar precios extra (noches adicionales) con tipos fijos
   const addExtraPrice = useCallback(() => {
-    setFormData(prev => ({
-      ...prev,
-      extraPrices: [...prev.extraPrices, { currency: 'USD', price: 0, roomName: 'Noche extra' }]
-    }));
-  }, []);
+    // Solo permitir máximo 3 precios extra
+    if (formData.extraPrices.length >= 3) return;
+    
+    // Encontrar el primer tipo de habitación disponible para precios extra
+    const usedRoomTypes = formData.extraPrices.map(p => p.roomName);
+    const availableRoomType = roomTypeOptions.find(roomType => !usedRoomTypes.includes(roomType));
+    
+    if (availableRoomType) {
+      setFormData(prev => ({
+        ...prev,
+        extraPrices: [...prev.extraPrices, { currency: 'MXN', price: 0, roomName: availableRoomType }]
+      }));
+    }
+  }, [formData.extraPrices, roomTypeOptions]);
 
   const updateExtraPrice = useCallback((index: number, field: keyof PriceInput, value: string | number) => {
     setFormData(prev => ({
@@ -169,6 +250,15 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
       extraPrices: prev.extraPrices.filter((_, i) => i !== index)
     }));
   }, []);
+
+  // Obtener tipos de habitación disponibles para precios extra
+  const getAvailableExtraRoomTypes = useCallback((currentIndex: number) => {
+    const usedRoomTypes = formData.extraPrices
+      .map((p, i) => i !== currentIndex ? p.roomName : null)
+      .filter(Boolean);
+    
+    return roomTypeOptions.filter(roomType => !usedRoomTypes.includes(roomType));
+  }, [formData.extraPrices, roomTypeOptions]);
 
   // Manejar envío del formulario
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -652,109 +742,158 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
             </div>
           </div>
 
-          {/* Multimedia */}
+          {/* Multimedia con Carga de Archivos */}
           <div className="bg-white border border-gray-200 rounded-lg p-6">
             <h4 className="text-lg font-medium text-gray-900 mb-4">Imágenes y Videos</h4>
+            
+            {/* Mostrar errores de upload */}
+            {uploadError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                <p className="text-sm text-red-600">{uploadError}</p>
+              </div>
+            )}
+            
             <div className="space-y-6">
               {/* Imagen de portada */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Imagen de Portada *
                 </label>
-                <input
-                  type="url"
-                  required
-                  value={formData.cover_image_url}
-                  onChange={(e) => setFormData({ ...formData, cover_image_url: e.target.value })}
-                  placeholder="https://ejemplo.com/imagen-portada.jpg"
-                  className={`block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 ${
-                    validationErrors.cover_image_url ? 'border-red-300' : ''
-                  }`}
-                />
+                <div className="space-y-3">
+                  {/* Mostrar imagen actual si existe */}
+                  {formData.cover_image_url && (
+                    <div className="relative">
+                      <div className="aspect-video w-full max-w-sm rounded-lg overflow-hidden border border-gray-200">
+                        <img
+                          src={formData.cover_image_url}
+                          alt="Imagen de portada"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({ ...prev, cover_image_url: '' }))}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Botón de upload */}
+                  <div className="flex items-center gap-3">
+                    <ImageUpload
+                      onUploadSuccess={handleCoverImageUpload}
+                      onUploadError={handleUploadError}
+                      disabled={isPending}
+                    />
+                    <span className="text-sm text-gray-500">
+                      {formData.cover_image_url ? 'Cambiar imagen' : 'Formatos: JPG, PNG, WEBP (máx. 10MB)'}
+                    </span>
+                  </div>
+                </div>
                 {validationErrors.cover_image_url && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.cover_image_url}</p>
                 )}
-                <p className="mt-1 text-sm text-gray-500">Esta será la imagen principal del paquete</p>
+                <p className="mt-1 text-sm text-gray-500">Esta será la imagen principal del paquete que verán los usuarios</p>
               </div>
 
               {/* Imágenes adicionales */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Imágenes Adicionales
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    ({formData.image_url.length} imagen{formData.image_url.length !== 1 ? 's' : ''})
+                  </span>
                 </label>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="url"
-                    value={newImageUrl}
-                    onChange={(e) => setNewImageUrl(e.target.value)}
-                    placeholder="https://ejemplo.com/imagen.jpg"
-                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                
+                {/* Botón de upload */}
+                <div className="mb-4">
+                  <ImageUpload
+                    onUploadSuccess={handleImageUpload}
+                    onUploadError={handleUploadError}
+                    disabled={isPending}
                   />
-                  <button
-                    type="button"
-                    onClick={() => addToArray('image_url', newImageUrl)}
-                    disabled={!newImageUrl}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 disabled:bg-gray-400"
-                  >
-                    Agregar
-                  </button>
+                  <p className="mt-1 text-sm text-gray-500">Agrega más imágenes para mostrar diferentes aspectos del paquete</p>
                 </div>
-                <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                  {formData.image_url.map((url, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm text-gray-600 truncate flex-1">
-                        {url.length > 30 ? `${url.substring(0, 30)}...` : url}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeFromArray('image_url', index)}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+
+                {/* Galería de imágenes */}
+                {formData.image_url.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                    {formData.image_url.map((url, index) => (
+                      <div key={index} className="relative group">
+                        <div className="aspect-square rounded-lg overflow-hidden border border-gray-200">
+                          <img
+                            src={url}
+                            alt={`Imagen adicional ${index + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFromArray('image_url', index)}
+                          className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Videos */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Videos
+                  <span className="text-sm font-normal text-gray-500 ml-2">
+                    ({formData.video_url.length} video{formData.video_url.length !== 1 ? 's' : ''})
+                  </span>
                 </label>
-                <div className="flex gap-2 mb-3">
-                  <input
-                    type="url"
-                    value={newVideoUrl}
-                    onChange={(e) => setNewVideoUrl(e.target.value)}
-                    placeholder="https://www.youtube.com/watch?v=... o https://vimeo.com/..."
-                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
+                
+                {/* Botón de upload */}
+                <div className="mb-4">
+                  <VideoUpload
+                    onUploadSuccess={handleVideoUpload}
+                    onUploadError={handleUploadError}
+                    disabled={isPending}
                   />
-                  <button
-                    type="button"
-                    onClick={() => addToArray('video_url', newVideoUrl)}
-                    disabled={!newVideoUrl}
-                    className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 disabled:bg-gray-400"
-                  >
-                    Agregar
-                  </button>
+                  <p className="mt-1 text-sm text-gray-500">Formatos: MP4, MOV, AVI, MKV, WEBM (máx. 100MB)</p>
                 </div>
-                <div className="space-y-2 max-h-32 overflow-y-auto">
-                  {formData.video_url.map((url, index) => (
-                    <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <span className="text-sm text-gray-600 truncate flex-1">
-                        {url.length > 40 ? `${url.substring(0, 40)}...` : url}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => removeFromArray('video_url', index)}
-                        className="text-red-500 hover:text-red-700 ml-2"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
+
+                {/* Lista de videos */}
+                {formData.video_url.length > 0 && (
+                  <div className="space-y-3">
+                    {formData.video_url.map((url, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
+                        <div className="flex items-center gap-3">
+                          <div className="flex-shrink-0">
+                            <svg className="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900">Video {index + 1}</p>
+                            <p className="text-xs text-gray-500 truncate">{url}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeFromArray('video_url', index)}
+                          className="flex-shrink-0 text-red-500 hover:text-red-700 p-1"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -788,45 +927,89 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
               </div>
             </div>
 
-            {/* Preferencias */}
+            {/* Preferencias con Imágenes */}
             <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <h4 className="text-lg font-medium text-gray-900 mb-4">Preferencias</h4>
-              <div className="space-y-4">
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={newPreference}
-                    onChange={(e) => setNewPreference(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addToArray('preferences', newPreference))}
-                    placeholder="Playa, Montaña, Ciudad..."
-                    className="flex-1 rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addToArray('preferences', newPreference)}
-                    className="bg-purple-500 text-white px-4 py-2 rounded hover:bg-purple-600"
+              <h4 className="text-lg font-medium text-gray-900 mb-4">
+                Preferencias del Viaje
+                <span className="text-sm font-normal text-gray-500 ml-2">
+                  (Selecciona las que apliquen)
+                </span>
+              </h4>
+              
+              {/* Grid de preferencias con imágenes */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 mb-4">
+                {Preferences.map((preference) => (
+                  <div
+                    key={preference.id}
+                    onClick={() => togglePreference(preference.id)}
+                    className={`relative cursor-pointer rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                      isPreferenceSelected(preference.id)
+                        ? 'border-purple-500 shadow-lg transform scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:shadow-md'
+                    }`}
                   >
-                    Agregar
-                  </button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {formData.preferences.map((pref, index) => (
-                    <span
-                      key={index}
-                      className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm flex items-center gap-2"
-                    >
-                      {pref}
-                      <button
-                        type="button"
-                        onClick={() => removeFromArray('preferences', index)}
-                        className="text-purple-600 hover:text-purple-800"
-                      >
-                        ×
-                      </button>
-                    </span>
-                  ))}
-                </div>
+                    {/* Imagen */}
+                    <div className="aspect-video relative">
+                      <img
+                        src={preference.uri}
+                        alt={preference.name}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      {/* Overlay con checkmark */}
+                      {isPreferenceSelected(preference.id) && (
+                        <div className="absolute inset-0 bg-purple-500 bg-opacity-30 flex items-center justify-center">
+                          <div className="bg-white rounded-full p-1">
+                            <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Texto */}
+                    <div className="p-2">
+                      <p className={`text-xs font-medium text-center ${
+                        isPreferenceSelected(preference.id)
+                          ? 'text-purple-700'
+                          : 'text-gray-700'
+                      }`}>
+                        {preference.name}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
+
+              {/* Contador de preferencias seleccionadas */}
+              {formData.preferences.length > 0 && (
+                <div className="mt-4 p-3 bg-purple-50 rounded-lg">
+                  <p className="text-sm text-purple-700">
+                    <span className="font-semibold">{formData.preferences.length}</span> preferencia{formData.preferences.length !== 1 ? 's' : ''} seleccionada{formData.preferences.length !== 1 ? 's' : ''}:
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.preferences.map((prefId) => {
+                      const preference = Preferences.find(p => p.id === prefId);
+                      return preference ? (
+                        <span
+                          key={prefId}
+                          className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-700"
+                        >
+                          {preference.name}
+                          <button
+                            type="button"
+                            onClick={() => togglePreference(prefId)}
+                            className="ml-1 text-purple-500 hover:text-purple-700"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
           </div>

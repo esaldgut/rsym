@@ -242,6 +242,7 @@ export interface CreatePackageInput {
   preferences?: string[];
   prices?: PriceInput[];
   provider_id?: string;
+  published?: boolean;
   startDate?: AWSDateTime;
   video_url?: string[];
 }

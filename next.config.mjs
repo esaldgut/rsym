@@ -3,8 +3,12 @@
 const nextConfig = {
   // Configuración específica para Amplify v6 + Next.js 15.3.4
   experimental: {
-    // Habilitar server actions para auth
-    serverActions: true,
+    // Habilitar server actions para auth y uploads
+    serverActions: {
+      allowedOrigins: ['localhost:3000', 'yaan.com.mx'],
+      // Aumentar límite para uploads de archivos (100MB)
+      bodySizeLimit: '100mb'
+    },
     // Habilitar PPR y cache
     ppr: 'incremental',
     dynamicIO: true,
@@ -39,6 +43,12 @@ const nextConfig = {
   // Configuración para permitir imágenes de S3
   images: {
     remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'yaan-provider-documents.s3.us-west-2.amazonaws.com',
+        port: '',
+        pathname: '/**',
+      },
       {
         protocol: 'https',
         hostname: 'yaan-provider-documents.s3.amazonaws.com',

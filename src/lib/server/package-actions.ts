@@ -283,6 +283,7 @@ export async function createPackageAction(
       included_services: formData.get('included_services') as string,
       aditional_services: formData.get('aditional_services') as string,
       cover_image_url: formData.get('cover_image_url') as string,
+      published: formData.get('published') === 'true', // Checkbox para publicar inmediatamente
       provider_id: user.sub || user.userId,
       
       // Parsear arrays JSON
@@ -336,7 +337,8 @@ export async function createPackageAction(
       numberOfNights: sanitizedInput.numberOfNights,
       prices: sanitizedInput.prices,
       preferences: sanitizedInput.preferences,
-      categories: sanitizedInput.categories
+      categories: sanitizedInput.categories,
+      published: sanitizedInput.published // Campo para publicar inmediatamente
     };
 
     // Agregar campos opcionales solo si tienen valor
