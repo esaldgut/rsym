@@ -1,0 +1,64 @@
+# Recursos de Amplify para integración con Copilot
+Parameters:
+  App:
+    Type: String
+
+Resources:
+  # Política IAM para acceder a recursos de Amplify
+  AmplifyAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: Grants access to Amplify resources from ECS tasks
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Acceso a Cognito
+          - Effect: Allow
+            Action:
+              - cognito-idp:*
+            Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*'
+          
+          # Acceso a S3
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+              - s3:ListBucket
+            Resource:
+              - !Sub 'arn:aws:s3:::amplify-*'
+              - !Sub 'arn:aws:s3:::amplify-*/*'
+          
+          # Acceso a AppSync
+          - Effect: Allow
+            Action:
+              - appsync:GraphQL
+              - appsync:GetGraphqlApi
+              - appsync:ListGraphqlApis
+            Resource: !Sub 'arn:aws:appsync:${AWS::Region}:${AWS::AccountId}:*'
+          
+          # Acceso a Location Service
+          - Effect: Allow
+            Action:
+              - geo:SearchPlaceIndexForText
+              - geo:SearchPlaceIndexForPosition
+              - geo:GetPlace
+            Resource: !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:place-index/*'
+          
+          # Acceso a DynamoDB
+          - Effect: Allow
+            Action:
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:DeleteItem
+              - dynamodb:Query
+              - dynamodb:Scan
+              - dynamodb:UpdateItem
+            Resource:
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*'
+              - !Sub 'arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/*/index/*'
+
+Outputs:
+  AmplifyAccessPolicyArn:
+    Description: ARN of the IAM policy for Amplify access
+    Value: !Ref AmplifyAccessPolicy

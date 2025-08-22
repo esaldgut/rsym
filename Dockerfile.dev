@@ -1,0 +1,34 @@
+# Dockerfile para modo desarrollo - Plan B
+# Preserva toda la funcionalidad usando yarn dev
+
+FROM node:20-alpine
+
+RUN apk add --no-cache libc6-compat git
+
+WORKDIR /app
+
+# Copiar archivos de dependencias
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+
+# Instalar dependencias (incluye devDependencies)
+RUN \
+  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
+  elif [ -f package-lock.json ]; then npm ci; \
+  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
+  else echo "No lockfile found." && exit 1; \
+  fi
+
+# Copiar todo el código fuente
+COPY . .
+
+# Variables de entorno para desarrollo
+ENV NODE_ENV=development
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
+
+# Exponer puerto
+EXPOSE 3000
+
+# Comando para modo desarrollo con hot-reload
+CMD ["yarn", "dev"]
