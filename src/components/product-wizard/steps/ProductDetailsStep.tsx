@@ -39,9 +39,8 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
     }
   });
 
-  // Determinar automáticamente el tipo basado en destinos
-  const destination = watch('destination');
-  const actualProductType = destination?.length >= 2 ? 'circuit' : 'package';
+  // Usar el tipo de producto predefinido del contexto
+  const actualProductType = formData.productType;
 
   // Sincronizar cambios específicos con el contexto
   const destinationWatch = watch('destination');
@@ -138,22 +137,20 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
 
   return (
     <div className="space-y-6">
-      {/* Header dinámico */}
+      {/* Header dinámico basado en tipo pre-seleccionado */}
       <div className="bg-gradient-to-r from-pink-500 to-violet-600 rounded-lg p-6 text-white">
         <h2 className="text-2xl font-bold mb-2">
           {actualProductType === 'circuit' ? 'Configura tu Circuito' : 'Configura tu Paquete'}
         </h2>
         <p className="opacity-90">
           {actualProductType === 'circuit' 
-            ? `Circuito con ${destinationWatch?.length || 0} destinos seleccionados`
-            : 'Paquete turístico con destino único'
+            ? 'Circuito turístico con múltiples destinos conectados'
+            : 'Paquete turístico con destino específico'
           }
         </p>
-        {destinationWatch?.length >= 2 && (
-          <div className="mt-2 text-xs bg-white/20 rounded-full px-3 py-1 inline-block">
-            ✨ Detectado automáticamente como Circuito
-          </div>
-        )}
+        <div className="mt-2 text-xs bg-white/20 rounded-full px-3 py-1 inline-block">
+          {actualProductType === 'circuit' ? '🗺️ Circuito Turístico' : '🎁 Paquete Turístico'}
+        </div>
       </div>
 
       {/* Navigation Tabs */}
@@ -188,12 +185,12 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                   </svg>
-                  <span className="font-medium">Tipo de Producto</span>
+                  <span className="font-medium">Tipo de Producto Seleccionado</span>
                 </div>
                 <p className="text-blue-700 text-sm mt-1">
                   {actualProductType === 'circuit' 
-                    ? '🗺️ Circuito: 2 o más destinos conectados'
-                    : '🎁 Paquete: Un destino específico'
+                    ? '🗺️ Circuito: Requiere mínimo 2 destinos conectados'
+                    : '🎁 Paquete: Requiere exactamente 1 destino específico'
                   }
                 </p>
               </div>
@@ -204,14 +201,14 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
                   setValue('destination', locations);
                   updateFormData({ destination: locations });
                 }}
-                allowMultiple={true}
+                allowMultiple={actualProductType === 'circuit'}
                 label={actualProductType === 'circuit' 
                   ? 'Destinos del Circuito (mínimo 2)' 
-                  : 'Destino del Paquete'
+                  : 'Destino del Paquete (exactamente 1)'
                 }
                 error={errors.destination?.message}
                 minSelections={actualProductType === 'circuit' ? 2 : 1}
-                maxSelections={actualProductType === 'circuit' ? 10 : 1}
+                maxSelections={actualProductType === 'circuit' ? 30 : 1}
               />
             </div>
           )}
