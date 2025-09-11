@@ -29,10 +29,8 @@ export const Navbar = () => {
 
   const navLinks = [
     { href: '/', label: 'Inicio' },
-    { href: '/marketplace', label: 'Marketplace' },
     { href: '/moments', label: 'Momentos' },
-    { href: '/circuits', label: 'Circuitos' },
-    { href: '/packages', label: 'Paquetes' },
+    { href: '/marketplace', label: 'Marketplace' },
   ];
 
   return (
@@ -81,14 +79,14 @@ export const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/provider"
                   className={`text-sm font-medium transition-all duration-300 px-6 py-2.5 rounded-full ${
                     isScrolled
                       ? 'text-gray-700 hover:bg-gray-100'
                       : 'text-white hover:bg-white/10'
                   }`}
                 >
-                  Dashboard
+                  Business
                 </Link>
                 <Link
                   href="/profile"
@@ -191,7 +189,7 @@ export const Navbar = () => {
             {isAuthenticated ? (
               <>
                 <Link
-                  href="/dashboard"
+                  href="/moments"
                   className={`block px-4 py-3 rounded-xl text-base font-medium transition-all duration-300 ${
                     isScrolled
                       ? 'text-gray-700 hover:bg-gray-100'
@@ -199,7 +197,7 @@ export const Navbar = () => {
                   }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  Dashboard
+                  Momentos
                 </Link>
                 <Link
                   href="/profile"

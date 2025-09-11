@@ -16,6 +16,8 @@ export interface TokenClaims {
   email: string;
   email_verified: boolean;
   'custom:user_type': UserType;
+  'custom:provider_is_approved'?: string;
+  'cognito:groups'?: string[];
   exp: number;
   iat: number;
   aud: string;
@@ -203,6 +205,67 @@ export class SecurityValidator {
   }
 
   /**
+   * Valida si un provider está completamente aprobado
+   * Requiere: tipo provider, aprobación del equipo, y membresía en grupo
+   */
+  static validateProviderAccess(idToken: JWT | undefined): {
+    isValid: boolean;
+    isApproved: boolean;
+    inProvidersGroup: boolean;
+    errors: string[];
+  } {
+    const result = {
+      isValid: false,
+      isApproved: false,
+      inProvidersGroup: false,
+      errors: [] as string[]
+    };
+
+    if (!idToken) {
+      result.errors.push('Token no encontrado');
+      return result;
+    }
+
+    const payload = idToken.payload as Partial<TokenClaims>;
+
+    // 1. Verificar que sea tipo provider
+    if (payload['custom:user_type'] !== 'provider') {
+      result.errors.push('Usuario no es tipo provider');
+      return result;
+    }
+
+    // 2. Verificar aprobación del equipo YAAN
+    const providerApproved = payload['custom:provider_is_approved'];
+    if (providerApproved === 'true' || providerApproved === true) {
+      result.isApproved = true;
+    } else {
+      result.errors.push('Provider no aprobado por el equipo YAAN');
+    }
+
+    // 3. Verificar membresía en grupo 'providers' de Cognito
+    const cognitoGroups = payload['cognito:groups'] || [];
+    if (cognitoGroups.includes('providers')) {
+      result.inProvidersGroup = true;
+    } else {
+      result.errors.push('Provider no pertenece al grupo providers de Cognito');
+    }
+
+    // El acceso es válido solo si ambas condiciones se cumplen
+    result.isValid = result.isApproved && result.inProvidersGroup;
+
+    if (!result.isValid) {
+      logger.warn('Provider access validation failed', {
+        userId: payload.sub ? '[PRESENT]' : '[MISSING]',
+        isApproved: result.isApproved,
+        inGroup: result.inProvidersGroup,
+        errorCount: result.errors.length
+      });
+    }
+
+    return result;
+  }
+
+  /**
    * Valida permisos para una operación específica
    */
   static validateOperation(userType: UserType, operation: string): boolean {
@@ -257,5 +320,124 @@ export class SecurityValidator {
     });
 
     return sanitized;
+  }
+
+  /**
+   * Valida input para la creación de productos
+   */
+  static validateProductInput(input: any): {
+    isValid: boolean;
+    errors?: Record<string, string>;
+  } {
+    const errors: Record<string, string> = {};
+
+    // Validar campos requeridos
+    if (!input.name || input.name.length < 3) {
+      errors.name = 'El nombre debe tener al menos 3 caracteres';
+    }
+
+    if (input.name && input.name.length > 100) {
+      errors.name = 'El nombre no puede exceder 100 caracteres';
+    }
+
+    // Validar que no contenga scripts maliciosos
+    if (input.description && this.containsMaliciousContent(input.description)) {
+      errors.description = 'Descripción contiene contenido no permitido';
+    }
+
+    if (input.itinerary && this.containsMaliciousContent(input.itinerary)) {
+      errors.itinerary = 'Itinerario contiene contenido no permitido';
+    }
+
+    // Validar URLs si existen
+    if (input.cover_image_url && !this.isValidImageUrl(input.cover_image_url)) {
+      errors.cover_image_url = 'URL de imagen no válida';
+    }
+
+    if (input.image_url && Array.isArray(input.image_url)) {
+      const invalidUrls = input.image_url.filter((url: string) => !this.isValidImageUrl(url));
+      if (invalidUrls.length > 0) {
+        errors.image_url = 'Una o más URLs de imagen no son válidas';
+      }
+    }
+
+    return {
+      isValid: Object.keys(errors).length === 0,
+      errors: Object.keys(errors).length > 0 ? errors : undefined
+    };
+  }
+
+  /**
+   * Valida input para actualización de productos
+   */
+  static validateProductUpdate(input: any): {
+    isValid: boolean;
+    errors?: Record<string, string>;
+  } {
+    // Reusar la misma lógica que validateProductInput para updates
+    return this.validateProductInput(input);
+  }
+
+  /**
+   * Detecta contenido malicioso básico
+   */
+  private static containsMaliciousContent(content: string): boolean {
+    const maliciousPatterns = [
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      /javascript:/gi,
+      /on\w+\s*=/gi,
+      /<iframe\b/gi,
+      /<object\b/gi,
+      /<embed\b/gi
+    ];
+
+    return maliciousPatterns.some(pattern => pattern.test(content));
+  }
+
+  /**
+   * Valida si una URL es válida para imágenes
+   */
+  private static isValidImageUrl(url: string): boolean {
+    try {
+      const parsedUrl = new URL(url);
+      
+      // Solo permitir HTTPS (excepto localhost para desarrollo)
+      if (parsedUrl.protocol !== 'https:' && !parsedUrl.hostname.includes('localhost')) {
+        return false;
+      }
+
+      // Verificar dominios permitidos (agregar según necesidad)
+      const allowedDomains = [
+        'amazonaws.com',
+        'cloudfront.net',
+        's3.amazonaws.com',
+        'localhost',
+        'unsplash.com',
+        'images.unsplash.com'
+      ];
+
+      const isAllowedDomain = allowedDomains.some(domain => 
+        parsedUrl.hostname.includes(domain)
+      );
+
+      return isAllowedDomain;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Sanitiza strings eliminando contenido peligroso
+   */
+  static sanitizeString(input: string): string {
+    if (!input || typeof input !== 'string') {
+      return '';
+    }
+
+    return input
+      .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .trim();
   }
 }

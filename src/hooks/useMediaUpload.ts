@@ -14,7 +14,7 @@ interface UploadResult {
 }
 
 interface UseMediaUploadReturn {
-  uploadFile: (file: File) => Promise<UploadResult>;
+  uploadFile: (file: File, onProgress?: (progress: number) => void) => Promise<UploadResult>;
   isUploading: boolean;
   progress: number;
   error: string | null;
@@ -32,7 +32,7 @@ export function useMediaUpload(): UseMediaUploadReturn {
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  const uploadFile = useCallback(async (file: File): Promise<UploadResult> => {
+  const uploadFile = useCallback(async (file: File, onProgress?: (progress: number) => void): Promise<UploadResult> => {
     console.log('📤 [useMediaUpload] Iniciando upload:', file.name, `${(file.size / 1024 / 1024).toFixed(2)}MB`);
     
     setIsUploading(true);
@@ -67,7 +67,9 @@ export function useMediaUpload(): UseMediaUploadReturn {
           }
           // Progreso más lento para archivos grandes
           const increment = fileSizeMB > 5 ? 3 : fileSizeMB > 1 ? 8 : 15;
-          return Math.min(prev + increment, 85);
+          const newProgress = Math.min(prev + increment, 85);
+          onProgress?.(newProgress); // Call external progress callback
+          return newProgress;
         });
       }, fileSizeMB > 10 ? 800 : fileSizeMB > 5 ? 500 : 300);
 
@@ -79,6 +81,7 @@ export function useMediaUpload(): UseMediaUploadReturn {
 
       clearInterval(progressInterval);
       setProgress(100);
+      onProgress?.(100); // Final progress update
 
       if (!response.ok) {
         const errorData = await response.json();

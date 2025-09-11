@@ -442,7 +442,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                 onLocationSelect={destinationSelector.selectLocation}
                 onLocationRemove={destinationSelector.removeLocation}
                 placeholder="Buscar destino principal del paquete..."
-                countries={['MEX', 'USA', 'CAN', 'GTM', 'BLZ']}
+                countries={['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'ITA', 'ESP', 'JPN', 'CHN', 'IND', 'BRA', 'MEX', 'AUS', 'NLD', 'BEL', 'CHE', 'SWE', 'NOR', 'DNK', 'FIN', 'AUT', 'GRC', 'PRT', 'IRL', 'POL', 'RUS', 'TUR', 'SAU', 'ARE', 'ZAF', 'EGY', 'NGA', 'KEN', 'ETH', 'GHA', 'MAR', 'DZA', 'TUN', 'ARG', 'CHL', 'COL', 'PER', 'VEN', 'ECU', 'NZL', 'SGP', 'MYS', 'IDN', 'THA', 'VNM', 'PHL', 'KOR', 'HKG', 'TWN', 'ISR', 'ARE', 'QAT', 'KWT', 'OMN', 'PAK', 'BGD', 'LKA', 'UKR', 'ROU', 'HUN', 'CZE', 'SVK', 'BGR', 'HRV', 'SRB', 'SVN', 'LTU', 'LVA', 'EST', 'ISL', 'LUX', 'CYP', 'MLT', 'JOR', 'LBN', 'IRQ', 'IRN', 'KAZ', 'UZB', 'AZE', 'GEO', 'ARM', 'TZA', 'UGA', 'MOZ', 'ZMB', 'MWI', 'AGO', 'CMR', 'SEN', 'CIV', 'GIN', 'NGA', 'ZAF', 'KEN']}
                 required={true}
                 label="Destino Principal *"
                 helpText="Selecciona la ubicación principal donde se desarrollará el paquete turístico"
@@ -454,7 +454,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
                 onLocationSelect={originSelector.selectLocation}
                 onLocationRemove={originSelector.removeLocation}
                 placeholder="Buscar punto de partida (opcional)..."
-                countries={['MEX', 'USA', 'CAN', 'GTM', 'BLZ']}
+                countries={['USA', 'CAN', 'GBR', 'DEU', 'FRA', 'ITA', 'ESP', 'JPN', 'CHN', 'IND', 'BRA', 'MEX', 'AUS', 'NLD', 'BEL', 'CHE', 'SWE', 'NOR', 'DNK', 'FIN', 'AUT', 'GRC', 'PRT', 'IRL', 'POL', 'RUS', 'TUR', 'SAU', 'ARE', 'ZAF', 'EGY', 'NGA', 'KEN', 'ETH', 'GHA', 'MAR', 'DZA', 'TUN', 'ARG', 'CHL', 'COL', 'PER', 'VEN', 'ECU', 'NZL', 'SGP', 'MYS', 'IDN', 'THA', 'VNM', 'PHL', 'KOR', 'HKG', 'TWN', 'ISR', 'ARE', 'QAT', 'KWT', 'OMN', 'PAK', 'BGD', 'LKA', 'UKR', 'ROU', 'HUN', 'CZE', 'SVK', 'BGR', 'HRV', 'SRB', 'SVN', 'LTU', 'LVA', 'EST', 'ISL', 'LUX', 'CYP', 'MLT', 'JOR', 'LBN', 'IRQ', 'IRN', 'KAZ', 'UZB', 'AZE', 'GEO', 'ARM', 'TZA', 'UGA', 'MOZ', 'ZMB', 'MWI', 'AGO', 'CMR', 'SEN', 'CIV', 'GIN', 'NGA', 'ZAF', 'KEN']}
                 label="Punto de Partida (Opcional)"
                 helpText="Si aplica, selecciona desde dónde inicia el paquete"
                 error={originSelector.error}

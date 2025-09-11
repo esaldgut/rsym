@@ -1,34 +1,30 @@
-import { redirect } from 'next/navigation';
-import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
+import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
 
 /**
  * Layout protegido para el dashboard
- * Verifica autenticación en el servidor antes de renderizar
+ * Usa el wrapper centralizado de protección de rutas
  */
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Verificar autenticación en el servidor
-  const authData = await getAuthenticatedUser();
-  
-  if (!authData) {
-    // Redirigir a login si no está autenticado
-    redirect('/auth/login?error=authentication_required&redirect=/dashboard');
-  }
+  // Usar wrapper de protección - redirige a /moments (negocio principal)
+  const auth = await RouteProtectionWrapper.protectDashboard();
   
   return (
     <div className="dashboard-layout">
       {/* Header de seguridad solo en desarrollo */}
-      {process.env.NODE_ENV === 'development' && (
+      {process.env.NODE_ENV === 'development' && auth.user && (
         <div className="bg-green-50 border-b border-green-200 px-4 py-2">
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <span className="text-green-800 text-sm font-medium">
-              🛡️ Ruta protegida - Verificación SSR activa
+              🛡️ Dashboard - Autenticación verificada
             </span>
             <span className="text-green-600 text-xs">
-              Usuario: {authData.user.username} | Tipo: {authData.attributes.email}
+              Usuario: {auth.user.username} | 
+              Tipo: {auth.user.userType} | 
+              Email: {auth.user.email}
             </span>
           </div>
         </div>

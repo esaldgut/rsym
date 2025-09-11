@@ -133,6 +133,8 @@ export async function updateUserProfile(
     // Construir los atributos para actualizar
     const attributes: UserProfileAttributes = {
       'custom:user_type': userType,
+      // Agregar timestamp de última actualización para detectar cambios
+      //'custom:last_updated': Math.floor(Date.now() / 1000).toString(),
     };
     
     // Atributos comunes
@@ -215,6 +217,41 @@ export async function updateUserProfile(
     });
     
     console.log('Atributos actualizados exitosamente:', result);
+    
+    // Programar refresh de tokens después de actualización de perfil
+    // IMPORTANTE: /settings/profile es una ruta con protección nivel 1
+    // TODOS los cambios en esta ruta requieren refresh inmediato del token
+    if (typeof window !== 'undefined') {
+      // Importar dinámicamente para evitar problemas en SSR
+      const { TokenInterceptor } = await import('./token-interceptor');
+      
+      // Atributos que requieren refresh con recarga de página
+      const criticalAttributes = [
+        'custom:user_type',
+        'custom:provider_is_approved',
+        'custom:influencer_is_approved'
+      ];
+      
+      const hasCriticalChanges = Object.keys(attributes).some(attr => 
+        criticalAttributes.includes(attr)
+      );
+      
+      console.log('🔄 Actualizando perfil en ruta protegida nivel 1 - Refresh de tokens requerido');
+      
+      if (hasCriticalChanges) {
+        // Refresh inmediato con recarga para cambios críticos de tipo/aprobación
+        setTimeout(() => {
+          TokenInterceptor.refreshAfterProfileUpdate();
+        }, 500);
+      } else {
+        // Para otros cambios en /settings/profile, refresh inmediato pero sin recarga
+        setTimeout(async () => {
+          await TokenInterceptor.performSilentRefresh();
+          console.log('✅ Tokens actualizados después de cambios en el perfil');
+        }, 500);
+      }
+    }
+    
     return result;
   } catch (error) {
     console.error('Error actualizando atributos del usuario:', error);
@@ -279,7 +316,10 @@ export async function isProfileComplete(): Promise<boolean> {
         attributes['custom:days_of_service'],
         attributes.locale,
         attributes['custom:contact_information'],
-        attributes['custom:emgcy_details']
+        attributes['custom:emgcy_details'],
+        attributes['custom:proofOfTaxStatusPath'],
+        attributes['custom:secturPath'],
+        attributes['custom:complianceOpinPath']
       ];
       if (requiredProvider.some(field => !field)) {
         return false;
@@ -327,6 +367,9 @@ export async function getMissingProfileFields(): Promise<string[]> {
       if (!attributes.locale) missingFields.push('País');
       if (!attributes['custom:contact_information']) missingFields.push('Información de contacto');
       if (!attributes['custom:emgcy_details']) missingFields.push('Contacto de emergencia');
+      if (!attributes['custom:proofOfTaxStatusPath']) missingFields.push('Constancia de Situación Fiscal (SAT)');
+      if (!attributes['custom:secturPath']) missingFields.push('Registro Nacional de Turismo (SECTUR)');
+      if (!attributes['custom:complianceOpinPath']) missingFields.push('Opinión de Cumplimiento (32-D)');
     }
     
     return missingFields;
@@ -406,6 +449,19 @@ export function validateProfileData(
       errors.contact_email = 'El email de contacto es obligatorio';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.contact_information.contact_email)) {
       errors.contact_email = 'Email inválido';
+    }
+    
+    // Validar documentos obligatorios para providers
+    if (!formData.proofOfTaxStatusPath) {
+      errors.proofOfTaxStatusPath = 'La Constancia de Situación Fiscal (SAT) es obligatoria';
+    }
+    
+    if (!formData.secturPath) {
+      errors.secturPath = 'El Registro Nacional de Turismo (SECTUR) es obligatorio';
+    }
+    
+    if (!formData.complianceOpinPath) {
+      errors.complianceOpinPath = 'La Opinión de Cumplimiento (32-D) es obligatoria';
     }
   }
   

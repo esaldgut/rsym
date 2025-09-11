@@ -152,7 +152,7 @@ export function AuthForm() {
       if (nextStep.signInStep === 'DONE') {
         // Inicio de sesión exitoso - pequeña espera para asegurar que el estado se actualice
         setTimeout(() => {
-          router.push('/dashboard');
+          router.push('/moments');
         }, 100);
       } else if (nextStep.signInStep === 'CONFIRM_SIGN_UP') {
         // Usuario no confirmado

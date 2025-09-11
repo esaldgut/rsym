@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAmplifyAuth } from '../../../hooks/useAmplifyAuth';
 import { 
@@ -13,7 +13,9 @@ import { ProfileImage } from '@/components/ui/ProfileImage';
 import { SocialMediaManager } from '@/components/profile/SocialMediaManager';
 import { ServiceScheduleSelector } from '@/components/profile/ServiceScheduleSelector';
 import { DocumentUploader } from '@/components/profile/DocumentUploader';
-import { SettingsHero } from '@/components/ui/SettingsHero';
+import { UnsavedChangesModal } from '@/components/ui/UnsavedChangesModal';
+import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
+import { HeroSection } from '@/components/ui/HeroSection';
 
 // Tipos para el formulario
 type UserType = 'traveler' | 'influencer' | 'provider';
@@ -41,6 +43,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   
   // Inicializar formData con los datos del servidor
   const [formData, setFormData] = useState<ProfileFormData>(() => {
@@ -98,6 +101,50 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
     return data;
   });
 
+  // Hook para detectar cambios no guardados
+  const {
+    hasUnsavedChanges,
+    showModal,
+    handleNavigation,
+    confirmNavigation,
+    cancelNavigation,
+    resetInitialData,
+    markFieldAsDirty,
+    getModifiedFields,
+    setShowModal
+  } = useUnsavedChanges(formData, {
+    strategy: 'deep-compare', // Opción 1: Comparación profunda
+    enabled: step === 2, // Solo activo en el paso de edición del formulario
+    message: 'Tienes cambios en tu perfil sin guardar. ¿Deseas guardarlos antes de salir?'
+  });
+
+  // Interceptar clicks en links de navegación - SOLO cuando hay cambios Y el usuario intenta salir
+  useEffect(() => {
+    // Solo activar el interceptor si estamos en el paso 2 (editando)
+    if (step !== 2) return;
+
+    const handleLinkClick = (e: MouseEvent) => {
+      // Primero verificar si hay cambios sin guardar
+      if (!hasUnsavedChanges) return; // No hay cambios, permitir navegación normal
+      
+      const target = e.target as HTMLElement;
+      const link = target.closest('a');
+      
+      if (link && link.href && !link.href.includes('#')) {
+        const url = new URL(link.href);
+        // Solo interceptar si es navegación fuera de /settings/profile
+        if (!url.pathname.startsWith('/settings/profile')) {
+          e.preventDefault(); // Prevenir navegación
+          setPendingNavigation(url.pathname); // Guardar destino
+          setShowModal(true); // AHORA sí mostrar el modal
+        }
+      }
+    };
+
+    document.addEventListener('click', handleLinkClick, true); // Captura en fase de captura
+    return () => document.removeEventListener('click', handleLinkClick, true);
+  }, [hasUnsavedChanges, step, setShowModal]);
+
   const handleSubmit = async () => {
     if (!userType) {
       console.error('❌ No hay userType definido');
@@ -118,6 +165,9 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
 
       // Actualizar perfil usando el servicio
       await updateUserProfile(userType, formData);
+
+      // Resetear el estado de cambios no guardados
+      resetInitialData();
 
       // Redirigir según el contexto de origen
       const returnUrl = sessionStorage.getItem('profileCompleteReturnUrl');
@@ -156,7 +206,11 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
     setIsUploading(true);
     try {
       const imagePath = await uploadProfileImage(file);
-      updateFormData('profilePhotoPath', imagePath);
+      if (imagePath) {
+        updateFormData('profilePhotoPath', imagePath);
+      } else {
+        throw new Error('Error al subir la imagen');
+      }
     } catch (error) {
       console.error('Error subiendo imagen:', error);
       setErrors({ profilePhoto: 'Error al subir la imagen. Intenta de nuevo.' });
@@ -169,9 +223,11 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   if (step === 1) {
     return (
       <div className="min-h-screen">
-        <SettingsHero 
+        <HeroSection 
           title="Elige tu perfil YAAN"
           subtitle="Selecciona el tipo de cuenta que mejor se adapte a tu estilo de viajar"
+          size="sm"
+          showShapes={true}
         />
         
         <div className="bg-gray-50 -mt-8 relative z-10">
@@ -277,9 +333,11 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   
   return (
     <div className="min-h-screen">
-      <SettingsHero 
+      <HeroSection 
         title={`${config.emoji} ${config.title}`}
         subtitle="Completa tu información para potenciar tu experiencia en YAAN"
+        size="sm"
+        showShapes={true}
       >
         <button
           onClick={() => setStep(1)}
@@ -290,7 +348,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
           </svg>
           Cambiar tipo de cuenta
         </button>
-      </SettingsHero>
+      </HeroSection>
       
       <div className="bg-gray-50 -mt-8 relative z-10">
         <div className="max-w-4xl mx-auto px-4 py-12">
@@ -583,24 +641,24 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                   <h4 className="text-md font-medium text-gray-900">Documentos Obligatorios</h4>
                   
                   <DocumentUploader
-                    label="Constancia de Situación Fiscal"
-                    description="Documento que acredite tu situación fiscal actualizada"
+                    label="Constancia de Situación Fiscal (SAT)"
+                    description="Documento del SAT que acredite tu situación fiscal actualizada"
                     value={formData.proofOfTaxStatusPath}
                     onChange={(doc) => updateFormData('proofOfTaxStatusPath', doc)}
                     required
                   />
 
                   <DocumentUploader
-                    label="Registro Nacional de Turismo"
-                    description="Registro SECTUR que acredite tu actividad turística"
+                    label="Registro Nacional de Turismo (SECTUR)"
+                    description="Registro SECTUR vigente que acredite tu actividad turística"
                     value={formData.secturPath}
                     onChange={(doc) => updateFormData('secturPath', doc)}
                     required
                   />
 
                   <DocumentUploader
-                    label="Opinión de Cumplimiento"
-                    description="Documento de cumplimiento de obligaciones fiscales"
+                    label="Opinión de Cumplimiento (32-D)"
+                    description="Opinión positiva del cumplimiento de obligaciones fiscales"
                     value={formData.complianceOpinPath}
                     onChange={(doc) => updateFormData('complianceOpinPath', doc)}
                     required
@@ -646,6 +704,36 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
           </div>
         </div>
       </div>
+
+      {/* Modal de cambios no guardados */}
+      <UnsavedChangesModal
+        isOpen={showModal}
+        onClose={() => {
+          setShowModal(false);
+          setPendingNavigation(null);
+        }}
+        onDiscard={() => {
+          // Descartar cambios y navegar
+          if (pendingNavigation) {
+            resetInitialData(); // Resetear para no volver a preguntar
+            router.push(pendingNavigation);
+          }
+          setShowModal(false);
+          setPendingNavigation(null);
+        }}
+        onSave={async () => {
+          setShowModal(false);
+          await handleSubmit();
+          // Después de guardar, navegar si había una navegación pendiente
+          if (pendingNavigation) {
+            router.push(pendingNavigation);
+            setPendingNavigation(null);
+          }
+        }}
+        title="¿Abandonar sin guardar?"
+        message="Estos cambios se perderán si sales sin guardar."
+        modifiedFields={getModifiedFields()}
+      />
     </div>
   );
 }

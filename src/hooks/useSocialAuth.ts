@@ -119,7 +119,7 @@ export function useSocialAuth(): UseSocialAuthReturn {
           // Verificar si el usuario se autenticó correctamente
           getCurrentUser()
             .then(() => {
-              const redirectUrl = searchParams.get('redirect') || '/dashboard';
+              const redirectUrl = searchParams.get('redirect') || '/moments';
               router.push(redirectUrl);
             })
             .catch(() => {

@@ -112,10 +112,10 @@ export default function ProfilePage() {
           <div className="text-center">
             <p className="text-gray-600 mb-4">No se pudo cargar el perfil</p>
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push('/moments')}
               className="text-pink-600 hover:text-pink-500 font-medium"
             >
-              Volver al dashboard
+              Volver a momentos
             </button>
           </div>
         </div>

@@ -29,8 +29,8 @@ export default function AppleSignInButton({
       () => {
         console.log('Apple Sign-In exitoso');
         onSuccess?.();
-        // Redirigir al dashboard o perfil después del login exitoso
-        router.push('/dashboard');
+        // Redirigir a momentos después del login exitoso
+        router.push('/moments');
       },
       (error) => {
         console.error('Apple Sign-In falló:', error);

@@ -95,7 +95,7 @@ export default function HomePage() {
           >
             {isAuthenticated ? (
               <Link
-                href="/dashboard"
+                href="/moments"
                 className="group relative inline-flex items-center justify-center px-8 py-4 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300"
               >
                 <span className="relative z-10">Explorar experiencias</span>
@@ -354,7 +354,7 @@ export default function HomePage() {
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               {isAuthenticated ? (
                 <Link
-                  href="/dashboard"
+                  href="/moments"
                   className="group relative inline-flex items-center justify-center px-10 py-5 rounded-2xl bg-white text-gray-900 font-bold text-lg shadow-2xl hover:shadow-3xl transform hover:-translate-y-1 transition-all duration-300"
                 >
                   <span className="relative z-10">Explorar experiencias</span>

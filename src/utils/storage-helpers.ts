@@ -1,8 +1,11 @@
 import { getUrl, uploadData, remove } from 'aws-amplify/storage';
+import { getCurrentUser } from 'aws-amplify/auth';
 
 /**
- * Utilidades para manejo de imágenes usando AWS Amplify Storage
- * Siguiendo AWS Well-Architected Framework
+ * Utilidades para manejo de archivos usando AWS Amplify Storage
+ * Implementa estrategia dual:
+ * - Amplify uploadData: Archivos < 10MB (avatares, thumbnails)
+ * - Multipart/Streaming: Archivos > 10MB (videos, paquetes grandes)
  */
 
 export interface StorageImageOptions {
@@ -47,24 +50,28 @@ export async function getSignedImageUrl(
 }
 
 /**
- * Sube una imagen a S3 usando Amplify Storage
+ * Sube una imagen de perfil a S3 siguiendo la estructura establecida
+ * Estructura: public/users/{username}/profile-images/{timestamp}.{ext}
  * @param file - Archivo a subir
- * @param path - Path donde guardar en S3
  * @param options - Opciones de configuración
  * @returns Path del archivo subido o null si falla
  */
 export async function uploadProfileImage(
   file: File,
-  userId: string,
   options: {
     accessLevel?: 'guest' | 'private' | 'protected';
     onProgress?: (progress: { transferredBytes: number; totalBytes?: number }) => void;
   } = {}
 ): Promise<string | null> {
   try {
-    const fileExtension = file.name.split('.').pop();
+    // Obtener el usuario actual para usar su username
+    const currentUser = await getCurrentUser();
+    
+    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const timestamp = Date.now();
-    const path = `profiles/${userId}/avatar-${timestamp}.${fileExtension}`;
+    
+    // Estructura según prompt-2: public/users/{username}/profile-images/{timestamp}.{ext}
+    const path = `public/users/${currentUser.username}/profile-images/${timestamp}.${fileExtension}`;
 
     const result = await uploadData({
       path,
@@ -75,6 +82,19 @@ export async function uploadProfileImage(
         onProgress: options.onProgress
       }
     }).result;
+
+    // Refrescar tokens después de actualizar la imagen de perfil
+    // La imagen de perfil es considerada un cambio importante que requiere refresh
+    if (typeof window !== 'undefined') {
+      // Importar dinámicamente para evitar problemas en SSR
+      import('@/lib/auth/token-interceptor').then(({ TokenInterceptor }) => {
+        console.log('🔄 Imagen de perfil actualizada, refrescando tokens silenciosamente...');
+        // Usar refresh silencioso sin recargar la página
+        setTimeout(() => {
+          TokenInterceptor.performSilentRefresh();
+        }, 500);
+      });
+    }
 
     return result.path;
   } catch (error) {

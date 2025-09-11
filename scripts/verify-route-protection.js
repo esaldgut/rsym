@@ -28,13 +28,13 @@ const tests = [
     test: async () => {
       const { stdout } = await execAsync('curl -s -o /dev/null -w "%{redirect_url}" http://localhost:3000/dashboard');
       const redirectUrl = stdout.trim();
-      const hasCorrectRedirect = redirectUrl.includes('/auth/login') && 
+      const hasCorrectRedirect = redirectUrl.includes('/auth') && 
                                 redirectUrl.includes('error=authentication_required') && 
-                                redirectUrl.includes('redirect=/dashboard');
+                                redirectUrl.includes('redirect=/moments');
       return {
         passed: hasCorrectRedirect,
         result: redirectUrl || 'Sin redirección',
-        expected: '/auth/login?error=authentication_required&redirect=/dashboard'
+        expected: '/auth?error=authentication_required&redirect=/moments'
       };
     }
   },
@@ -55,7 +55,7 @@ const tests = [
     test: async () => {
       const { stdout } = await execAsync('curl -s http://localhost:3000/dashboard');
       const hasRedirectSignal = stdout.includes('NEXT_REDIRECT') && 
-                               stdout.includes('/auth/login') &&
+                               stdout.includes('/auth') &&
                                stdout.includes('307');
       return {
         passed: hasRedirectSignal,
@@ -124,9 +124,9 @@ async function runTests() {
   
   // Pruebas manuales recomendadas
   console.log('\n🔍 PRUEBAS MANUALES RECOMENDADAS:');
-  console.log('1. Abre http://localhost:3000/dashboard en el navegador');
-  console.log('2. Verifica que redirige a /auth/login automáticamente');
-  console.log('3. Inicia sesión y confirma que puedes acceder al dashboard');
+  console.log('1. Abre http://localhost:3000/moments en el navegador');
+  console.log('2. Verifica que redirige a /auth automáticamente');
+  console.log('3. Inicia sesión y confirma que puedes acceder a moments');
   console.log('4. Revisa la consola del navegador para logs de protección');
   
   return passedTests === totalTests;

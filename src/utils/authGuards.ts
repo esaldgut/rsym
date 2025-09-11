@@ -12,7 +12,7 @@ interface UseProviderGuardOptions {
 }
 
 export function useProviderGuard(options: UseProviderGuardOptions = {}) {
-  const { redirectTo = '/dashboard', onUnauthorized } = options;
+  const { redirectTo = '/moments', onUnauthorized } = options;
   const { isAuthenticated, isLoading, userType } = useAmplifyAuth();
   const router = useRouter();
 

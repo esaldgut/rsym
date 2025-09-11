@@ -108,7 +108,7 @@ export default function RouteProtectionTestPage() {
               </Link>
               
               <Link
-                href="/auth/login"
+                href="/auth"
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 inline-block"
               >
                 Ir a Login

@@ -24,9 +24,9 @@ export default async function ProfileSettingsPage() {
     },
   });
 
-  // Si no hay sesión, redirigir a signin
+  // Si no hay sesión, redirigir a auth
   if (!userAttributes) {
-    redirect('/signin');
+    redirect('/auth');
   }
 
   // Preparar los datos para el cliente

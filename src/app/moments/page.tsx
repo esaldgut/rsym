@@ -1,5 +1,5 @@
 import { Suspense } from 'react';
-import { AuthGuard } from '@/components/guards/AuthGuard';
+import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
 import { HeroSection } from '@/components/ui/HeroSection';
 import { FeedContainer } from '@/components/feed/FeedContainer';
 import { FeedSkeleton } from '@/components/feed/FeedSkeleton';
@@ -10,11 +10,13 @@ export const experimental_ppr = true;
 
 // Página de Momentos con SSR y cache optimization
 export default async function MomentsPage() {
+  // Validar autenticación básica (solo tener cuenta)
+  await RouteProtectionWrapper.protectMoments();
+  
   // Cargar momentos iniciales en el servidor con cache
   const initialData = await loadInitialMoments();
   
   return (
-    <AuthGuard>
       <div className="min-h-screen bg-gray-50">
         {/* Hero Section - Contenido estático */}
         <HeroSection
@@ -35,7 +37,6 @@ export default async function MomentsPage() {
           </Suspense>
         </div>
       </div>
-    </AuthGuard>
   );
 }
 

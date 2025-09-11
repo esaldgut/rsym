@@ -33,7 +33,7 @@ export default function DashboardPage() {
 
   return (
     <AuthGuard 
-      redirectTo="/auth/login?error=authentication_required&redirect=/dashboard"
+      redirectTo="/auth?error=authentication_required&redirect=/moments"
       fallback={
         <div className="min-h-screen flex items-center justify-center bg-gray-50">
           <div className="text-center">

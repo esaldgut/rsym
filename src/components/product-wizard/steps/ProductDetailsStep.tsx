@@ -1,0 +1,329 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useProductForm } from '@/context/ProductFormContext';
+import { productDetailsSchema } from '@/lib/validations/product-schemas';
+import { LocationSelector } from '@/components/location/LocationSelector';
+import { SeasonConfiguration } from '../components/SeasonConfiguration';
+import type { StepProps } from '@/types/wizard';
+import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/lib/graphql/types';
+
+interface ProductDetailsFormData {
+  destination: LocationInput[];
+  departures: GuaranteedDeparturesInput[];
+  itinerary: string;
+  seasons: ProductSeasonInput[];
+  planned_hotels_or_similar: string[];
+}
+
+export default function ProductDetailsStep({ userId, onNext, isValid }: StepProps) {
+  const { formData, updateFormData } = useProductForm();
+  const [activeTab, setActiveTab] = useState('destination');
+
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors }, 
+    watch, 
+    setValue 
+  } = useForm<ProductDetailsFormData>({
+    resolver: zodResolver(productDetailsSchema),
+    defaultValues: {
+      destination: formData.destination || [],
+      departures: formData.departures || [],
+      itinerary: formData.itinerary || '',
+      seasons: formData.seasons || [],
+      planned_hotels_or_similar: formData.planned_hotels_or_similar || []
+    }
+  });
+
+  // Determinar automáticamente el tipo basado en destinos
+  const destination = watch('destination');
+  const actualProductType = destination?.length >= 2 ? 'circuit' : 'package';
+
+  // Sincronizar cambios específicos con el contexto
+  const destinationWatch = watch('destination');
+  const departuresWatch = watch('departures');
+  const itineraryWatch = watch('itinerary');
+  const seasonsWatch = watch('seasons');
+  const hotelsWatch = watch('planned_hotels_or_similar');
+
+  useEffect(() => {
+    if (JSON.stringify(destinationWatch) !== JSON.stringify(formData.destination)) {
+      updateFormData({ destination: destinationWatch });
+    }
+  }, [destinationWatch]);
+
+  useEffect(() => {
+    if (JSON.stringify(departuresWatch) !== JSON.stringify(formData.departures)) {
+      updateFormData({ departures: departuresWatch });
+    }
+  }, [departuresWatch]);
+
+  useEffect(() => {
+    if (itineraryWatch !== formData.itinerary) {
+      updateFormData({ itinerary: itineraryWatch });
+    }
+  }, [itineraryWatch]);
+
+  useEffect(() => {
+    if (JSON.stringify(seasonsWatch) !== JSON.stringify(formData.seasons)) {
+      updateFormData({ seasons: seasonsWatch });
+    }
+  }, [seasonsWatch]);
+
+  useEffect(() => {
+    if (JSON.stringify(hotelsWatch) !== JSON.stringify(formData.planned_hotels_or_similar)) {
+      updateFormData({ planned_hotels_or_similar: hotelsWatch });
+    }
+  }, [hotelsWatch]);
+
+  const onSubmit = (data: ProductDetailsFormData) => {
+    updateFormData(data);
+    onNext();
+  };
+
+  const generateItinerary = async () => {
+    if (!destinationWatch || destinationWatch.length === 0) return;
+
+    try {
+      const response = await fetch('/api/generate-itinerary', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destinations: destinationWatch,
+          productType: actualProductType
+        })
+      });
+
+      if (response.ok) {
+        const { itinerary } = await response.json();
+        setValue('itinerary', itinerary);
+        updateFormData({ itinerary });
+      }
+    } catch (error) {
+      console.error('Error generating itinerary:', error);
+    }
+  };
+
+  const tabs = [
+    { 
+      id: 'destination', 
+      name: actualProductType === 'circuit' ? 'Destinos del Circuito' : 'Destino del Paquete',
+      icon: '🗺️'
+    },
+    { 
+      id: 'departures', 
+      name: 'Salidas Garantizadas',
+      icon: '📅'
+    },
+    { 
+      id: 'itinerary', 
+      name: 'Itinerario',
+      icon: '📋'
+    },
+    { 
+      id: 'seasons', 
+      name: 'Temporadas y Precios',
+      icon: '💰'
+    },
+    ...(actualProductType === 'circuit' ? [{
+      id: 'hotels',
+      name: 'Hoteles Sugeridos',
+      icon: '🏨'
+    }] : [])
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Header dinámico */}
+      <div className="bg-gradient-to-r from-pink-500 to-violet-600 rounded-lg p-6 text-white">
+        <h2 className="text-2xl font-bold mb-2">
+          {actualProductType === 'circuit' ? 'Configura tu Circuito' : 'Configura tu Paquete'}
+        </h2>
+        <p className="opacity-90">
+          {actualProductType === 'circuit' 
+            ? `Circuito con ${destinationWatch?.length || 0} destinos seleccionados`
+            : 'Paquete turístico con destino único'
+          }
+        </p>
+        {destinationWatch?.length >= 2 && (
+          <div className="mt-2 text-xs bg-white/20 rounded-full px-3 py-1 inline-block">
+            ✨ Detectado automáticamente como Circuito
+          </div>
+        )}
+      </div>
+
+      {/* Navigation Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`
+                whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+                ${activeTab === tab.id
+                  ? 'border-purple-500 text-purple-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }
+              `}
+            >
+              <span>{tab.icon}</span>
+              {tab.name}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)}>
+        {/* Tab Content */}
+        <div className="mt-6">
+          {activeTab === 'destination' && (
+            <div className="space-y-4">
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-center gap-2 text-blue-800">
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <span className="font-medium">Tipo de Producto</span>
+                </div>
+                <p className="text-blue-700 text-sm mt-1">
+                  {actualProductType === 'circuit' 
+                    ? '🗺️ Circuito: 2 o más destinos conectados'
+                    : '🎁 Paquete: Un destino específico'
+                  }
+                </p>
+              </div>
+
+              <LocationSelector
+                selectedLocations={watch('destination') || []}
+                onChange={(locations) => {
+                  setValue('destination', locations);
+                  updateFormData({ destination: locations });
+                }}
+                allowMultiple={true}
+                label={actualProductType === 'circuit' 
+                  ? 'Destinos del Circuito (mínimo 2)' 
+                  : 'Destino del Paquete'
+                }
+                error={errors.destination?.message}
+                minSelections={actualProductType === 'circuit' ? 2 : 1}
+                maxSelections={actualProductType === 'circuit' ? 10 : 1}
+              />
+            </div>
+          )}
+
+          {activeTab === 'departures' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Salidas Garantizadas</h3>
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-yellow-800 text-sm">
+                  💡 Define desde qué ciudades de origen salen tus {actualProductType === 'circuit' ? 'circuitos' : 'paquetes'} 
+                  y en qué días de la semana.
+                </p>
+              </div>
+              {/* Aquí iría el componente GuaranteedDeparturesSelector */}
+              <div className="bg-gray-50 rounded-lg p-6 text-center">
+                <p className="text-gray-500">Configuración de salidas garantizadas</p>
+                <p className="text-sm text-gray-400 mt-1">Próximamente disponible</p>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'itinerary' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Itinerario {actualProductType === 'circuit' ? 'del Circuito' : 'del Paquete'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={generateItinerary}
+                  disabled={!destinationWatch || destinationWatch.length === 0}
+                  className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
+                >
+                  ✨ Generar Automáticamente
+                </button>
+              </div>
+
+              <textarea
+                {...register('itinerary')}
+                rows={12}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder={`Describe el itinerario detallado de tu ${actualProductType}...\n\nEjemplo:\nDía 1: Llegada a [destino]\n- Traslado del aeropuerto\n- Check-in en hotel\n- Tarde libre\n\nDía 2: Tour por [actividad]\n- Desayuno incluido\n- Visita a [lugar]\n- Almuerzo típico\n...`}
+              />
+              {errors.itinerary && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {errors.itinerary.message}
+                </p>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'seasons' && (
+            <SeasonConfiguration
+              seasons={watch('seasons') || []}
+              onChange={(seasons) => {
+                setValue('seasons', seasons);
+                updateFormData({ seasons });
+              }}
+              productType={actualProductType}
+              error={errors.seasons?.message}
+            />
+          )}
+
+          {activeTab === 'hotels' && actualProductType === 'circuit' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Hoteles Planificados o Similares</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-800 text-sm">
+                  💡 Lista los hoteles que planeas usar en cada destino. Esto ayuda a los viajeros 
+                  a conocer el tipo de alojamiento incluido.
+                </p>
+              </div>
+              
+              <textarea
+                {...register('planned_hotels_or_similar')}
+                rows={8}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Ejemplo:&#10;&#10;Ciudad de México:&#10;- Hotel Zócalo Central 4* o similar&#10;- Hotel Majestic 4* o similar&#10;&#10;Guadalajara:&#10;- Hotel Morales Historical 4* o similar&#10;- Casa Grande Hotel 4* o similar"
+              />
+              {errors.planned_hotels_or_similar && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {errors.planned_hotels_or_similar.message}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <div className="flex justify-between pt-6 border-t border-gray-200 mt-8">
+          <button
+            type="button"
+            onClick={() => window.history.back()}
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+          >
+            ← Anterior
+          </button>
+          
+          <button
+            type="submit"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow"
+          >
+            Continuar →
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}

@@ -8,6 +8,7 @@ import { QueryProvider } from '../components/providers/QueryProvider';
 import { Navbar } from '@/components';
 import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { OAuthHandler } from '../components/auth/OAuthHandler';
+import { ToastContainer } from '@/components/ui/Toast';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -39,6 +40,7 @@ export default function RootLayout({
           <MainContentWrapper>
             {children}
           </MainContentWrapper>
+          <ToastContainer />
         </QueryProvider>
       </body>
     </html>

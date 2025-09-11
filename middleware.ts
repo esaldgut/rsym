@@ -68,7 +68,9 @@ export async function middleware(request: NextRequest) {
   }
   
   // Protección para rutas que requieren autenticación
-  const protectedPaths = ['/dashboard', '/profile', '/settings', '/moments', '/marketplace'];
+  // /moments y /marketplace: autenticación básica (solo tener cuenta)
+  // /profile, /settings, /provider: autenticación con perfil completo
+  const protectedPaths = ['/profile', '/settings', '/moments', '/marketplace', '/provider'];
   const isProtectedRoute = protectedPaths.some(path => 
     request.nextUrl.pathname.startsWith(path)
   );
@@ -91,7 +93,7 @@ export async function middleware(request: NextRequest) {
     
     if (!authenticated) {
       // Redirigir a la página de inicio de sesión si no está autenticado
-      const redirectUrl = new URL('/signin', request.url);
+      const redirectUrl = new URL('/auth', request.url);
       redirectUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
       return NextResponse.redirect(redirectUrl);
     }

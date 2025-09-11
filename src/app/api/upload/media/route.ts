@@ -27,6 +27,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 1.5 Verificar que el provider esté completamente aprobado
+    if (!user.isFullyApprovedProvider) {
+      return NextResponse.json(
+        { 
+          error: 'Provider no aprobado. Se requiere aprobación del equipo YAAN y asignación al grupo providers.',
+          details: {
+            isApproved: user.isProviderApproved,
+            inGroup: user.cognitoGroups?.includes('providers')
+          }
+        },
+        { status: 403 }
+      );
+    }
+
     // 2. Obtener archivo del FormData
     const formData = await request.formData();
     const file = formData.get('file') as File;

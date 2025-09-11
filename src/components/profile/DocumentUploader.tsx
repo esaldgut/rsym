@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { uploadData, remove } from 'aws-amplify/storage';
+import { getCurrentUser } from 'aws-amplify/auth';
 import { DocumentPath } from '@/lib/auth/user-attributes';
 
 interface DocumentUploaderProps {
@@ -28,6 +29,22 @@ export function DocumentUploader({
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Mapear labels a carpetas específicas según la estructura S3
+  const getDocumentFolder = (label: string): string => {
+    const labelLower = label.toLowerCase();
+    if (labelLower.includes('situación fiscal') || labelLower.includes('sat') || labelLower.includes('tax')) {
+      return 'proof-of-tax-status';
+    }
+    if (labelLower.includes('sectur') || labelLower.includes('turismo')) {
+      return 'sectur-registry';
+    }
+    if (labelLower.includes('cumplimiento') || labelLower.includes('32-d') || labelLower.includes('compliance')) {
+      return 'compliance-opinion';
+    }
+    // Fallback genérico
+    return label.toLowerCase().replace(/[^a-z0-9]/g, '-');
+  };
+
   const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -51,9 +68,16 @@ export function DocumentUploader({
     setUploadProgress(0);
 
     try {
-      // Generar nombre único para el archivo
+      // Validar que el usuario esté autenticado usando getCurrentUser de Amplify
+      const currentUser = await getCurrentUser();
+      
+      // Generar path siguiendo la estructura S3 establecida
       const timestamp = Date.now();
-      const fileName = `provider-documents/${timestamp}-${file.name}`;
+      const documentFolder = getDocumentFolder(label);
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
+      
+      // Estructura: protected/users/{username}/legal-documents/{document-folder}/{timestamp}.{ext}
+      const fileName = `protected/users/${currentUser.username}/legal-documents/${documentFolder}/${timestamp}.${fileExtension}`;
 
       // Subir archivo a S3
       const result = await uploadData({
@@ -62,6 +86,13 @@ export function DocumentUploader({
         options: {
           accessLevel: 'private', // Documentos sensibles solo accesibles por el dueño
           contentType: file.type,
+          metadata: {
+            documentType: documentFolder,
+            originalName: file.name,
+            username: currentUser.username,
+            uploadedAt: new Date().toISOString(),
+            documentCategory: 'legal-documents'
+          },
           onProgress: ({ transferredBytes, totalBytes }) => {
             if (totalBytes) {
               const progress = Math.round((transferredBytes / totalBytes) * 100);
@@ -78,6 +109,31 @@ export function DocumentUploader({
       });
 
       console.log('Documento subido exitosamente:', result.path);
+
+      // Refrescar tokens después de subir documentos críticos
+      // Los documentos legales son considerados cambios críticos que requieren refresh
+      if (typeof window !== 'undefined') {
+        // Importar dinámicamente para evitar problemas en SSR
+        const { TokenInterceptor } = await import('@/lib/auth/token-interceptor');
+        
+        // Determinar si es un documento crítico (todos los documentos legales lo son)
+        const isCriticalDocument = documentFolder.includes('proof-of-tax-status') || 
+                                  documentFolder.includes('sectur-registry') || 
+                                  documentFolder.includes('compliance-opinion');
+        
+        if (isCriticalDocument) {
+          console.log('🔄 Documento crítico subido, refrescando tokens silenciosamente...');
+          // Usar refresh silencioso para documentos críticos sin recargar página
+          setTimeout(() => {
+            TokenInterceptor.performSilentRefresh();
+          }, 500);
+        } else {
+          // Para otros documentos, refresh normal después de 2 segundos
+          setTimeout(() => {
+            TokenInterceptor.performSilentRefresh();
+          }, 2000);
+        }
+      }
     } catch (error) {
       console.error('Error subiendo documento:', error);
       setError('Error al subir el archivo. Por favor intenta de nuevo.');

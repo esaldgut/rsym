@@ -19,14 +19,14 @@ export async function GET(request: NextRequest) {
       console.error('OAuth error:', error);
       const errorDescription = searchParams.get('error_description');
       return NextResponse.redirect(
-        new URL(`/signin?error=${encodeURIComponent(errorDescription || error)}`, request.url)
+        new URL(`/auth?error=${encodeURIComponent(errorDescription || error)}`, request.url)
       );
     }
     
     // Verificar que tengamos código y estado
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/signin?error=missing_oauth_params', request.url)
+        new URL('/auth?error=missing_oauth_params', request.url)
       );
     }
     
@@ -46,26 +46,26 @@ export async function GET(request: NextRequest) {
     
     if (authenticated) {
       // Extraer URL de callback del estado si existe
-      let callbackUrl = '/dashboard';
+      let callbackUrl = '/moments';
       try {
         const stateData = JSON.parse(decodeURIComponent(state));
         if (stateData.callbackUrl) {
           callbackUrl = stateData.callbackUrl;
         }
       } catch {
-        // Si el estado no es JSON, usar dashboard por defecto
+        // Si el estado no es JSON, usar moments por defecto
       }
       
       return NextResponse.redirect(new URL(callbackUrl, request.url));
     } else {
       return NextResponse.redirect(
-        new URL('/signin?error=oauth_failed', request.url)
+        new URL('/auth?error=oauth_failed', request.url)
       );
     }
   } catch (error) {
     console.error('OAuth callback error:', error);
     return NextResponse.redirect(
-      new URL('/signin?error=oauth_error', request.url)
+      new URL('/auth?error=oauth_error', request.url)
     );
   }
 }

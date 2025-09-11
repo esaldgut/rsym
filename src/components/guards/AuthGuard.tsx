@@ -17,7 +17,7 @@ interface AuthGuardProps {
  */
 export function AuthGuard({ 
   children, 
-  redirectTo = '/auth/login',
+  redirectTo = '/auth',
   fallback
 }: AuthGuardProps) {
   const { isAuthenticated, isLoading } = useAmplifyAuth();

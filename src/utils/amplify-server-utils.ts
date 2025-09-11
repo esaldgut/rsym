@@ -63,6 +63,14 @@ export async function getAuthenticatedUser() {
         // Extraer userType del atributo personalizado
         const userType = (attributes['custom:user_type'] as 'provider' | 'consumer') || null;
         
+        // Extraer estado de aprobación del provider
+        const providerIsApproved = attributes['custom:provider_is_approved'] === 'true' || 
+                                   attributes['custom:provider_is_approved'] === true;
+        
+        // Obtener grupos de Cognito del ID token
+        const idToken = session.tokens?.idToken;
+        const cognitoGroups = (idToken?.payload?.['cognito:groups'] as string[]) || [];
+        
         // Obtener sub del ID token (más confiable)
         const idTokenSub = session.tokens?.idToken?.payload?.sub as string;
         
@@ -72,7 +80,13 @@ export async function getAuthenticatedUser() {
           userType,
           userId: user.userId,
           username: user.username,
-          sub: idTokenSub || attributes.sub || user.userId // Prioridad: token -> attributes -> userId
+          sub: idTokenSub || attributes.sub || user.userId, // Prioridad: token -> attributes -> userId
+          // Información específica de providers
+          isProviderApproved: userType === 'provider' ? providerIsApproved : null,
+          cognitoGroups,
+          isFullyApprovedProvider: userType === 'provider' && 
+                                   providerIsApproved && 
+                                   cognitoGroups.includes('providers')
         };
       } catch (error) {
         console.error('Error getting authenticated user:', error);
@@ -80,6 +94,64 @@ export async function getAuthenticatedUser() {
       }
     }
   });
+}
+
+/**
+ * Valida si un usuario es un provider completamente aprobado
+ * Requiere: tipo provider, aprobación del equipo, y membresía en grupo
+ */
+export async function validateProviderAccess(): Promise<{
+  isValid: boolean;
+  isApproved: boolean;
+  inProvidersGroup: boolean;
+  errors: string[];
+}> {
+  const session = await getServerSession();
+  const idToken = session?.tokens?.idToken;
+  
+  if (!idToken) {
+    return {
+      isValid: false,
+      isApproved: false,
+      inProvidersGroup: false,
+      errors: ['No authenticated']
+    };
+  }
+
+  const payload = idToken.payload;
+  const result = {
+    isValid: false,
+    isApproved: false,
+    inProvidersGroup: false,
+    errors: [] as string[]
+  };
+
+  // 1. Verificar que sea tipo provider
+  if (payload['custom:user_type'] !== 'provider') {
+    result.errors.push('Usuario no es tipo provider');
+    return result;
+  }
+
+  // 2. Verificar aprobación del equipo YAAN
+  const providerApproved = payload['custom:provider_is_approved'];
+  if (providerApproved === 'true' || providerApproved === true) {
+    result.isApproved = true;
+  } else {
+    result.errors.push('Provider pendiente de aprobación por el equipo YAAN');
+  }
+
+  // 3. Verificar membresía en grupo 'providers' de Cognito
+  const cognitoGroups = (payload['cognito:groups'] as string[]) || [];
+  if (cognitoGroups.includes('providers')) {
+    result.inProvidersGroup = true;
+  } else {
+    result.errors.push('Provider no asignado al grupo providers en Cognito');
+  }
+
+  // El acceso es válido solo si ambas condiciones se cumplen
+  result.isValid = result.isApproved && result.inProvidersGroup;
+
+  return result;
 }
 
 /**
