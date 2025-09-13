@@ -15,6 +15,7 @@ import type {
 } from '@/types/wizard';
 
 const initialFormData: ProductFormData = {
+  productId: null,
   name: '',
   preferences: [],
   languages: [],
@@ -29,9 +30,10 @@ const initialFormData: ProductFormData = {
   isSubmitting: false
 };
 
-export const getInitialFormData = (productType: 'circuit' | 'package'): ProductFormData => ({
+export const getInitialFormData = (productType: 'circuit' | 'package', productId?: string | null): ProductFormData => ({
   ...initialFormData,
-  productType
+  productType,
+  productId: productId || null
 });
 
 function productFormReducer(
@@ -80,9 +82,22 @@ export function ProductFormProvider({
     }
     
     try {
-      const savedData = localStorage.getItem(`yaan-wizard-${productType}`);
+      // Intentar primero la nueva clave unificada
+      let savedData = localStorage.getItem('yaan-product-form-data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
+        // Verificar que corresponde al productType actual
+        if (parsed.productType === productType) {
+          console.log('📦 FormData recuperado de nueva clave:', parsed);
+          return { ...parsed, productType }; // Ensure productType is always current
+        }
+      }
+      
+      // Fallback a la clave antigua
+      savedData = localStorage.getItem(`yaan-wizard-${productType}`);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        console.log('📦 FormData recuperado de clave legacy:', parsed);
         return { ...parsed, productType }; // Ensure productType is always current
       }
     } catch (error) {
@@ -102,7 +117,13 @@ export function ProductFormProvider({
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
+        // Guardar con la clave antigua para compatibilidad
         localStorage.setItem(`yaan-wizard-${productType}`, JSON.stringify(formData));
+        
+        // Guardar también con la nueva clave unificada
+        if (formData.productId) {
+          localStorage.setItem('yaan-product-form-data', JSON.stringify(formData));
+        }
       } catch (error) {
         console.warn('Error saving wizard data:', error);
       }

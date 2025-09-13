@@ -9,6 +9,7 @@ import { UnsavedChangesModal } from '@/components/ui/UnsavedChangesModal';
 import { HeroSection } from '@/components/ui/HeroSection';
 import { useRouter } from 'next/navigation';
 import { toastManager } from '@/components/ui/Toast';
+import ProductNameModal from './ProductNameModal';
 import type { StepProps } from '@/types/wizard';
 
 interface ProductWizardProps {
@@ -18,10 +19,74 @@ interface ProductWizardProps {
 
 export default function ProductWizard({ userId, productType }: ProductWizardProps) {
   const steps = getStepsForProductType(productType);
+  const [productId, setProductId] = useState<string | null>(null);
+  const [productName, setProductName] = useState<string>('');
+  const [showModal, setShowModal] = useState<boolean | null>(null); // null = loading state
+
+  // Verificar si existe un producto en localStorage al montar
+  useEffect(() => {
+    const savedProductId = localStorage.getItem('yaan-current-product-id');
+    const savedProductType = localStorage.getItem('yaan-current-product-type');
+    const savedProductName = localStorage.getItem('yaan-current-product-name');
+    
+    // Verificar si existe un producto pendiente del mismo tipo
+    if (savedProductId && savedProductType === productType && savedProductName) {
+      // Recuperar producto existente - NO mostrar modal
+      setProductId(savedProductId);
+      setProductName(savedProductName);
+      setShowModal(false); // Importante: no mostrar modal si hay producto existente
+      
+      console.log('📦 Producto existente recuperado de localStorage:', { 
+        id: savedProductId, 
+        name: savedProductName, 
+        type: savedProductType 
+      });
+    } else {
+      // No hay producto o es de diferente tipo - mostrar modal para crear nuevo
+      if (savedProductId && savedProductType !== productType) {
+        console.log('🔄 Producto existente es de diferente tipo, creando nuevo');
+      }
+      setShowModal(true);
+    }
+  }, [productType]);
+
+  const handleProductCreated = (newProductId: string, name: string) => {
+    setProductId(newProductId);
+    setProductName(name);
+    setShowModal(false);
+    
+    // Guardar en localStorage
+    localStorage.setItem('yaan-current-product-id', newProductId);
+    localStorage.setItem('yaan-current-product-type', productType);
+    localStorage.setItem('yaan-current-product-name', name);
+    
+    console.log('✅ Producto creado y guardado:', { 
+      id: newProductId, 
+      name, 
+      type: productType 
+    });
+  };
+
+  const handleError = (error: string) => {
+    console.error('Error en creación de producto:', error);
+    // El error ya se muestra en el toast desde el modal
+  };
 
   return (
     <ProductFormProvider steps={steps} productType={productType}>
       <div className="min-h-screen bg-gray-50">
+        {/* Modal de captura de nombre - solo mostrar cuando showModal es true */}
+        {showModal === true && (
+          <ProductNameModal
+            isOpen={true}
+            productType={productType}
+            onProductCreated={handleProductCreated}
+            onError={handleError}
+          />
+        )}
+
+        {/* Contenido principal del wizard */}
+        <div className={showModal === true ? 'blur-sm pointer-events-none' : ''}>
         {/* Hero Section estandarizado */}
         <HeroSection
           title={`Crear ${productType === 'circuit' ? 'Circuito' : 'Paquete'} Turístico`}
@@ -30,23 +95,54 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
           showShapes={true}
         />
 
-        {/* Contenido del wizard */}
-        <div className="relative -mt-8 z-10">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <WizardContent userId={userId} />
+        {/* Contenido del wizard - solo mostrar cuando no está en loading */}
+        {showModal !== null && (
+          <div className="relative -mt-8 z-10">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <WizardContent 
+                userId={userId} 
+                productId={productId}
+                productName={productName}
+                productType={productType}
+              />
+            </div>
           </div>
+        )}
+
+        {/* Loading state */}
+        {showModal === null && (
+          <div className="relative -mt-8 z-10">
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="bg-white rounded-2xl shadow-sm p-8 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+                <p className="text-gray-600">Verificando productos pendientes...</p>
+              </div>
+            </div>
+          </div>
+        )}
         </div>
       </div>
     </ProductFormProvider>
   );
 }
 
-function WizardContent({ userId }: { userId: string }) {
+function WizardContent({ 
+  userId, 
+  productId, 
+  productName,
+  productType
+}: { 
+  userId: string;
+  productId: string | null;
+  productName: string;
+  productType: 'circuit' | 'package';
+}) {
   const router = useRouter();
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   
   const { 
     formData, 
+    updateFormData,
     currentStepIndex, 
     steps, 
     navigateToStep,
@@ -54,6 +150,38 @@ function WizardContent({ userId }: { userId: string }) {
     isFirstStep,
     initialFormData
   } = useProductForm();
+
+  // Actualizar el context con productId y nombre cuando estén disponibles (solo una vez)
+  useEffect(() => {
+    if (productId && productName && !formData.productId) {
+      // Intentar recuperar todo el formData del localStorage primero
+      const savedFormData = localStorage.getItem('yaan-product-form-data');
+      
+      if (savedFormData) {
+        try {
+          const parsedFormData = JSON.parse(savedFormData);
+          // Verificar que corresponda al producto actual
+          if (parsedFormData.productId === productId && parsedFormData.productType === productType) {
+            console.log('📝 Restaurando formData completo desde localStorage:', parsedFormData);
+            updateFormData(parsedFormData);
+            return; // Salir temprano si se restauró desde localStorage
+          }
+        } catch (error) {
+          console.warn('⚠️ Error al parsear formData de localStorage:', error);
+        }
+      }
+      
+      // Fallback: solo actualizar productId y nombre si no hay formData completo
+      console.log('📝 Actualizando contexto del wizard con datos básicos:', { 
+        productId, 
+        name: productName 
+      });
+      updateFormData({
+        productId,
+        name: productName
+      });
+    }
+  }, [productId, productName, productType]);
 
   // Hook para detectar cambios no guardados
   const {

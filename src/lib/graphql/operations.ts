@@ -434,13 +434,14 @@ export const deletePackage = /* GraphQL */ `
   }
 `;
 
-// Operaciones para el Wizard de Productos
-export const createProductOfTypeCircuit = /* GraphQL */ `
-  mutation CreateProductOfTypeCircuit($input: CreateProductOfTypeCircuitInput!) {
-    createProductOfTypeCircuit(input: $input) {
+
+
+export const updateProduct = /* GraphQL */ `
+  mutation UpdateProduct($input: UpdateProductInput!) {
+    updateProduct(input: $input) {
       id
       name
-      user_id
+      provider_id
       product_type
       preferences
       languages
@@ -448,49 +449,34 @@ export const createProductOfTypeCircuit = /* GraphQL */ `
       cover_image_url
       image_url
       video_url
-      destination {
-        place
-        placeSub
-        coordinates
-        complementary_description
-      }
-      itinerary
       seasons {
+        id
+        category
         start_date
         end_date
-        category
-        capacity
-        prices {
-          currency
-          price
-          room_name
-          max_adult
-          max_minor
-        }
-        schedules
+        allotment
+        allotment_remain
       }
-      planned_hotels_or_similar
       payment_policy {
-        product_id
-        options {
-          type
-          description
-          config
-          requirements {
-            deadline_days_to_pay
-          }
-        }
-        general_policies {
-          change_policy {
-            allows_date_chage
-            deadline_days_to_make_change
-          }
-        }
+        id
+        status
       }
       status
       published
-      created_at
       updated_at
+    }
+  }
+`;
+
+// Mutations para creación de productos (esqueleto)
+export const createProductOfTypeCircuit = /* GraphQL */ `
+  mutation CreateProductOfTypeCircuit($input: CreateProductOfTypeCircuitInput!) {
+    createProductOfTypeCircuit(input: $input) {
+      id
+      name
+      product_type
+      status
+      created_at
     }
   }
 `;
@@ -500,91 +486,109 @@ export const createProductOfTypePackage = /* GraphQL */ `
     createProductOfTypePackage(input: $input) {
       id
       name
-      user_id
       product_type
-      preferences
-      languages
-      description
-      cover_image_url
-      image_url
-      video_url
-      origin {
-        place
-        placeSub
-        coordinates
-        complementary_description
-      }
-      destination {
-        place
-        placeSub
-        coordinates
-        complementary_description
-      }
-      seasons {
-        capacity
-        category
-        start_date
-        end_date
-        prices {
-          currency
-          price
-          room_name
-          max_adult
-          max_minor
-        }
-        extra_prices {
-          currency
-          price
-          room_name
-          max_adult
-          max_minor
-        }
-        aditional_services
-        number_of_nights
-        schedules
-      }
-      planned_hotels_or_similar
-      payment_policy {
-        product_id
-        options {
-          type
-          description
-          config
-          requirements {
-            deadline_days_to_pay
-          }
-        }
-        general_policies {
-          change_policy {
-            allows_date_chage
-            deadline_days_to_make_change
-          }
-        }
-      }
       status
-      published
       created_at
-      updated_at
     }
   }
 `;
 
-export const updateProduct = /* GraphQL */ `
-  mutation UpdateProduct($input: UpdateProductInput!) {
-    updateProduct(input: $input) {
-      id
-      name
-      user_id
-      product_type
-      preferences
-      languages
-      description
-      cover_image_url
-      image_url
-      video_url
-      status
-      published
-      updated_at
+// Provider Products Queries
+export const getAllProductsByEmail = /* GraphQL */ `
+  query GetAllProductsByEmail($pagination: PaginationInput, $filter: ProductFilterInput) {
+    getAllProductsByEmail(pagination: $pagination, filter: $filter) {
+      items {
+        id
+        name
+        description
+        product_type
+        status
+        published
+        cover_image_url
+        created_at
+        updated_at
+        seasons {
+          id
+          start_date
+          end_date
+          category
+          allotment
+          allotment_remain
+        }
+        destination {
+          place
+          placeSub
+        }
+        min_product_price
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getAllActiveProductsByProvider = /* GraphQL */ `
+  query GetAllActiveProductsByProvider($pagination: PaginationInput, $filter: ProductFilterInput) {
+    getAllActiveProductsByProvider(pagination: $pagination, filter: $filter) {
+      items {
+        id
+        name
+        description
+        product_type
+        status
+        published
+        cover_image_url
+        created_at
+        updated_at
+        seasons {
+          id
+          start_date
+          end_date
+          category
+          allotment
+          allotment_remain
+        }
+        destination {
+          place
+          placeSub
+        }
+        min_product_price
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getProductsByType = /* GraphQL */ `
+  query GetProductsByType($product_type: String!, $pagination: PaginationInput, $filter: ProductFilterInput) {
+    getProductsByType(product_type: $product_type, pagination: $pagination, filter: $filter) {
+      items {
+        id
+        name
+        description
+        product_type
+        status
+        published
+        cover_image_url
+        created_at
+        updated_at
+        seasons {
+          id
+          start_date
+          end_date
+          category
+          allotment
+          allotment_remain
+        }
+        destination {
+          place
+          placeSub
+        }
+        min_product_price
+      }
+      nextToken
+      total
     }
   }
 `;

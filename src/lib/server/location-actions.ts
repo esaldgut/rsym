@@ -13,7 +13,11 @@ import { revalidatePath } from 'next/cache';
 import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
 import { fetchAuthSession } from 'aws-amplify/auth/server';
 import type { 
-  CircuitLocation, 
+  CircuitLocation,
+  Location,
+  LocationInput,
+  Point,
+  PointInput,
   SearchOptions, 
   LocationActionResponse,
   AWSLocationPlace,

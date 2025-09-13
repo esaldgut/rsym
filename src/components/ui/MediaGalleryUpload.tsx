@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
+import { toastManager } from '@/components/ui/Toast';
 
 interface UploadedFile {
   id: string;
@@ -64,7 +65,16 @@ export function MediaGalleryUpload({
 
     // Check max files limit
     if (uploadedFiles.length + files.length > maxFiles) {
-      alert(`Solo puedes subir máximo ${maxFiles} archivos`);
+      toastManager.error(`📁 Solo puedes subir máximo ${maxFiles} archivos`, {
+        trackingContext: {
+          feature: 'media_upload',
+          error: 'file_limit_exceeded',
+          maxFiles,
+          attemptedFiles: uploadedFiles.length + files.length,
+          currentFiles: uploadedFiles.length,
+          category: 'validation_error'
+        }
+      });
       return;
     }
 

@@ -1,14 +1,44 @@
 /**
- * Tipos para AWS Location Service y CircuitLocation
+ * Tipos para AWS Location Service alineados con GraphQL Schema oficial YAAN
  */
 
-// Tipo principal para CircuitLocation (GraphQL)
+// Tipo Point según GraphQL schema oficial
+export interface Point {
+  longitude: number;
+  latitude: number;
+}
+
+// Tipo Location según GraphQL schema oficial (líneas 181-187)
+export interface Location {
+  id?: string;
+  place: string;
+  placeSub?: string;
+  complementary_description?: string;
+  coordinates?: Point;
+}
+
+// Input Location según GraphQL schema oficial (líneas 189-194)  
+export interface LocationInput {
+  place: string;
+  placeSub?: string;
+  complementary_description?: string;
+  coordinates?: PointInput;
+}
+
+// Input Point según GraphQL schema oficial (líneas 328-331)
+export interface PointInput {
+  longitude?: number;
+  latitude?: number;
+}
+
+// Tipo legacy para compatibilidad con AWS Location Service
+// NOTA: Este tipo NO está en el GraphQL schema oficial
 export interface CircuitLocation {
   id?: string;
   place: string;
   placeSub?: string;
   complementaryDescription?: string;
-  coordinates: [number, number]; // [longitude, latitude]
+  coordinates: [number, number]; // [longitude, latitude] format para AWS SDK
   amazon_location_service_response: string; // JSON stringified response
 }
 

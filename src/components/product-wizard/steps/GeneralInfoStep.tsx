@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FileUpload } from '@/components/ui/FileUpload';
 import { LocationSelector } from '@/components/location/LocationSelector';
 import { useProductForm } from '@/context/ProductFormContext';
-import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { Preferences } from '@/utils/preferences';
+import { toastManager } from '@/components/ui/Toast';
+import MediaPreview, { type MediaFile } from '@/components/media/MediaPreview';
+import MediaUploadZone from '@/components/media/MediaUploadZone';
 import { 
   generalInfoCircuitSchema, 
   generalInfoPackageSchema 
@@ -38,11 +39,18 @@ const LANGUAGES = [
 
 export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
-  const { uploadFile, isUploading } = useMediaUpload();
   
-  const schema = formData.productType === 'circuit' 
-    ? generalInfoCircuitSchema 
-    : generalInfoPackageSchema;
+  // Estados de archivos multimedia separados para evitar loops
+  const [coverFiles, setCoverFiles] = useState<MediaFile[]>([]);
+  const [galleryFiles, setGalleryFiles] = useState<MediaFile[]>([]);
+  const [videoFiles, setVideoFiles] = useState<MediaFile[]>([]);
+
+  const schema = useMemo(() => 
+    formData.productType === 'circuit' 
+      ? generalInfoCircuitSchema 
+      : generalInfoPackageSchema,
+    [formData.productType]
+  );
 
   const { register, handleSubmit, formState: { errors }, watch, setValue } = useForm<GeneralInfoFormData>({
     resolver: zodResolver(schema),
@@ -58,65 +66,140 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
     }
   });
 
-  const onSubmit = (data: GeneralInfoFormData) => {
+  const onSubmit = useCallback((data: GeneralInfoFormData) => {
     updateFormData(data);
     onNext();
-  };
+  }, [updateFormData, onNext]);
 
-  // Sincronizar cambios específicos del formulario con el contexto global
+  // Watchers para campos principales (con debounce para evitar updates excesivos)
   const name = watch('name');
   const description = watch('description');
   const preferences = watch('preferences');
   const languages = watch('languages');
 
+  // Sincronizar el valor del nombre desde el contexto cuando cambie
   useEffect(() => {
-    if (name !== formData.name) {
-      updateFormData({ name });
+    if (formData.name && formData.name !== name) {
+      setValue('name', formData.name);
     }
-  }, [name]);
+  }, [formData.name, name, setValue]);
+
+  // Actualizar nombre en el context cuando cambie (debounced)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (name !== formData.name) {
+        updateFormData({ name });
+      }
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [name, formData.name, updateFormData]);
 
   useEffect(() => {
-    if (description !== formData.description) {
-      updateFormData({ description });
-    }
-  }, [description]);
+    const timeoutId = setTimeout(() => {
+      if (description !== formData.description) {
+        updateFormData({ description });
+      }
+    }, 500);
+    return () => clearTimeout(timeoutId);
+  }, [description, formData.description, updateFormData]);
 
+  // Updates inmediatos para arrays (pero con comparación de referencia)
   useEffect(() => {
-    if (JSON.stringify(preferences) !== JSON.stringify(formData.preferences)) {
+    if (preferences !== formData.preferences) {
       updateFormData({ preferences });
     }
-  }, [preferences]);
+  }, [preferences, formData.preferences, updateFormData]);
 
   useEffect(() => {
-    if (JSON.stringify(languages) !== JSON.stringify(formData.languages)) {
+    if (languages !== formData.languages) {
       updateFormData({ languages });
     }
-  }, [languages]);
+  }, [languages, formData.languages, updateFormData]);
 
-  const handleImageUpload = async (file: File, type: 'cover' | 'gallery' | 'video') => {
-    try {
-      const result = await uploadFile(file, `products/${formData.productId || 'temp'}`);
-      
-      if (result.success && result.url) {
-        if (type === 'cover') {
-          setValue('cover_image_url', result.url);
-          updateFormData({ cover_image_url: result.url });
-        } else if (type === 'gallery') {
-          const currentImages = watch('image_url') || [];
-          const newImages = [...currentImages, result.url];
-          setValue('image_url', newImages);
-          updateFormData({ image_url: newImages });
-        } else if (type === 'video') {
-          const currentVideos = watch('video_url') || [];
-          const newVideos = [...currentVideos, result.url];
-          setValue('video_url', newVideos);
-          updateFormData({ video_url: newVideos });
-        }
-      }
-    } catch (error) {
-      console.error('Error uploading file:', error);
+  // Sincronizar URLs de archivos cuando cambian los estados
+  const handleCoverFilesChange = useCallback((files: MediaFile[]) => {
+    setCoverFiles(files);
+    const coverUrl = files.find(f => f.uploadStatus === 'complete')?.url || '';
+    setValue('cover_image_url', coverUrl);
+    updateFormData({ cover_image_url: coverUrl });
+  }, [setValue, updateFormData]);
+
+  const handleGalleryFilesChange = useCallback((files: MediaFile[]) => {
+    setGalleryFiles(files);
+    const galleryUrls = files
+      .filter(f => f.uploadStatus === 'complete')
+      .map(f => f.url)
+      .filter(Boolean) as string[];
+    
+    setValue('image_url', galleryUrls);
+    updateFormData({ image_url: galleryUrls });
+  }, [setValue, updateFormData]);
+
+  const handleVideoFilesChange = useCallback((files: MediaFile[]) => {
+    setVideoFiles(files);
+    const videoUrls = files
+      .filter(f => f.uploadStatus === 'complete')
+      .map(f => f.url)
+      .filter(Boolean) as string[];
+    
+    setValue('video_url', videoUrls);
+    updateFormData({ video_url: videoUrls });
+  }, [setValue, updateFormData]);
+
+  // Cargar archivos existentes solo una vez al montar el componente
+  useEffect(() => {
+    let mounted = true;
+
+    // Cargar imagen de portada existente
+    if (formData.cover_image_url && coverFiles.length === 0) {
+      const mockFile = new File([''], 'cover-image.jpg', { type: 'image/jpeg' });
+      const coverFile: MediaFile = {
+        file: mockFile,
+        uploadStatus: 'complete',
+        url: formData.cover_image_url,
+        uploadProgress: 100
+      };
+      if (mounted) setCoverFiles([coverFile]);
     }
-  };
+    
+    // Cargar galería existente
+    if (formData.image_url?.length && galleryFiles.length === 0) {
+      const mockFiles: MediaFile[] = formData.image_url.map((url, index) => {
+        const mockFile = new File([''], `gallery-${index}.jpg`, { type: 'image/jpeg' });
+        return {
+          file: mockFile,
+          uploadStatus: 'complete' as const,
+          url,
+          uploadProgress: 100
+        };
+      });
+      if (mounted) setGalleryFiles(mockFiles);
+    }
+    
+    // Cargar videos existentes
+    if (formData.video_url?.length && videoFiles.length === 0) {
+      const mockFiles: MediaFile[] = formData.video_url.map((url, index) => {
+        const mockFile = new File([''], `video-${index}.mp4`, { type: 'video/mp4' });
+        return {
+          file: mockFile,
+          uploadStatus: 'complete' as const,
+          url,
+          uploadProgress: 100
+        };
+      });
+      if (mounted) setVideoFiles(mockFiles);
+    }
+
+    return () => { mounted = false; };
+  }, []); // Solo ejecutar una vez al montar
+
+  // Estado de carga para evitar envío mientras se suben archivos
+  const isUploading = useMemo(() => 
+    coverFiles.some(f => f.uploadStatus === 'uploading') ||
+    galleryFiles.some(f => f.uploadStatus === 'uploading') ||
+    videoFiles.some(f => f.uploadStatus === 'uploading'),
+    [coverFiles, galleryFiles, videoFiles]
+  );
 
   return (
     <div className="space-y-8">
@@ -158,39 +241,6 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
           )}
         </div>
 
-        {/* Tipo de Interés */}
-        <PreferencesSelector 
-          selectedPreferences={watch('preferences') || []}
-          onChange={(preferences) => {
-            setValue('preferences', preferences);
-            updateFormData({ preferences });
-          }}
-          error={errors.preferences?.message}
-        />
-
-        {/* Idiomas */}
-        <LanguageSelector
-          selectedLanguages={watch('languages') || []}
-          onChange={(languages) => {
-            setValue('languages', languages);
-            updateFormData({ languages });
-          }}
-          error={errors.languages?.message}
-        />
-
-        {/* Solo para circuitos: Destinos */}
-        {formData.productType === 'circuit' && (
-          <MultiLocationSelector
-            locations={watch('destination') || []}
-            onChange={(destinations) => {
-              setValue('destination', destinations);
-              updateFormData({ destination: destinations });
-            }}
-            label="Destinos de la experiencia *"
-            error={errors.destination?.message}
-          />
-        )}
-
         {/* Descripción */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-800">
@@ -210,7 +260,25 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
           )}
         </div>
 
-        {/* Galería Multimedia */}
+        {/* Tipo de Interés */}
+        <PreferencesSelector 
+          selectedPreferences={watch('preferences') || []}
+          onChange={(preferences) => {
+            setValue('preferences', preferences);
+          }}
+          error={errors.preferences?.message}
+        />
+
+        {/* Idiomas */}
+        <LanguageSelector
+          selectedLanguages={watch('languages') || []}
+          onChange={(languages) => {
+            setValue('languages', languages);
+          }}
+          error={errors.languages?.message}
+        />
+
+        {/* Sistema Multimedia V2 - Optimizado */}
         <div className="space-y-6">
           <label className="block text-sm font-medium text-gray-800">
             Galería de medios
@@ -218,55 +286,25 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
           
           {/* Imagen de portada */}
           <div className="space-y-3">
-            <h4 className="text-sm font-medium text-gray-700">Imagen de portada</h4>
+            <h4 className="text-sm font-medium text-gray-700">Imagen de portada *</h4>
             
-            {watch('cover_image_url') ? (
-              <div className="relative border-2 border-green-200 rounded-lg overflow-hidden">
-                <img 
-                  src={watch('cover_image_url')} 
-                  alt="Portada" 
-                  className="w-full h-48 object-cover"
-                />
-                <div className="absolute top-2 right-2 flex gap-2">
-                  <div className="bg-green-500 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Subida
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setValue('cover_image_url', '');
-                      updateFormData({ cover_image_url: '' });
-                    }}
-                    className="bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center hover:bg-red-600"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8">
-                <div className="text-center">
-                  <FileUpload
-                    accept=".jpg,.jpeg,.png,.webp"
-                    onUploadSuccess={(url, fileName) => {
-                      setValue('cover_image_url', url);
-                      updateFormData({ cover_image_url: url });
-                    }}
-                    onUploadError={(error) => console.error(error)}
-                    buttonText="Subir Imagen de Portada"
-                    buttonClassName="bg-pink-500 text-white px-6 py-3 rounded-lg hover:bg-pink-600"
-                    maxSizeMB={10}
-                    disabled={isUploading}
-                  />
-                  <p className="text-sm text-gray-500 mt-2">
-                    JPG, PNG o WebP. Máximo 10MB.
-                  </p>
-                </div>
-              </div>
-            )}
+            <MediaPreview 
+              files={coverFiles}
+              onRemove={() => handleCoverFilesChange([])}
+              maxDisplaySize="lg"
+              className="mb-4"
+            />
+            
+            <MediaUploadZone
+              files={coverFiles}
+              onFilesChange={handleCoverFilesChange}
+              productId={formData.productId || 'temp'}
+              type="cover"
+              accept="image"
+              maxFiles={1}
+              disabled={coverFiles.length >= 1}
+            />
+            
             {errors.cover_image_url && (
               <p className="text-sm text-red-600">{errors.cover_image_url.message}</p>
             )}
@@ -277,57 +315,29 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-medium text-gray-700">Galería de imágenes</h4>
               <span className="text-xs text-gray-500">
-                {watch('image_url')?.length || 0} imagen{(watch('image_url')?.length || 0) === 1 ? '' : 'es'} subida{(watch('image_url')?.length || 0) === 1 ? '' : 's'}
+                {galleryFiles.filter(f => f.uploadStatus === 'complete').length} imagen{galleryFiles.filter(f => f.uploadStatus === 'complete').length === 1 ? '' : 'es'} subida{galleryFiles.filter(f => f.uploadStatus === 'complete').length === 1 ? '' : 's'}
               </span>
             </div>
             
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {/* Imágenes existentes */}
-              {(watch('image_url') || []).map((url, index) => (
-                <div key={index} className="relative group border-2 border-green-200 rounded-lg overflow-hidden">
-                  <img
-                    src={url}
-                    alt={`Galería ${index + 1}`}
-                    className="w-full h-24 object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const currentImages = watch('image_url') || [];
-                        const newImages = currentImages.filter((_, i) => i !== index);
-                        setValue('image_url', newImages);
-                        updateFormData({ image_url: newImages });
-                      }}
-                      className="opacity-0 group-hover:opacity-100 bg-red-500 text-white w-8 h-8 rounded-full flex items-center justify-center hover:bg-red-600 transition-all duration-200"
-                    >
-                      ×
-                    </button>
-                  </div>
-                  <div className="absolute bottom-1 left-1 bg-green-500 text-white px-1 py-0.5 rounded text-xs">
-                    {index + 1}
-                  </div>
-                </div>
-              ))}
-              
-              {/* Botón para agregar más imágenes */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg h-24 flex items-center justify-center hover:border-pink-300 transition-colors">
-                <FileUpload
-                  accept=".jpg,.jpeg,.png,.webp"
-                  onUploadSuccess={(url, fileName) => {
-                    const currentImages = watch('image_url') || [];
-                    const newImages = [...currentImages, url];
-                    setValue('image_url', newImages);
-                    updateFormData({ image_url: newImages });
-                  }}
-                  onUploadError={(error) => console.error(error)}
-                  buttonText="+"
-                  buttonClassName="text-gray-400 text-3xl hover:text-pink-500 transition-colors"
-                  maxSizeMB={10}
-                  disabled={isUploading}
-                />
-              </div>
-            </div>
+            <MediaPreview 
+              files={galleryFiles}
+              onRemove={(index) => {
+                const updatedFiles = galleryFiles.filter((_, i) => i !== index);
+                handleGalleryFilesChange(updatedFiles);
+              }}
+              layout="grid"
+              className="mb-4"
+            />
+            
+            <MediaUploadZone
+              files={galleryFiles}
+              onFilesChange={handleGalleryFilesChange}
+              productId={formData.productId || 'temp'}
+              type="gallery"
+              accept="image"
+              maxFiles={10}
+            />
+            
             {errors.image_url && (
               <p className="text-sm text-red-600">{errors.image_url.message}</p>
             )}
@@ -338,63 +348,28 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
             <div className="flex justify-between items-center">
               <h4 className="text-sm font-medium text-gray-700">Videos (Opcional)</h4>
               <span className="text-xs text-gray-500">
-                {watch('video_url')?.length || 0} video{(watch('video_url')?.length || 0) === 1 ? '' : 's'} subido{(watch('video_url')?.length || 0) === 1 ? '' : 's'}
+                {videoFiles.filter(f => f.uploadStatus === 'complete').length} video{videoFiles.filter(f => f.uploadStatus === 'complete').length === 1 ? '' : 's'} subido{videoFiles.filter(f => f.uploadStatus === 'complete').length === 1 ? '' : 's'}
               </span>
             </div>
             
-            <div className="space-y-3">
-              {/* Videos existentes */}
-              {(watch('video_url') || []).map((url, index) => (
-                <div key={index} className="flex items-center justify-between p-4 border-2 border-green-200 rounded-lg bg-green-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-                      <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M8 5v10l8-5-8-5z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">Video {index + 1}</p>
-                      <p className="text-xs text-gray-500">Subido correctamente</p>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const currentVideos = watch('video_url') || [];
-                      const newVideos = currentVideos.filter((_, i) => i !== index);
-                      setValue('video_url', newVideos);
-                      updateFormData({ video_url: newVideos });
-                    }}
-                    className="text-red-500 hover:text-red-700 p-1"
-                  >
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-              
-              {/* Botón para agregar videos */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center hover:border-pink-300 transition-colors">
-                <FileUpload
-                  accept=".mp4,.mov,.webm"
-                  onUploadSuccess={(url, fileName) => {
-                    const currentVideos = watch('video_url') || [];
-                    const newVideos = [...currentVideos, url];
-                    setValue('video_url', newVideos);
-                    updateFormData({ video_url: newVideos });
-                  }}
-                  onUploadError={(error) => console.error(error)}
-                  buttonText="Subir Video"
-                  buttonClassName="bg-gray-100 text-gray-700 px-4 py-3 rounded-lg hover:bg-pink-100 hover:text-pink-700 transition-all"
-                  maxSizeMB={500}
-                  disabled={isUploading}
-                />
-                <p className="text-sm text-gray-500 mt-2">
-                  MP4, MOV o WebM. Máximo 500MB.
-                </p>
-              </div>
-            </div>
+            <MediaPreview 
+              files={videoFiles}
+              onRemove={(index) => {
+                const updatedFiles = videoFiles.filter((_, i) => i !== index);
+                handleVideoFilesChange(updatedFiles);
+              }}
+              className="mb-4"
+            />
+            
+            <MediaUploadZone
+              files={videoFiles}
+              onFilesChange={handleVideoFilesChange}
+              productId={formData.productId || 'temp'}
+              type="gallery"
+              accept="video"
+              maxFiles={5}
+            />
+            
             {errors.video_url && (
               <p className="text-sm text-red-600">{errors.video_url.message}</p>
             )}
@@ -416,8 +391,8 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
   );
 }
 
-// Componente para selección de preferencias
-function PreferencesSelector({ 
+// Componente para selección de preferencias - memoizado
+const PreferencesSelector = ({ 
   selectedPreferences, 
   onChange, 
   error 
@@ -425,13 +400,13 @@ function PreferencesSelector({
   selectedPreferences: string[];
   onChange: (preferences: string[]) => void;
   error?: string;
-}) {
-  const togglePreference = (prefId: string) => {
+}) => {
+  const togglePreference = useCallback((prefId: string) => {
     const newPreferences = selectedPreferences.includes(prefId)
       ? selectedPreferences.filter(id => id !== prefId)
       : [...selectedPreferences, prefId];
     onChange(newPreferences);
-  };
+  }, [selectedPreferences, onChange]);
 
   return (
     <div className="space-y-3">
@@ -459,10 +434,10 @@ function PreferencesSelector({
       )}
     </div>
   );
-}
+};
 
-// Componente para selección de idiomas
-function LanguageSelector({ 
+// Componente para selección de idiomas - memoizado
+const LanguageSelector = ({ 
   selectedLanguages, 
   onChange, 
   error 
@@ -470,13 +445,13 @@ function LanguageSelector({
   selectedLanguages: string[];
   onChange: (languages: string[]) => void;
   error?: string;
-}) {
-  const toggleLanguage = (langId: string) => {
+}) => {
+  const toggleLanguage = useCallback((langId: string) => {
     const newLanguages = selectedLanguages.includes(langId)
       ? selectedLanguages.filter(id => id !== langId)
       : [...selectedLanguages, langId];
     onChange(newLanguages);
-  };
+  }, [selectedLanguages, onChange]);
 
   return (
     <div className="space-y-3">
@@ -504,64 +479,4 @@ function LanguageSelector({
       )}
     </div>
   );
-}
-
-// Componente para múltiples ubicaciones (solo circuitos)
-function MultiLocationSelector({
-  locations,
-  onChange,
-  label,
-  error
-}: {
-  locations: CircuitLocation[];
-  onChange: (locations: CircuitLocation[]) => void;
-  label: string;
-  error?: string;
-}) {
-  const addLocation = (location: CircuitLocation) => {
-    onChange([...locations, location]);
-  };
-
-  const removeLocation = (index: number) => {
-    onChange(locations.filter((_, i) => i !== index));
-  };
-
-  return (
-    <div className="space-y-3">
-      <label className="block text-sm font-medium text-gray-800">
-        {label}
-      </label>
-      
-      {locations.map((location, index) => (
-        <div key={index} className="flex items-center gap-2">
-          <div className="flex-1 p-3 border border-gray-300 rounded-lg bg-gray-50">
-            <span className="font-medium">{location.place}</span>
-            {location.placeSub && (
-              <span className="text-sm text-gray-500 ml-2">{location.placeSub}</span>
-            )}
-          </div>
-          <button
-            type="button"
-            onClick={() => removeLocation(index)}
-            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-          >
-            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-              <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      ))}
-
-      <LocationSelector
-        onLocationSelect={addLocation}
-        placeholder="Agregar nuevo destino..."
-        className="mt-2"
-      />
-      
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-    </div>
-  );
-}
-
+};

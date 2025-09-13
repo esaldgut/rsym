@@ -5,8 +5,9 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useProductForm } from '@/context/ProductFormContext';
 import { productDetailsSchema } from '@/lib/validations/product-schemas';
-import { LocationSelector } from '@/components/location/LocationSelector';
+import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
+import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
 import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/lib/graphql/types';
 
@@ -85,9 +86,14 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
   };
 
   const generateItinerary = async () => {
-    if (!destinationWatch || destinationWatch.length === 0) return;
+    if (!destinationWatch || destinationWatch.length === 0) {
+      toastManager.show('⚠️ Selecciona al menos un destino primero', 'warning', 3000);
+      return;
+    }
 
     try {
+      toastManager.show('✨ Generando itinerario automático...', 'info', 2000);
+      
       const response = await fetch('/api/generate-itinerary', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -101,9 +107,13 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
         const { itinerary } = await response.json();
         setValue('itinerary', itinerary);
         updateFormData({ itinerary });
+        toastManager.show('✅ Itinerario generado exitosamente', 'success', 3000);
+      } else {
+        toastManager.show('❌ Error al generar el itinerario', 'error', 3000);
       }
     } catch (error) {
       console.error('Error generating itinerary:', error);
+      toastManager.show('❌ Error al conectar con el servicio de itinerarios', 'error', 3000);
     }
   };
 
@@ -195,7 +205,7 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
                 </p>
               </div>
 
-              <LocationSelector
+              <LocationMultiSelector
                 selectedLocations={watch('destination') || []}
                 onChange={(locations) => {
                   setValue('destination', locations);
@@ -209,6 +219,7 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
                 error={errors.destination?.message}
                 minSelections={actualProductType === 'circuit' ? 2 : 1}
                 maxSelections={actualProductType === 'circuit' ? 30 : 1}
+                helpText="Las coordenadas geográficas se mapean automáticamente desde AWS Location Service"
               />
             </div>
           )}

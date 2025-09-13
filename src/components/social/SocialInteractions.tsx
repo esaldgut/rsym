@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useOptimistic } from 'react';
 import { toggleLikeAction } from '@/lib/server/moments-actions';
+import { toastManager } from '@/components/ui/Toast';
 
 interface SocialInteractionsProps {
   itemId: string;
@@ -83,8 +84,28 @@ export function SocialInteractions({
       }
     } else {
       // Fallback: copiar al portapapeles
-      navigator.clipboard.writeText(`${window.location.origin}/moments/${itemId}`);
-      alert('Enlace copiado al portapapeles');
+      try {
+        await navigator.clipboard.writeText(`${window.location.origin}/moments/${itemId}`);
+        toastManager.success('🔗 Enlace copiado al portapapeles', {
+          trackingContext: {
+            feature: 'share_content',
+            shareMethod: 'clipboard',
+            itemId,
+            itemType: itemType.toLowerCase(),
+            category: 'social_interaction'
+          }
+        });
+      } catch (error) {
+        toastManager.error('❌ No se pudo copiar el enlace', {
+          trackingContext: {
+            feature: 'share_content',
+            error: error instanceof Error ? error.message : 'Unknown error',
+            itemId,
+            itemType: itemType.toLowerCase(),
+            category: 'error_handling'
+          }
+        });
+      }
     }
   }, [itemId]);
 

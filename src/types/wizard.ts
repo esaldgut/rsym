@@ -25,6 +25,9 @@ export interface StepProps {
 }
 
 export interface ProductFormData {
+  // ID del producto (obtenido al crear el esqueleto)
+  productId: string | null;
+  
   // Campos comunes
   name: string;
   preferences?: string[];

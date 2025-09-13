@@ -7,6 +7,7 @@ import { useRequireCompleteProfile } from '../../components/guards/ProfileComple
 import { executeQuery, executeMutation } from '@/lib/graphql/client';
 import { getAllMarketplaceFeed, createReservation, generatePaymentLink } from '@/lib/graphql/operations';
 import type { MarketplaceFeed, ReservationInput, PaymentInput } from '@/lib/graphql/types';
+import { toastManager } from '@/components/ui/Toast';
 
 export default function MarketplacePage() {
   const { checkProfile } = useRequireCompleteProfile();
@@ -17,6 +18,16 @@ export default function MarketplacePage() {
     location: '',
     maxPrice: ''
   });
+
+  // Estado para el modal de reserva
+  const [showReservationModal, setShowReservationModal] = useState(false);
+  const [selectedExperience, setSelectedExperience] = useState<MarketplaceFeed | null>(null);
+  const [reservationForm, setReservationForm] = useState({
+    adults: 1,
+    kids: 0,
+    babys: 0
+  });
+  const [isProcessingReservation, setIsProcessingReservation] = useState(false);
 
   // Cargar experiencias del marketplace
   useEffect(() => {
@@ -37,67 +48,111 @@ export default function MarketplacePage() {
     loadExperiences();
   }, []);
 
-  // Manejar reserva
+  // Manejar inicio de reserva (abrir modal)
   const handleReserveExperience = async (experience: MarketplaceFeed) => {
     checkProfile('reserve_experience', { 
       experienceId: experience.id, 
       title: experience.name 
-    }, async () => {
-      // Simulamos un diálogo de reserva simple
-      const adults = parseInt(prompt('Número de adultos:') || '1');
-      const kids = parseInt(prompt('Número de niños:') || '0');
-      const babys = parseInt(prompt('Número de bebés:') || '0');
-      
-      if (isNaN(adults) || adults < 1) {
-        alert('Número de adultos inválido');
-        return;
-      }
+    }, () => {
+      setSelectedExperience(experience);
+      setReservationForm({ adults: 1, kids: 0, babys: 0 });
+      setShowReservationModal(true);
+    });
+  };
 
-      try {
-        const totalPrice = (experience.product_pricing || 0) * adults + 
-                          (experience.product_pricing || 0) * 0.5 * kids; // 50% descuento niños
+  // Manejar envío de reserva
+  const handleSubmitReservation = async () => {
+    if (!selectedExperience) return;
+    
+    // Validación
+    if (reservationForm.adults < 1) {
+      toastManager.error('❌ Número de adultos inválido', {
+        trackingContext: {
+          feature: 'reservation_creation',
+          error: 'invalid_adults_count',
+          adults: reservationForm.adults,
+          category: 'validation_error'
+        }
+      });
+      return;
+    }
 
-        const reservationInput: ReservationInput = {
-          adults,
-          kids,
-          babys,
-          price_per_person: experience.product_pricing || 0,
-          price_per_kid: (experience.product_pricing || 0) * 0.5,
-          total_price: totalPrice,
-          experience_id: experience.id,
-          collection_type: experience.collection_type || 'experience',
-          reservationDate: new Date().toISOString(),
-          status: 'pending'
+    setIsProcessingReservation(true);
+    try {
+      const totalPrice = (selectedExperience.product_pricing || 0) * reservationForm.adults + 
+                        (selectedExperience.product_pricing || 0) * 0.5 * reservationForm.kids; // 50% descuento niños
+
+      const reservationInput: ReservationInput = {
+        adults: reservationForm.adults,
+        kids: reservationForm.kids,
+        babys: reservationForm.babys,
+        price_per_person: selectedExperience.product_pricing || 0,
+        price_per_kid: (selectedExperience.product_pricing || 0) * 0.5,
+        total_price: totalPrice,
+        experience_id: selectedExperience.id,
+        collection_type: selectedExperience.collection_type || 'experience',
+        reservationDate: new Date().toISOString(),
+        status: 'pending'
+      };
+
+      const reservationResult = await executeMutation(createReservation, {
+        input: reservationInput
+      });
+
+      if (reservationResult?.createReservation) {
+        // Generar link de pago
+        const paymentInput: PaymentInput = {
+          reservation_id: reservationResult.createReservation.id!,
+          payment_method: 'stripe',
+          promotions: false
         };
 
-        const reservationResult = await executeMutation(createReservation, {
-          input: reservationInput
+        const paymentResult = await executeMutation(generatePaymentLink, {
+          input: paymentInput
         });
 
-        if (reservationResult?.createReservation) {
-          // Generar link de pago
-          const paymentInput: PaymentInput = {
-            reservation_id: reservationResult.createReservation.id!,
-            payment_method: 'stripe',
-            promotions: false
-          };
-
-          const paymentResult = await executeMutation(generatePaymentLink, {
-            input: paymentInput
+        if (paymentResult?.generatePaymentLink?.payment_url) {
+          // Redirigir al link de pago
+          window.open(paymentResult.generatePaymentLink.payment_url, '_blank');
+          
+          toastManager.success('🎯 Redirigiendo al sistema de pago...', {
+            trackingContext: {
+              feature: 'reservation_creation',
+              reservationId: reservationResult.createReservation.id,
+              experienceId: selectedExperience.id,
+              totalPrice,
+              category: 'payment_redirect'
+            }
           });
-
-          if (paymentResult?.generatePaymentLink?.payment_url) {
-            // Redirigir al link de pago
-            window.open(paymentResult.generatePaymentLink.payment_url, '_blank');
-          } else {
-            alert(`Reserva creada exitosamente. ID: ${reservationResult.createReservation.id}`);
-          }
+        } else {
+          toastManager.success(`✅ Reserva creada exitosamente. ID: ${reservationResult.createReservation.id}`, {
+            trackingContext: {
+              feature: 'reservation_creation',
+              reservationId: reservationResult.createReservation.id,
+              experienceId: selectedExperience.id,
+              totalPrice,
+              category: 'reservation_success'
+            }
+          });
         }
-      } catch (error) {
-        console.error('Error creando reserva:', error);
-        alert('Error al procesar la reserva. Por favor intenta de nuevo.');
+        
+        // Cerrar modal
+        setShowReservationModal(false);
+        setSelectedExperience(null);
       }
-    });
+    } catch (error) {
+      console.error('Error creando reserva:', error);
+      toastManager.error('❌ Error al procesar la reserva. Por favor intenta de nuevo.', {
+        trackingContext: {
+          feature: 'reservation_creation',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          experienceId: selectedExperience.id,
+          category: 'error_handling'
+        }
+      });
+    } finally {
+      setIsProcessingReservation(false);
+    }
   };
 
   // Filtrar experiencias
@@ -242,6 +297,150 @@ export default function MarketplacePage() {
         )}
         </div>
       </div>
+
+      {/* Modal de reserva */}
+      {showReservationModal && selectedExperience && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                  Reservar experiencia
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {selectedExperience.name}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowReservationModal(false);
+                  setSelectedExperience(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 text-2xl"
+                disabled={isProcessingReservation}
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              {/* Adultos */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de adultos *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={reservationForm.adults}
+                  onChange={(e) => setReservationForm(prev => ({
+                    ...prev,
+                    adults: parseInt(e.target.value) || 1
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  disabled={isProcessingReservation}
+                />
+              </div>
+
+              {/* Niños */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de niños
+                  <span className="text-sm text-gray-500 ml-1">(50% descuento)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="20"
+                  value={reservationForm.kids}
+                  onChange={(e) => setReservationForm(prev => ({
+                    ...prev,
+                    kids: parseInt(e.target.value) || 0
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  disabled={isProcessingReservation}
+                />
+              </div>
+
+              {/* Bebés */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Número de bebés
+                  <span className="text-sm text-gray-500 ml-1">(gratis)</span>
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
+                  value={reservationForm.babys}
+                  onChange={(e) => setReservationForm(prev => ({
+                    ...prev,
+                    babys: parseInt(e.target.value) || 0
+                  }))}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
+                  disabled={isProcessingReservation}
+                />
+              </div>
+            </div>
+
+            {/* Resumen de precio */}
+            <div className="bg-gray-50 rounded-lg p-4 mb-6">
+              <h4 className="font-medium text-gray-900 mb-2">Resumen de precios</h4>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span>{reservationForm.adults} adulto(s)</span>
+                  <span>${((selectedExperience.product_pricing || 0) * reservationForm.adults).toLocaleString()}</span>
+                </div>
+                {reservationForm.kids > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>{reservationForm.kids} niño(s) (50% desc.)</span>
+                    <span>${((selectedExperience.product_pricing || 0) * 0.5 * reservationForm.kids).toLocaleString()}</span>
+                  </div>
+                )}
+                {reservationForm.babys > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>{reservationForm.babys} bebé(s) (gratis)</span>
+                    <span>$0</span>
+                  </div>
+                )}
+                <div className="border-t pt-2 font-semibold flex justify-between">
+                  <span>Total</span>
+                  <span>${((selectedExperience.product_pricing || 0) * reservationForm.adults + (selectedExperience.product_pricing || 0) * 0.5 * reservationForm.kids).toLocaleString()} MXN</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Botones */}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowReservationModal(false);
+                  setSelectedExperience(null);
+                }}
+                className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isProcessingReservation}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSubmitReservation}
+                className="flex-1 px-4 py-2 text-white bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 rounded-lg transition-all duration-300"
+                disabled={isProcessingReservation}
+              >
+                {isProcessingReservation ? (
+                  <span className="flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                    Procesando...
+                  </span>
+                ) : (
+                  'Confirmar reserva'
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

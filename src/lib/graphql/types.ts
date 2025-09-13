@@ -7,7 +7,8 @@
 export type AWSDateTime = string;
 export type AWSJSON = string;
 
-// Tipos base
+// DEPRECATED: Migrar a types/location.ts para usar GraphQL schema oficial
+// Tipos base - USAR LocationInput del schema oficial
 export interface CircuitLocation {
   id?: string;
   place?: string;
@@ -15,6 +16,32 @@ export interface CircuitLocation {
   coordinates?: number[];
   complementaryDescription?: string;
   amazon_location_service_response?: string;
+}
+
+// Tipos oficiales del GraphQL schema (líneas 323-331, 189-194)
+export interface Point {
+  longitude?: number;
+  latitude?: number;
+}
+
+export interface PointInput {
+  longitude?: number;
+  latitude?: number;
+}
+
+export interface Location {
+  id?: string;
+  complementary_description?: string;
+  coordinates?: Point;
+  place?: string;
+  placeSub?: string;
+}
+
+export interface LocationInput {
+  complementary_description?: string;
+  coordinates?: PointInput;
+  place?: string;
+  placeSub?: string;
 }
 
 export interface Price {
@@ -206,7 +233,90 @@ export interface Payment {
   created_at: AWSDateTime;
 }
 
-// Input Types
+// Tipos oficiales de Products del GraphQL schema
+export interface GuaranteedDepartures {
+  specific_dates?: AWSDateTime[];
+  origin?: Location[];
+  days?: WeekDays[];
+}
+
+export interface GuaranteedDeparturesInput {
+  specific_dates?: AWSDateTime[];
+  origin?: LocationInput[];
+  days?: WeekDays[];
+}
+
+export interface ChildRange {
+  name: string;
+  min_minor_age: number;
+  max_minor_age: number;
+  child_price: number;
+}
+
+export interface ChildRangeInput {
+  name: string;
+  min_minor_age: number;
+  max_minor_age: number;
+  child_price: number;
+}
+
+export interface ProductPrice {
+  id?: string;
+  currency: string;
+  price: number;
+  room_name: string;
+  max_adult: number;
+  max_minor: number;
+  children: ChildRange[];
+}
+
+export interface ProductPriceInput {
+  currency: string;
+  price: number;
+  room_name: string;
+  max_adult: number;
+  max_minor: number;
+  children: ChildRangeInput[];
+}
+
+export interface ProductSeason {
+  id?: string;
+  allotment?: number;
+  category?: string;
+  start_date?: AWSDateTime;
+  end_date?: AWSDateTime;
+  schedules?: string;
+  prices?: ProductPrice[];
+  aditional_services?: string;
+  number_of_nights?: string;
+  allotment_remain?: number;
+  extra_prices?: ProductPrice[];
+}
+
+export interface ProductSeasonInput {
+  allotment?: number;
+  category?: string;
+  start_date?: AWSDateTime;
+  end_date?: AWSDateTime;
+  schedules?: string;
+  prices?: ProductPriceInput[];
+  aditional_services?: string;
+  number_of_nights?: string;
+  allotment_remain?: number;
+  extra_prices?: ProductPriceInput[];
+}
+
+export enum WeekDays {
+  MONDAY = 'MONDAY',
+  TUESDAY = 'TUESDAY',
+  WEDNESDAY = 'WEDNESDAY',
+  THURSDAY = 'THURSDAY',
+  FRIDAY = 'FRIDAY',
+  SATURDAY = 'SATURDAY',
+  SUNDAY = 'SUNDAY'
+}
+
+// DEPRECATED: Usar LocationInput del schema oficial
 export interface CircuitLocationInput {
   id?: string;
   place?: string;

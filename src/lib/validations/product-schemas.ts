@@ -161,23 +161,110 @@ export const publishPackageSchema = generalInfoPackageSchema.extend({
   image_url: z.array(z.string().url()).min(1, 'Se requiere al menos una imagen adicional para publicar'),
 });
 
+// Mapeo de errores técnicos a mensajes amigables para usuarios
+const userFriendlyMessages: Record<string, string> = {
+  'cover_image_url': 'Agrega una imagen de portada atractiva',
+  'image_url': 'Incluye al menos una imagen adicional en la galería',
+  'video_url': 'Considera agregar videos para mostrar mejor tu producto',
+  'name': 'El nombre del producto es obligatorio',
+  'description': 'Escribe una descripción detallada del producto',
+  'preferences': 'Selecciona al menos un tipo de interés',
+  'languages': 'Indica los idiomas disponibles para tu producto',
+  'destination': 'Define los destinos de tu producto turístico',
+  'seasons': 'Configura al menos una temporada con precios',
+  'itinerary': 'Completa el itinerario detallado',
+  'payment_policy': 'Define las políticas de pago',
+  'planned_hotels_or_similar': 'Especifica los hoteles o alojamientos'
+};
+
+function mapToUserFriendlyMessage(field: string, originalMessage: string): string {
+  // Buscar mensaje personalizado
+  if (userFriendlyMessages[field]) {
+    return userFriendlyMessages[field];
+  }
+  
+  // Mapear errores específicos de coordenadas
+  if (field.includes('coordinates')) {
+    return 'Las ubicaciones se mapean automáticamente con coordenadas precisas';
+  }
+  
+  // Mapear errores específicos de destinos
+  if (field.includes('destination')) {
+    return 'Define los destinos de tu producto turístico';
+  }
+  
+  // Mapear errores técnicos comunes
+  if (originalMessage.includes('Expected object, received array')) {
+    return `Revisa la configuración del campo`;
+  }
+  if (originalMessage.includes('Required')) {
+    return `Campo obligatorio para publicar`;
+  }
+  if (originalMessage.includes('url')) {
+    return `Proporciona una URL válida`;
+  }
+  if (originalMessage.includes('min')) {
+    return `Completa la información requerida`;
+  }
+  
+  // Fallback: mensaje original pero más limpio
+  return originalMessage.replace(/Expected \w+, received \w+/g, 'Formato de datos incorrecto');
+}
+
 // Función utilitaria para validar si un producto está listo para publicar
 export function validateForPublication(productData: any, productType: 'circuit' | 'package') {
   const schema = productType === 'circuit' ? publishCircuitSchema : publishPackageSchema;
   
   try {
     schema.parse(productData);
-    return { isValid: true, errors: [] };
+    return { isValid: true, errors: [], message: '¡Tu producto está listo para publicarse!' };
   } catch (error: any) {
-    const errors = error.errors?.map((err: any) => ({
-      field: err.path.join('.'),
-      message: err.message
-    })) || [];
+    const rawErrors = error.errors || [];
+    
+    // Convertir errores técnicos a mensajes amigables
+    const friendlyErrors = rawErrors.map((err: any) => {
+      const field = err.path.join('.');
+      const friendlyMessage = mapToUserFriendlyMessage(field, err.message);
+      
+      return {
+        field,
+        message: friendlyMessage,
+        priority: getPriorityByField(field)
+      };
+    });
+    
+    // Ordenar por prioridad (campos más importantes primero)
+    friendlyErrors.sort((a, b) => a.priority - b.priority);
+    
+    const essentialFieldsCount = friendlyErrors.filter(e => e.priority <= 2).length;
+    const totalCount = friendlyErrors.length;
     
     return { 
       isValid: false, 
-      errors,
-      summary: `El producto necesita ${errors.length} mejoras antes de publicarse en el marketplace.`
+      errors: friendlyErrors,
+      summary: essentialFieldsCount > 0 
+        ? `Completa ${essentialFieldsCount} campos esenciales para publicar tu ${productType === 'circuit' ? 'circuito' : 'paquete'}`
+        : `Mejora ${totalCount} detalles adicionales para una mejor presentación`
     };
   }
+}
+
+// Función para determinar la prioridad de los campos
+function getPriorityByField(field: string): number {
+  const priorities: Record<string, number> = {
+    'name': 1,
+    'description': 1,
+    'cover_image_url': 1,
+    'destination': 1,
+    'seasons': 2,
+    'preferences': 2,
+    'languages': 2,
+    'image_url': 3,
+    'itinerary': 3,
+    'video_url': 4,
+    'payment_policy': 4,
+    'planned_hotels_or_similar': 5
+  };
+  
+  return priorities[field] || 3;
 }

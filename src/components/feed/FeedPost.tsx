@@ -6,6 +6,7 @@ import { MediaPlayer } from '@/components/media/MediaPlayer';
 import { SocialInteractions } from '@/components/social/SocialInteractions';
 import { formatDistanceToNow } from '@/utils/date-helpers';
 import { deleteMomentAction } from '@/lib/server/moments-actions';
+import { toastManager } from '@/components/ui/Toast';
 import type { Moment } from '@/lib/graphql/types';
 
 interface FeedPostProps {
@@ -17,26 +18,55 @@ interface FeedPostProps {
 export function FeedPost({ post, onDeleted, onLikeUpdated }: FeedPostProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Manejar eliminación
-  const handleDelete = useCallback(async () => {
-    if (!post.id || !confirm('¿Estás seguro de eliminar este momento?')) return;
+  // Manejar eliminación - paso 1: mostrar confirmación
+  const handleDeleteClick = useCallback(() => {
+    setShowDeleteConfirm(true);
+    setShowMenu(false);
+  }, []);
+
+  // Manejar eliminación - paso 2: ejecutar eliminación
+  const handleConfirmDelete = useCallback(async () => {
+    if (!post.id) return;
     
     setIsDeleting(true);
+    setShowDeleteConfirm(false);
+    
     try {
       const result = await deleteMomentAction(post.id);
       if (result.success) {
         onDeleted?.(post.id);
+        toastManager.success('✅ Momento eliminado exitosamente', {
+          trackingContext: {
+            feature: 'moment_deletion',
+            momentId: post.id,
+            category: 'content_management'
+          }
+        });
       } else {
-        alert(result.error || 'Error al eliminar');
+        toastManager.error(`❌ ${result.error || 'Error al eliminar el momento'}`, {
+          trackingContext: {
+            feature: 'moment_deletion',
+            error: result.error,
+            momentId: post.id,
+            category: 'error_handling'
+          }
+        });
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('Error al eliminar el momento');
+      toastManager.error('❌ Error al eliminar el momento', {
+        trackingContext: {
+          feature: 'moment_deletion',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          momentId: post.id,
+          category: 'error_handling'
+        }
+      });
     } finally {
       setIsDeleting(false);
-      setShowMenu(false);
     }
   }, [post.id, onDeleted]);
 
@@ -80,7 +110,7 @@ export function FeedPost({ post, onDeleted, onLikeUpdated }: FeedPostProps) {
           {showMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
               <button
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
                 disabled={isDeleting}
               >
@@ -145,6 +175,36 @@ export function FeedPost({ post, onDeleted, onLikeUpdated }: FeedPostProps) {
                 #{tag}
               </span>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Modal de confirmación de eliminación */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              ¿Eliminar momento?
+            </h3>
+            <p className="text-gray-600 mb-6">
+              Esta acción no se puede deshacer. El momento se eliminará permanentemente.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                disabled={isDeleting}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="px-4 py-2 text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Eliminando...' : 'Eliminar'}
+              </button>
+            </div>
           </div>
         </div>
       )}

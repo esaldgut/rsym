@@ -1,87 +1,10 @@
-import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
+import { generateClient } from 'aws-amplify/api';
 import { cookies } from 'next/headers';
-import { type Schema } from '@/amplify/data/resource';
 import outputs from '../../../amplify/outputs.json';
 import type { GraphQLResult } from '@aws-amplify/api-graphql';
-import { getIdTokenServer } from '@/utils/amplify-server-utils';
+import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
+import { fetchAuthSession } from 'aws-amplify/auth/server';
 
-/**
- * Cliente GraphQL para uso en Server Components
- * Automáticamente incluye el ID token desde cookies HTTP-only
- */
-export const serverClient = generateServerClientUsingCookies<Schema>({
-  config: outputs,
-  cookies,
-  authMode: 'userPool', // Usar autenticación de Cognito User Pool con ID token
-});
-
-/**
- * Ejecuta una query GraphQL desde el servidor
- * Incluye automáticamente el ID token en la petición
- */
-export async function executeServerQuery<T = any>(
-  query: string,
-  variables?: Record<string, any>
-): Promise<T | null> {
-  try {
-    // Verificar que tengamos un ID token válido
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      console.error('No ID token disponible para petición GraphQL');
-      return null;
-    }
-
-    const result = await serverClient.graphql({
-      query,
-      variables,
-      authMode: 'userPool', // Asegurar que use el ID token
-    }) as GraphQLResult<T>;
-
-    if (result.errors) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0]?.message || 'GraphQL error');
-    }
-
-    return result.data;
-  } catch (error) {
-    console.error('Error ejecutando query en servidor:', error);
-    return null;
-  }
-}
-
-/**
- * Ejecuta una mutation GraphQL desde el servidor
- * Incluye automáticamente el ID token en la petición
- */
-export async function executeServerMutation<T = any>(
-  mutation: string,
-  variables?: Record<string, any>
-): Promise<T | null> {
-  try {
-    // Verificar que tengamos un ID token válido
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      console.error('No ID token disponible para petición GraphQL');
-      return null;
-    }
-
-    const result = await serverClient.graphql({
-      query: mutation,
-      variables,
-      authMode: 'userPool', // Asegurar que use el ID token
-    }) as GraphQLResult<T>;
-
-    if (result.errors) {
-      console.error('GraphQL errors:', result.errors);
-      throw new Error(result.errors[0]?.message || 'GraphQL error');
-    }
-
-    return result.data;
-  } catch (error) {
-    console.error('Error ejecutando mutation en servidor:', error);
-    return null;
-  }
-}
 
 /**
  * Interfaz para operaciones GraphQL genéricas
@@ -102,26 +25,43 @@ interface GraphQLOperationResult<T = any> {
 
 /**
  * Función genérica para ejecutar operaciones GraphQL (queries y mutations)
- * Compatible con el formato esperado por package-actions.ts
+ * Compatible con Amplify Gen 2 v6 usando fetchAuthSession y ID token correcto
  */
 export async function executeGraphQLOperation<T = any>(
   options: GraphQLOperationOptions
 ): Promise<GraphQLOperationResult<T>> {
   try {
-    // Verificar que tengamos un ID token válido
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      return {
-        success: false,
-        error: 'No ID token disponible para petición GraphQL'
-      };
-    }
+    const { cookies: cookieStore } = await import('next/headers');
+    
+    const result = await runWithAmplifyServerContext({
+      nextServerContext: { cookies: cookieStore },
+      operation: async (contextSpec) => {
+        // 1. Configurar Amplify con la configuración correcta
+        const { Amplify } = await import('aws-amplify');
+        Amplify.configure(outputs, { ssr: true });
 
-    const result = await serverClient.graphql({
-      query: options.query,
-      variables: options.variables,
-      authMode: 'userPool', // Asegurar que use el ID token
-    }) as GraphQLResult<T>;
+        // 2. Obtener la sesión de autenticación con ID token
+        const session = await fetchAuthSession(contextSpec);
+        
+        if (!session.tokens?.idToken) {
+          throw new Error('No se encontró ID token en la sesión');
+        }
+
+        // 3. Generar cliente con el ID token correcto
+        const client = generateClient({
+          authMode: 'userPool',
+          authToken: session.tokens.idToken.toString()
+        });
+
+        // 4. Ejecutar operación GraphQL
+        const response = await client.graphql({
+          query: options.query,
+          variables: options.variables
+        });
+
+        return response;
+      }
+    });
 
     if (result.errors) {
       console.error('GraphQL errors:', result.errors);

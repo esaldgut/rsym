@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'images';
+    const productId = formData.get('productId') as string;
 
     if (!file) {
       return NextResponse.json(
@@ -62,10 +63,30 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Validar tipos de archivo
-    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    const allowedVideoTypes = ['video/mp4', 'video/quicktime', 'video/webm'];
-    const allowedTypes = folder === 'videos' ? allowedVideoTypes : allowedImageTypes;
+    // 4. Validar tipos de archivo - Política completa para multimedia
+    const allowedImageTypes = [
+      // Formatos web optimizados (recomendados)
+      'image/jpeg', 'image/jpg', 'image/png', 'image/webp',
+      // Formatos de compatibilidad
+      'image/gif', 'image/bmp', 'image/tiff', 'image/tif',
+      // Formatos RAW (para profesionales)
+      'image/x-canon-cr2', 'image/x-canon-crw', 'image/x-nikon-nef',
+      'image/x-sony-arw', 'image/x-adobe-dng'
+    ];
+    
+    const allowedVideoTypes = [
+      // Formatos web optimizados (recomendados)
+      'video/mp4', 'video/webm', 'video/ogg',
+      // Formatos móviles y profesionales
+      'video/quicktime', 'video/x-msvideo', 'video/avi',
+      // Formatos de redes sociales y streaming
+      'video/x-flv', 'video/x-ms-wmv', 'video/mkv', 'video/x-matroska',
+      // Formatos específicos
+      'video/3gpp', 'video/3gpp2', 'video/x-ms-asf'
+    ];
+    
+    const isVideoFile = file.type.startsWith('video/');
+    const allowedTypes = isVideoFile ? allowedVideoTypes : allowedImageTypes;
 
     if (!allowedTypes.includes(file.type)) {
       return NextResponse.json(
@@ -74,11 +95,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 5. Generar path S3 según estructura definida
-    const userId = user.sub || user.userId;
+    // 5. Generar path S3 según estructura definida en prompt-2
+    // Estructura: /products/{product_id}/main-image.jpg o /products/{product_id}/gallery/
+    const targetId = productId || user.sub || user.userId;
     const fileExtension = file.name.split('.').pop();
-    const uniqueFileName = `${uuidv4()}.${fileExtension}`;
-    const s3Key = `public/products/${userId}/${folder}/${uniqueFileName}`;
+    
+    // Generar nombre según tipo y estructura definida en prompt-2
+    let s3Key: string;
+    if (folder === 'covers') {
+      // Para covers: /products/{product_id}/main-image.jpg
+      s3Key = `public/products/${targetId}/main-image.${fileExtension}`;
+    } else {
+      // Para gallery y videos: /products/{product_id}/gallery/
+      // Determinar tipo por contenido del archivo, no solo por folder
+      const isVideo = file.type.startsWith('video/');
+      const prefix = isVideo ? 'video' : 'image';
+      const uniqueFileName = `${prefix}_${Date.now()}_${uuidv4().slice(0, 8)}.${fileExtension}`;
+      s3Key = `public/products/${targetId}/gallery/${uniqueFileName}`;
+    }
 
     console.log('📍 [AWS Route Handler] Subiendo a:', s3Key);
 
@@ -112,10 +146,11 @@ export async function POST(request: NextRequest) {
       Body: fileBuffer,
       ContentType: file.type,
       Metadata: {
-        'uploaded-by': userId,
+        'uploaded-by': user.sub || user.userId,
+        'product-id': productId || 'temp',
         'original-filename': file.name,
         'upload-timestamp': new Date().toISOString(),
-        'folder': folder,
+        'content-type': folder,
         'file-size': file.size.toString()
       }
     });
@@ -160,8 +195,23 @@ export async function GET() {
     status: 'active',
     maxFileSize: '5GB',
     supportedFormats: {
-      images: ['jpg', 'jpeg', 'png', 'webp', 'gif'],
-      videos: ['mp4', 'mov', 'webm']
+      images: {
+        recommended: ['jpg', 'jpeg', 'png', 'webp'],
+        supported: ['gif', 'bmp', 'tiff', 'tif'],
+        professional: ['cr2', 'crw', 'nef', 'arw', 'dng']
+      },
+      videos: {
+        recommended: ['mp4', 'webm', 'ogg'],
+        supported: ['mov', 'avi', 'flv', 'wmv', 'mkv', '3gp']
+      }
+    },
+    policies: {
+      maxSizes: {
+        cover: '10MB',
+        gallery: '50MB', 
+        video: '5GB'
+      },
+      notes: 'RAW formats and professional codecs supported for providers'
     }
   });
 }

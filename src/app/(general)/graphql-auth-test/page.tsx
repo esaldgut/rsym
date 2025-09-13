@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
 import { GraphQLAuthInspector } from '@/utils/graphql-auth-inspector';
 import { useMarketplaceFeed } from '@/hooks/useAmplifyData';
+import { toastManager } from '@/components/ui/Toast';
 
 export default function GraphQLAuthTestPage() {
   const { isAuthenticated, userType } = useAmplifyAuth();
@@ -26,17 +27,36 @@ export default function GraphQLAuthTestPage() {
 
   const handleTestQuery = async () => {
     if (!isAuthenticated) {
-      alert('Debes estar autenticado para probar queries GraphQL');
+      toastManager.error('🔐 Debes estar autenticado para probar queries GraphQL', {
+        trackingContext: {
+          feature: 'graphql_testing',
+          error: 'unauthenticated_user',
+          category: 'authentication_error'
+        }
+      });
       return;
     }
     
     try {
       // Refrescar datos del marketplace
       await marketplaceFeed.refetch();
-      alert('Query ejecutada exitosamente. Revisa la consola para detalles.');
+      toastManager.success('✅ Query ejecutada exitosamente. Revisa la consola para detalles.', {
+        trackingContext: {
+          feature: 'graphql_testing',
+          queryType: 'marketplace_feed',
+          category: 'testing_success'
+        }
+      });
     } catch (error) {
       console.error('Error en query:', error);
-      alert(`Error en query: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      toastManager.error(`❌ Error en query: ${error instanceof Error ? error.message : 'Unknown error'}`, {
+        trackingContext: {
+          feature: 'graphql_testing',
+          error: error instanceof Error ? error.message : 'Unknown error',
+          queryType: 'marketplace_feed',
+          category: 'error_handling'
+        }
+      });
     }
   };
 
