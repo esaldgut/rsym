@@ -22,15 +22,30 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
   const [productId, setProductId] = useState<string | null>(null);
   const [productName, setProductName] = useState<string>('');
   const [showModal, setShowModal] = useState<boolean | null>(null); // null = loading state
+  const [isEditMode, setIsEditMode] = useState(false);
 
   // Verificar si existe un producto en localStorage al montar
   useEffect(() => {
     const savedProductId = localStorage.getItem('yaan-current-product-id');
     const savedProductType = localStorage.getItem('yaan-current-product-type');
     const savedProductName = localStorage.getItem('yaan-current-product-name');
+    const editData = localStorage.getItem('yaan-edit-product-data');
     
-    // Verificar si existe un producto pendiente del mismo tipo
-    if (savedProductId && savedProductType === productType && savedProductName) {
+    // Verificar si es modo edición (priority over creation mode)
+    if (editData && savedProductId && savedProductName) {
+      const parsed = JSON.parse(editData);
+      setProductId(savedProductId);
+      setProductName(savedProductName);
+      setShowModal(false); // No mostrar modal en modo edición
+      setIsEditMode(true); // Activar modo edición
+      
+      console.log('📝 Modo edición detectado - producto cargado:', { 
+        id: savedProductId, 
+        name: savedProductName, 
+        type: savedProductType,
+        isEdit: true
+      });
+    } else if (savedProductId && savedProductType === productType && savedProductName) {
       // Recuperar producto existente - NO mostrar modal
       setProductId(savedProductId);
       setProductName(savedProductName);
@@ -89,8 +104,8 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
         <div className={showModal === true ? 'blur-sm pointer-events-none' : ''}>
         {/* Hero Section estandarizado */}
         <HeroSection
-          title={`Crear ${productType === 'circuit' ? 'Circuito' : 'Paquete'} Turístico`}
-          subtitle="Comparte tu experiencia turística única con viajeros de todo el mundo"
+          title={`${isEditMode ? 'Editar' : 'Crear'} ${productType === 'circuit' ? 'Circuito' : 'Paquete'} Turístico`}
+          subtitle={isEditMode ? 'Actualiza los detalles de tu experiencia turística' : 'Comparte tu experiencia turística única con viajeros de todo el mundo'}
           size="sm"
           showShapes={true}
         />

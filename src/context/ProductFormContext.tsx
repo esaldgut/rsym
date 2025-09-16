@@ -82,7 +82,36 @@ export function ProductFormProvider({
     }
     
     try {
-      // Intentar primero la nueva clave unificada
+      // Verificar si hay datos de edición (modo edición)
+      const editData = localStorage.getItem('yaan-edit-product-data');
+      if (editData) {
+        const parsed = JSON.parse(editData);
+        console.log('📝 Cargando datos para edición:', parsed);
+        
+        // Mapear datos del producto existente al formato del form
+        return {
+          productId: parsed.id,
+          name: parsed.name || '',
+          description: parsed.description || '',
+          preferences: parsed.preferences || [],
+          languages: parsed.languages || [],
+          cover_image_url: parsed.cover_image_url || '',
+          image_url: parsed.image_url ? [parsed.image_url] : [],
+          video_url: parsed.video_url ? [parsed.video_url] : [],
+          seasons: parsed.seasons || [],
+          planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
+          destination: parsed.destination || [],
+          origin: parsed.origin || [],
+          itinerary: parsed.itinerary || [],
+          payment_policy: parsed.payment_policy || null,
+          published: parsed.published || false,
+          productType,
+          currentStep: 0,
+          isSubmitting: false
+        };
+      }
+      
+      // Intentar primero la nueva clave unificada (modo creación)
       let savedData = localStorage.getItem('yaan-product-form-data');
       if (savedData) {
         const parsed = JSON.parse(savedData);
