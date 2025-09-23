@@ -32,7 +32,7 @@ export async function POST() {
         message: 'No se pudieron actualizar los tokens. Por favor, inicia sesión nuevamente.'
       }, { status: 401 });
     }
-  } catch (error) {
+  } catch {
     console.error('Error en refresh route:', error);
     return NextResponse.json({
       success: false,
@@ -56,7 +56,7 @@ export async function GET() {
       needsRefresh: session.needsRefresh,
       timestamp: new Date().toISOString()
     });
-  } catch (error) {
+  } catch {
     return NextResponse.json({
       authenticated: false,
       error: 'Error verificando sesión'

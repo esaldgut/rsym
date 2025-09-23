@@ -1,8 +1,6 @@
 // src/types/wizard.ts - Tipos centralizados del wizard
 import { z } from 'zod';
-import type { 
-  CreateProductOfTypeCircuitInput,
-  CreateProductOfTypePackageInput,
+import type {
   LocationInput,
   ProductCircuitSeasonInput,
   ProductPackageSeasonInput,

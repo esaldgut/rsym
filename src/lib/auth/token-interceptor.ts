@@ -1,4 +1,4 @@
-import { UnifiedAuthSystem } from './unified-auth-system';
+import { fetchAuthSession } from 'aws-amplify/auth';
 
 /**
  * Interceptor de tokens para auto-refresh inteligente
@@ -15,7 +15,7 @@ export class TokenInterceptor {
   static async interceptFetch(url: string, options: RequestInit = {}): Promise<Response> {
     // Verificar si necesitamos refresh antes de hacer la request
     const shouldRefresh = await this.shouldRefreshToken();
-    
+
     if (shouldRefresh) {
       await this.performSilentRefresh();
     }
@@ -26,7 +26,7 @@ export class TokenInterceptor {
     // Si obtenemos 401, intentar refresh una vez más
     if (response.status === 401 && !options.headers?.['X-Retry-After-Refresh']) {
       const refreshed = await this.performSilentRefresh();
-      
+
       if (refreshed) {
         // Reintentar la request con headers actualizados
         const retryOptions = {
@@ -48,21 +48,40 @@ export class TokenInterceptor {
    */
   private static async shouldRefreshToken(): Promise<boolean> {
     try {
-      const session = await UnifiedAuthSystem.getValidatedSession(false);
-      
-      if (!session.isAuthenticated) {
+      // Usar la API cliente de Amplify
+      const session = await fetchAuthSession();
+
+      if (!session.tokens) {
         return false;
       }
 
-      // Si el sistema ya detectó que necesita refresh
-      if (session.needsRefresh) {
+      // Obtener el tiempo de expiración del ID token
+      const idToken = session.tokens.idToken;
+      if (!idToken) {
+        return false;
+      }
+
+      // Decodificar el payload del token para obtener exp
+      const payload = idToken.payload;
+      const exp = payload.exp as number;
+
+      if (!exp) {
+        return false;
+      }
+
+      // Verificar si está próximo a expirar
+      const now = Math.floor(Date.now() / 1000);
+      const timeUntilExpiry = exp - now;
+
+      // Necesita refresh si expira en menos del threshold
+      if (timeUntilExpiry < this.REFRESH_THRESHOLD) {
         return true;
       }
 
       // Verificar tiempo desde último refresh
       const timeSinceLastRefresh = Date.now() - this.lastRefreshTime;
-      return timeSinceLastRefresh > this.MIN_REFRESH_INTERVAL;
-      
+      return timeSinceLastRefresh > this.MIN_REFRESH_INTERVAL && timeUntilExpiry < 600; // 10 minutos
+
     } catch (error) {
       console.warn('Error checking token refresh status:', error);
       return false;
@@ -75,24 +94,26 @@ export class TokenInterceptor {
   static async performSilentRefresh(): Promise<boolean> {
     try {
       const now = Date.now();
-      
+
       // Evitar múltiples refreshes simultáneos
       if (now - this.lastRefreshTime < this.MIN_REFRESH_INTERVAL) {
         return true;
       }
 
       this.lastRefreshTime = now;
-      
-      const success = await UnifiedAuthSystem.forceTokenRefresh();
-      
+
+      // Usar la API cliente de Amplify para forzar refresh
+      const session = await fetchAuthSession({ forceRefresh: true });
+      const success = !!session.tokens;
+
       if (success) {
         console.log('🔄 Token refreshed silently');
       } else {
         console.warn('⚠️ Silent token refresh failed');
       }
-      
+
       return success;
-      
+
     } catch (error) {
       console.error('Error during silent token refresh:', error);
       return false;
