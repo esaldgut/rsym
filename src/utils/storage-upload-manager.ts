@@ -1,10 +1,11 @@
 import { uploadData } from 'aws-amplify/storage';
-import { 
-  initializeMultipartUpload, 
-  uploadChunk, 
+import {
+  initializeMultipartUpload,
+  uploadChunk,
   completeMultipartUpload,
-  abortMultipartUpload 
+  abortMultipartUpload
 } from '@/lib/server/multipart-upload-actions';
+import { sanitizeFileName, sanitizeUploadParams } from './storage-upload-sanitizer';
 
 /**
  * Upload Manager - Estrategia Dual Inteligente
@@ -106,22 +107,25 @@ export class UploadManager {
    * Estrategia 1: Upload con Amplify (archivos pequeños < 10MB)
    */
   private async uploadWithAmplify(
-    file: File, 
-    userId: string, 
+    file: File,
+    userId: string,
     options: UploadOptions
   ): Promise<UploadResult> {
     try {
-      const fileExtension = file.name.split('.').pop();
+      // Sanitizar nombre del archivo
+      const sanitizedFileName = sanitizeFileName(file.name);
+      const fileExtension = sanitizedFileName.split('.').pop();
       const timestamp = Date.now();
       const folder = options.folder || 'uploads';
       const path = `${folder}/${userId}/${timestamp}.${fileExtension}`;
 
-      const result = await uploadData({
+      // Sanitizar parámetros para evitar error ByteString
+      const uploadParams = sanitizeUploadParams({
         path,
         data: file,
         options: {
           accessLevel: options.accessLevel || 'protected',
-          contentType: file.type,
+          contentType: file.type || 'application/octet-stream',
           onProgress: (event) => {
             const percentage = event.transferredBytes / (event.totalBytes || 1) * 100;
             options.onProgress?.({
@@ -131,7 +135,9 @@ export class UploadManager {
             });
           }
         }
-      }).result;
+      });
+
+      const result = await uploadData(uploadParams).result;
 
       return {
         success: true,

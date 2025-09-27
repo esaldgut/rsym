@@ -16,5 +16,3 @@ coverage
 *.log
 .vscode
 .idea
-amplify
-!amplify.yml

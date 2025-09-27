@@ -6,9 +6,48 @@ import { toastManager } from '@/components/ui/Toast';
 import { analytics } from '@/lib/services/analytics-service';
 import { InfiniteScroll } from '@/components/provider/InfiniteScroll';
 import { ProductCard } from '@/components/provider/ProductCard';
-import type { Product, ProductConnection, ProductMetrics, ProductFilter } from '@/types';
 
-// Interfaces ahora importadas de @/types
+export type ProductFilter = 'all' | 'circuit' | 'package' | 'draft' | 'published';
+
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  product_type: string;
+  status: string;
+  published: boolean;
+  cover_image_url?: string;
+  created_at: string;
+  updated_at: string;
+  seasons?: Array<{
+    id: string;
+    start_date: string;
+    end_date: string;
+    category: string;
+    allotment: number;
+    allotment_remain: number;
+  }>;
+  destination?: Array<{
+    place: string;
+    placeSub: string;
+  }>;
+  min_product_price?: number;
+}
+
+interface ProductConnection {
+  items: Product[];
+  nextToken?: string;
+  total: number;
+}
+
+interface ProductMetrics {
+  total: number;
+  published: number;
+  drafts: number;
+  circuits: number;
+  packages: number;
+  totalViews: number;
+}
 
 interface ProviderProductsDashboardProps {
   initialProducts: ProductConnection | null;
@@ -44,7 +83,7 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
     
     try {
       // Build filter for server action
-      const graphqlFilter: Record<string, string | boolean> = {};
+      const graphqlFilter: any = {};
       switch (currentFilter) {
         case 'circuit':
           graphqlFilter.product_type = 'circuit';
@@ -109,7 +148,7 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
     });
     
     try {
-      const graphqlFilter: Record<string, string | boolean> = {};
+      const graphqlFilter: any = {};
       switch (filter) {
         case 'circuit':
           graphqlFilter.product_type = 'circuit';

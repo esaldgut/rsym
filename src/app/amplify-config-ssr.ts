@@ -25,8 +25,13 @@ export const amplifyConfig: ResourcesConfig = {
         domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN || 'localhost',
         path: '/',
         expires: 7, // días
-        sameSite: 'lax' as const,
-        secure: process.env.NODE_ENV === 'production',
+        // CRÍTICO: 'none' necesario para OAuth cross-origin con Cognito
+        sameSite: process.env.NEXT_PUBLIC_CROSS_ORIGIN === 'true'
+          ? 'none' as const
+          : 'lax' as const,
+        // CRÍTICO: secure=true requerido cuando sameSite='none'
+        secure: process.env.NODE_ENV === 'production' ||
+                process.env.NEXT_PUBLIC_FORCE_SECURE === 'true',
         httpOnly: true // CRÍTICO: Forzar HTTP-Only
       }
     }

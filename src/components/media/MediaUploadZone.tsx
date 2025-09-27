@@ -188,7 +188,10 @@ export function MediaUploadZone({
               uploadStatus: 'complete',
               uploadProgress: 100,
               url: result.url,
-              s3Key: result.key
+              s3Key: result.key,
+              // IMPORTANTE: Mantener el preview blob local, NO usar la URL de S3
+              // porque el bucket es privado y requiere URLs prefirmadas
+              // preview: finalFiles[actualIndex].preview // Mantener el blob URL existente
             };
             
             toastManager.show(

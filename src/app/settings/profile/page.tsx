@@ -1,39 +1,53 @@
-import { AuthGuard } from '../../../components/guards/AuthGuard';
 import ProfileSettingsClient from './profile-client';
+import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
 import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { fixDoubleEncodedAttributes } from '@/utils/json-parsing-safe';
+import { cognitoDateToHTML } from '@/utils/date-format-helpers';
 
 /**
  * Server Component que obtiene los datos del usuario antes de renderizar
  * Implementa las mejores prácticas de Next.js App Router con datos server-side
  */
 export default async function ProfileSettingsPage() {
-  // Obtener atributos del usuario desde el servidor
+  // Proteger ruta con autenticación básica usando el patrón SSR
+  await RouteProtectionWrapper.protectProfile();
+
+  // Obtener atributos del usuario desde el servidor con manejo seguro
   const userAttributes = await runWithAmplifyServerContext({
     nextServerContext: { cookies },
     operation: async (contextSpec) => {
       try {
         const attributes = await fetchUserAttributes(contextSpec);
-        return attributes;
+
+        // Sanitizar atributos con doble encoding si existen
+        const sanitizedAttributes = fixDoubleEncodedAttributes(attributes);
+
+        return sanitizedAttributes;
       } catch (error) {
         console.error('Error obteniendo atributos del servidor:', error);
+
+        // Si hay error al obtener atributos, la sesión es inválida
+        // Redirigir a auth siguiendo el patrón de protección de rutas
         return null;
       }
     },
   });
 
-  // Si no hay sesión, redirigir a auth
+  // Si no hay atributos válidos, redirigir a auth
+  // RouteProtectionWrapper ya manejó la autenticación básica,
+  // pero si fetchUserAttributes falla, la sesión está corrupta
   if (!userAttributes) {
-    redirect('/auth');
+    redirect('/auth?error=session_corrupted');
   }
 
   // Preparar los datos para el cliente
   const initialData = {
     userType: userAttributes['custom:user_type'] as 'traveler' | 'influencer' | 'provider' | undefined,
     phone_number: userAttributes.phone_number || '',
-    birthdate: userAttributes.birthdate || '',
+    birthdate: cognitoDateToHTML(userAttributes.birthdate), // Convertir DD/MM/YYYY a YYYY-MM-DD para input[type="date"]
     preferred_username: userAttributes.preferred_username || '',
     email: userAttributes.email || '',
     given_name: userAttributes.given_name || '',
@@ -61,9 +75,7 @@ export default async function ProfileSettingsPage() {
     'custom:credentials': userAttributes['custom:credentials'] || '',
   };
 
-  return (
-    <AuthGuard>
-      <ProfileSettingsClient initialAttributes={initialData} />
-    </AuthGuard>
-  );
+  // Renderizar cliente con datos sanitizados
+  // No necesitamos AuthGuard porque RouteProtectionWrapper ya validó la sesión
+  return <ProfileSettingsClient initialAttributes={initialData} />;
 }

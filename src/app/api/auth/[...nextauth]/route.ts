@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
   // Manejar el callback de autenticación
   const response = await runWithAmplifyServerContext({
     nextServerContext: { request, response: NextResponse },
-    operation: async () => {
+    operation: async (contextSpec) => {
       // La lógica de autenticación es manejada por Amplify
       // Este endpoint asegura que las cookies se configuren correctamente
       return NextResponse.json({ success: true });

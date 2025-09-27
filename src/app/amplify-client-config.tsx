@@ -15,8 +15,9 @@ const cookieAdapter = new AmplifyHttpOnlyCookieAdapter({
   domain: process.env.NEXT_PUBLIC_COOKIE_DOMAIN || 'localhost',
   path: '/',
   expires: 7,
-  sameSite: 'lax',
-  secure: process.env.NODE_ENV === 'production'
+  sameSite: process.env.NEXT_PUBLIC_CROSS_ORIGIN === 'true' ? 'none' : 'lax',
+  secure: process.env.NODE_ENV === 'production' ||
+          process.env.NEXT_PUBLIC_FORCE_SECURE === 'true'
 });
 
 // CRÍTICO: Configurar el token provider para usar cookies HTTP-Only

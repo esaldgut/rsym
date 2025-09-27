@@ -8,8 +8,8 @@ import { toastManager } from '@/components/ui/Toast';
 
 export default function GraphQLAuthTestPage() {
   const { isAuthenticated, userType } = useAmplifyAuth();
-  const [authInspection, setAuthInspection] = useState<Record<string, unknown> | null>(null);
-  const [appSyncConfig, setAppSyncConfig] = useState<Record<string, unknown> | null>(null);
+  const [authInspection, setAuthInspection] = useState<any>(null);
+  const [appSyncConfig, setAppSyncConfig] = useState<any>(null);
   const marketplaceFeed = useMarketplaceFeed();
 
   useEffect(() => {
@@ -224,8 +224,8 @@ export default function GraphQLAuthTestPage() {
           <h3 className="text-lg font-semibold text-blue-900 mb-3">📋 Instrucciones</h3>
           <ul className="space-y-2 text-blue-800 text-sm">
             <li>1. <strong>Inicia sesión</strong> si no lo has hecho</li>
-            <li>2. <strong>Verifica</strong> que &quot;Usa ID Token&quot; esté en &quot;SÍ&quot;</li>
-            <li>3. <strong>Confirma</strong> que el Token Use sea &quot;id&quot;</li>
+            <li>2. <strong>Verifica</strong> que "Usa ID Token" esté en "SÍ"</li>
+            <li>3. <strong>Confirma</strong> que el Token Use sea "id"</li>
             <li>4. <strong>Ejecuta</strong> el test de query</li>
             <li>5. <strong>Revisa</strong> la consola del navegador para logs detallados</li>
           </ul>

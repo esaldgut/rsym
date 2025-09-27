@@ -1,34 +1,36 @@
-# Dockerfile para modo desarrollo - Plan B
-# Preserva toda la funcionalidad usando yarn dev
-
+# Dockerfile OPTIMIZADO - Sin node_modules del host
 FROM node:20-alpine
 
 RUN apk add --no-cache libc6-compat git
 
 WORKDIR /app
 
-# Copiar archivos de dependencias
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* ./
+# IMPORTANTE: Copiar package files PRIMERO
+COPY package.json yarn.lock ./
 
-# Instalar dependencias (incluye devDependencies)
-RUN \
-  if [ -f yarn.lock ]; then yarn install --frozen-lockfile; \
-  elif [ -f package-lock.json ]; then npm ci; \
-  elif [ -f pnpm-lock.yaml ]; then corepack enable pnpm && pnpm i --frozen-lockfile; \
-  else echo "No lockfile found." && exit 1; \
-  fi
+# Instalar dependencias ANTES de copiar código
+# Esto crea node_modules LIMPIO dentro del contenedor
+RUN yarn install --frozen-lockfile && \
+    yarn cache clean
 
-# Copiar todo el código fuente
-COPY . .
+# AHORA copiar código fuente (sin node_modules gracias a .dockerignore)
+# Usamos COPY individual para evitar copiar basura
+COPY src ./src
+COPY public ./public
+COPY amplify ./amplify
+COPY tsconfig.json ./
+COPY next.config.mjs ./
+COPY postcss.config.mjs ./
+COPY next-env.d.ts ./
+COPY middleware.ts ./
 
-# Variables de entorno para desarrollo
+# Variables de entorno
 ENV NODE_ENV=development
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-# Exponer puerto
 EXPOSE 3000
 
-# Comando para modo desarrollo con hot-reload
+# Comando
 CMD ["yarn", "dev"]

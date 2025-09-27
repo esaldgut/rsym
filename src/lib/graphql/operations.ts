@@ -229,6 +229,136 @@ export const getUserByUsername = /* GraphQL */ `
   }
 `;
 
+export const getProductById = /* GraphQL */ `
+  query GetProductById($id: ID!) {
+    getProductById(id: $id) {
+      id
+      name
+      description
+      product_type
+      status
+      published
+      cover_image_url
+      image_url
+      video_url
+      created_at
+      updated_at
+      provider_id
+      preferences
+      languages
+      seasons {
+        id
+        start_date
+        end_date
+        category
+        allotment
+        allotment_remain
+        schedules
+        number_of_nights
+        aditional_services
+        prices {
+          id
+          currency
+          price
+          room_name
+          max_adult
+          max_minor
+          children {
+            name
+            min_minor_age
+            max_minor_age
+            child_price
+          }
+        }
+        extra_prices {
+          id
+          currency
+          price
+          room_name
+          max_adult
+          max_minor
+          children {
+            name
+            min_minor_age
+            max_minor_age
+            child_price
+          }
+        }
+      }
+      destination {
+        id
+        place
+        placeSub
+        complementary_description
+        coordinates {
+          latitude
+          longitude
+        }
+      }
+      departures {
+        specific_dates
+        days
+        origin {
+          id
+          place
+          placeSub
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
+        }
+      }
+      itinerary
+      planned_hotels_or_similar
+      payment_policy {
+        id
+        product_id
+        provider_id
+        status
+        version
+        created_at
+        updated_at
+        options {
+          type
+          description
+          config {
+            cash {
+              discount
+              discount_type
+              deadline_days_to_pay
+              payment_methods
+            }
+            installments {
+              down_payment_before
+              down_payment_type
+              down_payment_after
+              installment_intervals
+              days_before_must_be_settled
+              deadline_days_to_pay
+              payment_methods
+            }
+          }
+          requirements {
+            deadline_days_to_pay
+          }
+          benefits_or_legal {
+            stated
+          }
+        }
+        general_policies {
+          change_policy {
+            allows_date_chage
+            deadline_days_to_make_change
+          }
+        }
+      }
+      min_product_price
+      is_foreign
+    }
+  }
+`;
+
 // MUTATIONS
 
 export const createMoment = /* GraphQL */ `

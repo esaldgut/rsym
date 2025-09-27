@@ -1,5 +1,7 @@
 import { getAuthenticatedUser, getIdTokenClaims, ensureValidTokens } from '@/utils/amplify-server-utils';
 import { DashboardContent } from '@/components/dashboard/DashboardContent';
+import { AuthGuard } from '@/components/guards/AuthGuard';
+import { ProviderOnlyGuard } from '@/components/guards/ProviderOnlyGuard';
 import { SecurityValidator } from '@/lib/security-validator';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';

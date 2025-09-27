@@ -19,7 +19,7 @@ interface ProductDetailsFormData {
   planned_hotels_or_similar: string[];
 }
 
-export default function ProductDetailsStep({ userId, onNext, isValid }: StepProps) {
+export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   const [activeTab, setActiveTab] = useState('destination');
 
@@ -318,7 +318,7 @@ export default function ProductDetailsStep({ userId, onNext, isValid }: StepProp
         <div className="flex justify-between pt-6 border-t border-gray-200 mt-8">
           <button
             type="button"
-            onClick={() => window.history.back()}
+            onClick={onPrevious}
             className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
           >
             ← Anterior

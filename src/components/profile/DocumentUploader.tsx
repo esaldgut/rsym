@@ -4,6 +4,7 @@ import React, { useState, useRef } from 'react';
 import { uploadData, remove } from 'aws-amplify/storage';
 import { getCurrentUser } from 'aws-amplify/auth';
 import { DocumentPath } from '@/lib/auth/user-attributes';
+import { sanitizeFileName, sanitizeMetadata } from '@/utils/storage-upload-sanitizer';
 
 interface DocumentUploaderProps {
   label: string;
@@ -70,14 +71,28 @@ export function DocumentUploader({
     try {
       // Validar que el usuario esté autenticado usando getCurrentUser de Amplify
       const currentUser = await getCurrentUser();
-      
+
+      // Sanitizar nombre del archivo para evitar error ByteString
+      const sanitizedFileName = sanitizeFileName(file.name);
+
       // Generar path siguiendo la estructura S3 establecida
       const timestamp = Date.now();
       const documentFolder = getDocumentFolder(label);
-      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-      
+      const fileExtension = sanitizedFileName.split('.').pop()?.toLowerCase() || 'pdf';
+
       // Estructura: protected/users/{username}/legal-documents/{document-folder}/{timestamp}.{ext}
       const fileName = `protected/users/${currentUser.username}/legal-documents/${documentFolder}/${timestamp}.${fileExtension}`;
+
+      // Preparar metadata sanitizada
+      const rawMetadata = {
+        documentType: documentFolder,
+        originalName: file.name,
+        username: currentUser.username,
+        uploadedAt: new Date().toISOString(),
+        documentCategory: 'legal-documents'
+      };
+
+      const sanitizedMetadata = sanitizeMetadata(rawMetadata);
 
       // Subir archivo a S3
       const result = await uploadData({
@@ -85,14 +100,8 @@ export function DocumentUploader({
         data: file,
         options: {
           accessLevel: 'private', // Documentos sensibles solo accesibles por el dueño
-          contentType: file.type,
-          metadata: {
-            documentType: documentFolder,
-            originalName: file.name,
-            username: currentUser.username,
-            uploadedAt: new Date().toISOString(),
-            documentCategory: 'legal-documents'
-          },
+          contentType: file.type || 'application/octet-stream',
+          metadata: sanitizedMetadata,
           onProgress: ({ transferredBytes, totalBytes }) => {
             if (totalBytes) {
               const progress = Math.round((transferredBytes / totalBytes) * 100);

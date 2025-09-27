@@ -1,6 +1,7 @@
 'use server';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
+import { redirect } from 'next/navigation';
 import { 
   createProductOfTypeCircuit, 
   createProductOfTypePackage,
@@ -9,6 +10,7 @@ import {
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { SecurityValidator } from '@/lib/security-validator';
 import { canExecuteGraphQLOperation } from '@/lib/permission-matrix';
+import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
 import type { 
   CreateProductOfTypeCircuitInput,
   CreateProductOfTypePackageInput,
@@ -56,11 +58,14 @@ export async function createCircuitProductAction(
       };
     }
 
-    // 4. Crear el producto
-    const result = await createProductOfTypeCircuit({
+    // 4. Transformar URLs a paths antes de enviar a GraphQL
+    const transformedInput = transformProductUrlsToPaths({
       ...input,
       user_id: user.userId
     });
+
+    // 5. Crear el producto
+    const result = await createProductOfTypeCircuit(transformedInput);
 
     if (!result.data?.createProductOfTypeCircuit) {
       return {
@@ -120,11 +125,14 @@ export async function createPackageProductAction(
       };
     }
 
-    // 4. Crear el producto
-    const result = await createProductOfTypePackage({
+    // 4. Transformar URLs a paths antes de enviar a GraphQL
+    const transformedInput = transformProductUrlsToPaths({
       ...input,
       user_id: user.userId
     });
+
+    // 5. Crear el producto
+    const result = await createProductOfTypePackage(transformedInput);
 
     if (!result.data?.createProductOfTypePackage) {
       return {
@@ -185,12 +193,15 @@ export async function updateProductAction(
       };
     }
 
-    // 4. Actualizar el producto
+    // 4. Transformar URLs a paths antes de enviar a GraphQL
+    const transformedInput = transformProductUrlsToPaths({
+      id: productId,
+      ...input
+    });
+
+    // 5. Actualizar el producto
     const result = await updateProduct({
-      input: {
-        id: productId,
-        ...input
-      }
+      input: transformedInput
     });
 
     if (!result.data?.updateProduct) {
@@ -200,7 +211,7 @@ export async function updateProductAction(
       };
     }
 
-    // 5. Revalidar cache
+    // 6. Revalidar cache
     revalidateTag(`product-${productId}`);
     revalidateTag(`user-products-${user.userId}`);
     revalidatePath('/dashboard/products');

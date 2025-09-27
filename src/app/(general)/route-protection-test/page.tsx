@@ -23,7 +23,7 @@ export default function RouteProtectionTestPage() {
         result: `HTTP ${response.status} - ${response.status === 307 ? 'Redirigido correctamente' : 'Posible problema'}`,
         status: response.status === 307 ? 'success' : 'fail'
       });
-    } catch {
+    } catch (error) {
       results.push({
         test: 'Acceso directo a /dashboard',
         result: 'Error de conexión',
@@ -40,7 +40,7 @@ export default function RouteProtectionTestPage() {
         result: protectedHeader ? `Presente: ${protectedHeader}` : 'Ausente',
         status: protectedHeader ? 'success' : 'fail'
       });
-    } catch {
+    } catch (error) {
       results.push({
         test: 'Header X-Protected-Route',
         result: 'No se pudo verificar',

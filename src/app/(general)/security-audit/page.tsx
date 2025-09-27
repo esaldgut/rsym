@@ -5,9 +5,9 @@ import { SecurityAudit } from '@/utils/security-audit';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
 
 interface AuditResult {
-  cookieAudit: Record<string, unknown>;
-  headerAudit: Record<string, unknown>;
-  xssAudit: Record<string, unknown>;
+  cookieAudit: any;
+  headerAudit: any;
+  xssAudit: any;
   totalScore: number;
   maxScore: number;
   securityGrade: string;

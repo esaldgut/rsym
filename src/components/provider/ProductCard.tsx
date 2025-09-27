@@ -3,9 +3,37 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ProfileImage } from '@/components/ui/ProfileImage';
-import type { Product, ProductCardProps } from '@/types';
 
-// Interfaces ahora importadas de @/types
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  product_type: string;
+  status: string;
+  published: boolean;
+  cover_image_url?: string;
+  created_at: string;
+  updated_at: string;
+  seasons?: Array<{
+    id: string;
+    start_date: string;
+    end_date: string;
+    category: string;
+    allotment: number;
+    allotment_remain: number;
+  }>;
+  destination?: Array<{
+    place: string;
+    placeSub: string;
+  }>;
+  min_product_price?: number;
+}
+
+interface ProductCardProps {
+  product: Product;
+  onEdit?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
+}
 
 export function ProductCard({ product, onEdit, onDelete }: ProductCardProps) {
   const [showMenu, setShowMenu] = useState(false);

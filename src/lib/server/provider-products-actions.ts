@@ -1,23 +1,168 @@
 'use server';
 
 import { getIdTokenServer, getAuthenticatedUser } from '@/utils/amplify-server-utils';
-import { getAllActiveProductsByProvider } from '@/lib/graphql/operations';
+import { getAllActiveProductsByProvider, getProductById } from '@/lib/graphql/operations';
 import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
 import { fetchAuthSession } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
 import outputs from '../../../amplify/outputs.json';
-import type {
-  Product,
-  ProductConnection,
-  ProductMetrics,
-  ApiResponse
-} from '@/types';
 
 // SIGUIENDO EXACTAMENTE EL PATTERN DE product-creation-actions.ts
-type ServerActionResponse<T = unknown> = ApiResponse<T>;
+interface ServerActionResponse<T = any> {
+  success: boolean;
+  data?: T;
+  error?: string;
+  message?: string;
+}
 
-// Las interfaces Product ya vienen de @/types
-// Si necesitamos extender con user_data, lo haremos cuando sea necesario
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  product_type: string;
+  status: string;
+  published: boolean;
+  cover_image_url?: string;
+  image_url?: string[];
+  video_url?: string[];
+  created_at: string;
+  updated_at: string;
+  provider_id: string;
+  preferences?: string[];
+  languages?: string[];
+  seasons?: Array<{
+    id: string;
+    start_date: string;
+    end_date: string;
+    category: string;
+    allotment: number;
+    allotment_remain: number;
+    schedules?: string;
+    number_of_nights?: string;
+    aditional_services?: string;
+    prices?: Array<{
+      id: string;
+      currency: string;
+      price: number;
+      room_name: string;
+      max_adult: number;
+      max_minor: number;
+      children: Array<{
+        name: string;
+        min_minor_age: number;
+        max_minor_age: number;
+        child_price: number;
+      }>;
+    }>;
+    extra_prices?: Array<{
+      id: string;
+      currency: string;
+      price: number;
+      room_name: string;
+      max_adult: number;
+      max_minor: number;
+      children: Array<{
+        name: string;
+        min_minor_age: number;
+        max_minor_age: number;
+        child_price: number;
+      }>;
+    }>;
+  }>;
+  destination?: Array<{
+    id?: string;
+    place: string;
+    placeSub: string;
+    complementary_description?: string;
+    coordinates?: {
+      latitude: number;
+      longitude: number;
+    };
+  }>;
+  departures?: Array<{
+    specific_dates?: string[];
+    days?: string[];
+    origin?: Array<{
+      id?: string;
+      place: string;
+      placeSub: string;
+      complementary_description?: string;
+      coordinates?: {
+        latitude: number;
+        longitude: number;
+      };
+    }>;
+  }>;
+  itinerary?: string;
+  planned_hotels_or_similar?: string[];
+  payment_policy?: {
+    id: string;
+    product_id: string;
+    provider_id: string;
+    status: string;
+    version: number;
+    created_at: string;
+    updated_at: string;
+    options: Array<{
+      type: string;
+      description: string;
+      config: {
+        cash?: {
+          discount: number;
+          discount_type: string;
+          deadline_days_to_pay: number;
+          payment_methods: string[];
+        };
+        installments?: {
+          down_payment_before: number;
+          down_payment_type: string;
+          down_payment_after: number;
+          installment_intervals: string;
+          days_before_must_be_settled: number;
+          deadline_days_to_pay: number;
+          payment_methods: string[];
+        };
+      };
+      requirements: {
+        deadline_days_to_pay: number;
+      };
+      benefits_or_legal?: Array<{
+        stated: string;
+      }>;
+    }>;
+    general_policies: {
+      change_policy: {
+        allows_date_chage: boolean;
+        deadline_days_to_make_change: number;
+      };
+    };
+  };
+  min_product_price?: number;
+  is_foreign?: boolean;
+  user_data?: {
+    sub: string;
+    username: string;
+    name: string;
+    avatar_url?: string;
+    email: string;
+    user_type: string;
+  };
+}
+
+interface ProductConnection {
+  items: Product[];
+  nextToken?: string;
+  total: number;
+}
+
+interface ProductMetrics {
+  total: number;
+  published: number;
+  drafts: number;
+  circuits: number;
+  packages: number;
+  totalViews: number;
+}
 
 interface GetProductsParams {
   pagination?: {
@@ -82,7 +227,7 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
         console.log('🚀 AppSync URL:', outputs.data.url);
 
         // 2. Preparar variables para GraphQL
-        const variables: Record<string, string | number | boolean | Record<string, unknown> | undefined> = {};
+        const variables: any = {};
         
         if (params.pagination) {
           variables.pagination = {
@@ -148,11 +293,11 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
       };
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Server Action] Error obteniendo productos:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error interno del servidor'
+      error: error.message || 'Error interno del servidor'
     };
   }
 }
@@ -193,11 +338,11 @@ export async function getProviderMetricsAction(): Promise<ServerActionResponse<P
       data: metrics
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Server Action] Error obteniendo métricas:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error interno del servidor'
+      error: error.message || 'Error interno del servidor'
     };
   }
 }
@@ -256,145 +401,7 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
 
         const idToken = session.tokens.idToken.toString();
 
-        // GraphQL query para obtener producto por ID (según schema correcto)
-        const getProductByIdQuery = `
-          query GetProductById($id: ID!) {
-            getProductById(id: $id) {
-              id
-              name
-              description
-              product_type
-              status
-              published
-              cover_image_url
-              image_url
-              video_url
-              created_at
-              updated_at
-              provider_id
-              preferences
-              languages
-              seasons {
-                id
-                start_date
-                end_date
-                category
-                allotment
-                allotment_remain
-                schedules
-                number_of_nights
-                aditional_services
-                prices {
-                  id
-                  currency
-                  price
-                  room_name
-                  max_adult
-                  max_minor
-                  children {
-                    name
-                    min_minor_age
-                    max_minor_age
-                    child_price
-                  }
-                }
-                extra_prices {
-                  id
-                  currency
-                  price
-                  room_name
-                  max_adult
-                  max_minor
-                  children {
-                    name
-                    min_minor_age
-                    max_minor_age
-                    child_price
-                  }
-                }
-              }
-              destination {
-                id
-                place
-                placeSub
-                complementary_description
-                coordinates {
-                  latitude
-                  longitude
-                }
-              }
-              departures {
-                specific_dates
-                days
-                origin {
-                  id
-                  place
-                  placeSub
-                  complementary_description
-                  coordinates {
-                    latitude
-                    longitude
-                  }
-                }
-              }
-              itinerary
-              planned_hotels_or_similar
-              payment_policy {
-                id
-                product_id
-                provider_id
-                status
-                version
-                created_at
-                updated_at
-                options {
-                  type
-                  description
-                  config {
-                    cash {
-                      discount
-                      discount_type
-                      deadline_days_to_pay
-                      payment_methods
-                    }
-                    installments {
-                      down_payment_before
-                      down_payment_type
-                      down_payment_after
-                      installment_intervals
-                      days_before_must_be_settled
-                      deadline_days_to_pay
-                      payment_methods
-                    }
-                  }
-                  requirements {
-                    deadline_days_to_pay
-                  }
-                  benefits_or_legal {
-                    stated
-                  }
-                }
-                general_policies {
-                  change_policy {
-                    allows_date_chage
-                    deadline_days_to_make_change
-                  }
-                }
-              }
-              min_product_price
-              is_foreign
-              user_data {
-                sub
-                username
-                name
-                avatar_url
-                email
-                user_type
-              }
-            }
-          }
-        `;
-
+        // Usar la query importada desde operations.ts
         const response = await fetch(outputs.data.url, {
           method: 'POST',
           headers: {
@@ -403,7 +410,7 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
             'x-api-key': outputs.data.api_key || ''
           },
           body: JSON.stringify({
-            query: getProductByIdQuery,
+            query: getProductById,
             variables: { id: productId }
           })
         });
@@ -442,11 +449,11 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
       };
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Server Action] Error obteniendo producto:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error interno del servidor'
+      error: error.message || 'Error interno del servidor'
     };
   }
 }
@@ -557,11 +564,11 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
       };
     }
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('❌ [Server Action] Error eliminando producto:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Error interno del servidor'
+      error: error.message || 'Error interno del servidor'
     };
   }
 }

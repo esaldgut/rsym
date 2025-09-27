@@ -16,6 +16,8 @@ import { DocumentUploader } from '@/components/profile/DocumentUploader';
 import { UnsavedChangesModal } from '@/components/ui/UnsavedChangesModal';
 import { useUnsavedChanges } from '@/hooks/useUnsavedChanges';
 import { HeroSection } from '@/components/ui/HeroSection';
+import { safeJsonParse } from '@/utils/json-parsing-safe';
+import { DateInput } from '@/components/ui/DateInput';
 
 // Tipos para el formulario
 type UserType = 'traveler' | 'influencer' | 'provider';
@@ -58,38 +60,85 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       
       // Campos de influencer
       uniq_influencer_ID: initialAttributes['custom:uniq_influencer_ID'] || '',
-      social_media_plfms: initialAttributes['custom:social_media_plfms'] 
-        ? JSON.parse(initialAttributes['custom:social_media_plfms']) 
-        : [],
+      social_media_plfms: safeJsonParse<any[]>(
+        initialAttributes['custom:social_media_plfms'],
+        []
+      ).data || [],
       
       // Campos de provider
-      company_profile: initialAttributes['custom:company_profile'] || '',
+      // Parsear company_profile si viene como JSON, o usar el string directo
+      company_profile: (() => {
+        const rawProfile = initialAttributes['custom:company_profile'] || '';
+        const parsed = safeJsonParse<{ description?: string }>(rawProfile, null);
+
+        // Si es un JSON válido con description, usar solo la description
+        if (parsed.success && parsed.data?.description) {
+          return parsed.data.description;
+        }
+        // Si no es JSON o no tiene description, usar el valor raw
+        return rawProfile;
+      })(),
       locale: initialAttributes.locale || 'MX',
+      address: (() => {
+        const parsed = safeJsonParse<{
+          cp?: string;     // Código Postal
+          c?: string;      // Calle
+          ne?: string;     // Número Exterior
+          ni?: string;     // Número Interior
+          col?: string;    // Colonia
+          mun?: string;    // Municipio
+          est?: string;    // Estado
+        }>(
+          initialAttributes.address,
+          {}
+        );
+
+        if (parsed.success && parsed.data) {
+          return parsed.data;
+        }
+
+        // Fallback para valor vacío
+        return {
+          cp: '',
+          c: '',
+          ne: '',
+          ni: '',
+          col: '',
+          mun: '',
+          est: ''
+        };
+      })(),
       days_of_service: initialAttributes['custom:days_of_service']
         ? JSON.parse(initialAttributes['custom:days_of_service'])
         : [],
-      contact_information: initialAttributes['custom:contact_information']
-        ? JSON.parse(initialAttributes['custom:contact_information'])
-        : { contact_name: '', contact_phone: '', contact_email: '' },
-      emgcy_details: initialAttributes['custom:emgcy_details']
-        ? JSON.parse(initialAttributes['custom:emgcy_details'])
-        : { contact_name: '', contact_phone: '', contact_email: '' },
+      contact_information: safeJsonParse<{ contact_name: string; contact_phone: string; contact_email: string }>(
+        initialAttributes['custom:contact_information'],
+        { contact_name: '', contact_phone: '', contact_email: '' }
+      ).data || { contact_name: '', contact_phone: '', contact_email: '' },
+      emgcy_details: safeJsonParse<{ contact_name: string; contact_phone: string; contact_email: string }>(
+        initialAttributes['custom:emgcy_details'],
+        { contact_name: '', contact_phone: '', contact_email: '' }
+      ).data || { contact_name: '', contact_phone: '', contact_email: '' },
       
       // Documentos
-      proofOfTaxStatusPath: initialAttributes['custom:proofOfTaxStatusPath']
-        ? JSON.parse(initialAttributes['custom:proofOfTaxStatusPath'])
-        : undefined,
-      secturPath: initialAttributes['custom:secturPath']
-        ? JSON.parse(initialAttributes['custom:secturPath'])
-        : undefined,
-      complianceOpinPath: initialAttributes['custom:complianceOpinPath']
-        ? JSON.parse(initialAttributes['custom:complianceOpinPath'])
-        : undefined,
+      proofOfTaxStatusPath: safeJsonParse<any>(
+        initialAttributes['custom:proofOfTaxStatusPath'],
+        undefined
+      ).data || undefined,
+      secturPath: safeJsonParse<any>(
+        initialAttributes['custom:secturPath'],
+        undefined
+      ).data || undefined,
+      complianceOpinPath: safeJsonParse<any>(
+        initialAttributes['custom:complianceOpinPath'],
+        undefined
+      ).data || undefined,
       
       // Campos compartidos
-      address: initialAttributes.address ? JSON.parse(initialAttributes.address) : {
-        cp: '', c: '', ne: '', ni: '', col: '', mun: '', est: ''
-      },
+      address: safeJsonParse<{ cp: string; c: string; ne: string; ni: string; col: string; mun: string; est: string }>(
+        initialAttributes.address,
+        { cp: '', c: '', ne: '', ni: '', col: '', mun: '', est: '' }
+      ).data || { cp: '', c: '', ne: '', ni: '', col: '', mun: '', est: '' },
       name: initialAttributes.name || '',
       banking_details: initialAttributes['custom:banking_details'] || '',
       interest_rate: initialAttributes['custom:interest_rate'] || '',
@@ -97,7 +146,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       credentials: initialAttributes['custom:credentials'] || ''
     };
     
-    console.log('📊 Datos iniciales cargados desde el servidor:', data);
+    console.log('✅ Datos iniciales parseados de forma segura para /settings/profile');
     return data;
   });
 
@@ -160,6 +209,9 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       if (!validation.isValid) {
         setErrors(validation.errors);
         setIsLoading(false);
+
+        // Focus y scroll al primer campo con error
+        focusFirstErrorField(validation.errors);
         return;
       }
 
@@ -200,6 +252,64 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
         [nestedField]: value
       }
     }));
+  };
+
+  // Función para hacer focus y scroll al primer campo con error
+  const focusFirstErrorField = (validationErrors: Record<string, string>) => {
+    // Mapear nombres de campos a selectores CSS más específicos
+    const fieldSelectors: Record<string, string> = {
+      phone_number: 'input[name="phone_number"]',
+      birthdate: 'input[type="date"], input[type="text"][placeholder*="DD/MM"]',
+      preferred_username: 'input[name="preferred_username"]',
+      details: 'textarea[name="details"]',
+      uniq_influencer_ID: 'input[placeholder*="influencer"]',
+      company_profile: 'textarea[placeholder*="empresa"]',
+      locale: 'select',
+      'contact_information.contact_name': 'input[placeholder*="contacto"]',
+      'contact_information.contact_phone': 'input[placeholder*="teléfono"]',
+      'contact_information.contact_email': 'input[placeholder*="email"]'
+    };
+
+    // Orden de prioridad para focus (de arriba a abajo en el formulario)
+    const fieldPriority = [
+      'phone_number',
+      'birthdate',
+      'preferred_username',
+      'details',
+      'uniq_influencer_ID',
+      'company_profile',
+      'locale',
+      'contact_information.contact_name',
+      'contact_information.contact_phone',
+      'contact_information.contact_email'
+    ];
+
+    // Encontrar el primer campo con error según la prioridad
+    for (const fieldName of fieldPriority) {
+      if (validationErrors[fieldName] && fieldSelectors[fieldName]) {
+        const element = document.querySelector(fieldSelectors[fieldName]) as HTMLElement;
+        if (element) {
+          // Hacer scroll suave al elemento con más margen superior
+          element.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center',
+            inline: 'nearest'
+          });
+
+          // Hacer focus después de un delay para que el scroll termine
+          setTimeout(() => {
+            element.focus();
+            // Añadir un efecto visual temporal
+            element.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.3)';
+            setTimeout(() => {
+              element.style.boxShadow = '';
+            }, 2000);
+          }, 600);
+
+          break;
+        }
+      }
+    }
   };
 
   const handleImageUpload = async (file: File) => {
@@ -395,6 +505,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                 </label>
                 <input
                   type="tel"
+                  name="phone_number"
                   value={formData.phone_number || ''}
                   onChange={(e) => updateFormData('phone_number', e.target.value)}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -405,20 +516,13 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                 )}
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fecha de nacimiento *
-                </label>
-                <input
-                  type="date"
-                  value={formData.birthdate || ''}
-                  onChange={(e) => updateFormData('birthdate', e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                />
-                {errors.birthdate && (
-                  <p className="text-sm text-red-600 mt-1">{errors.birthdate}</p>
-                )}
-              </div>
+              <DateInput
+                value={formData.birthdate || ''}
+                onChange={(value) => updateFormData('birthdate', value)}
+                label="Fecha de nacimiento"
+                required
+                error={errors.birthdate}
+              />
             </div>
 
             <div>
@@ -427,6 +531,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
               </label>
               <input
                 type="text"
+                name="preferred_username"
                 value={formData.preferred_username || ''}
                 onChange={(e) => updateFormData('preferred_username', e.target.value)}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -442,6 +547,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                 Descripción del perfil *
               </label>
               <textarea
+                name="details"
                 value={formData.details || ''}
                 onChange={(e) => updateFormData('details', e.target.value)}
                 rows={4}
@@ -549,6 +655,142 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                   </select>
                   {errors.locale && (
                     <p className="text-sm text-red-600 mt-1">{errors.locale}</p>
+                  )}
+                </div>
+
+                {/* Dirección Fiscal */}
+                <div className="space-y-4">
+                  <h3 className="text-lg font-medium text-gray-900">
+                    Dirección Fiscal
+                  </h3>
+
+                  {/* Código Postal */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Código postal
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address?.cp || ''}
+                      onChange={(e) => updateFormData('address', {
+                        ...formData.address,
+                        cp: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ej: 44510"
+                      maxLength={5}
+                    />
+                  </div>
+
+                  {/* Calle */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Calle
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address?.c || ''}
+                      onChange={(e) => updateFormData('address', {
+                        ...formData.address,
+                        c: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ej: 12 de diciembre"
+                      maxLength={35}
+                    />
+                  </div>
+
+                  {/* Números interior y exterior */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número interior
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.address?.ni || ''}
+                        onChange={(e) => updateFormData('address', {
+                          ...formData.address,
+                          ni: e.target.value
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Ej: 2909"
+                        maxLength={6}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número exterior
+                      </label>
+                      <input
+                        type="text"
+                        value={formData.address?.ne || ''}
+                        onChange={(e) => updateFormData('address', {
+                          ...formData.address,
+                          ne: e.target.value
+                        })}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        placeholder="Num. ext."
+                        maxLength={10}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Colonia */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Colonia
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address?.col || ''}
+                      onChange={(e) => updateFormData('address', {
+                        ...formData.address,
+                        col: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ej: Jardines de la plaza del sol"
+                    />
+                  </div>
+
+                  {/* Municipio */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Municipio
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address?.mun || ''}
+                      onChange={(e) => updateFormData('address', {
+                        ...formData.address,
+                        mun: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ej: Guadalajara"
+                      maxLength={19}
+                    />
+                  </div>
+
+                  {/* Estado */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estado
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.address?.est || ''}
+                      onChange={(e) => updateFormData('address', {
+                        ...formData.address,
+                        est: e.target.value
+                      })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                      placeholder="Ej: Jalisco"
+                    />
+                  </div>
+
+                  {errors.address && (
+                    <p className="text-sm text-red-600 mt-1">{errors.address}</p>
                   )}
                 </div>
 

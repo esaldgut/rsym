@@ -4,9 +4,48 @@ import { useState, useEffect, useCallback } from 'react';
 import { executeQuery } from '@/lib/graphql/client';
 import { getAllProductsByEmail } from '@/lib/graphql/operations';
 import { toastManager } from '@/components/ui/Toast';
-import type { Product, ProductConnection, ProductMetrics, ProductFilter } from '@/types';
 
-// Interfaces ahora importadas de @/types
+export type ProductFilter = 'all' | 'circuit' | 'package' | 'draft' | 'published';
+
+interface Product {
+  id: string;
+  name: string;
+  description?: string;
+  product_type: string;
+  status: string;
+  published: boolean;
+  cover_image_url?: string;
+  created_at: string;
+  updated_at: string;
+  seasons?: Array<{
+    id: string;
+    start_date: string;
+    end_date: string;
+    category: string;
+    allotment: number;
+    allotment_remain: number;
+  }>;
+  destination?: Array<{
+    place: string;
+    placeSub: string;
+  }>;
+  min_product_price?: number;
+}
+
+interface ProductConnection {
+  items: Product[];
+  nextToken?: string;
+  total: number;
+}
+
+interface ProductMetrics {
+  total: number;
+  published: number;
+  drafts: number;
+  circuits: number;
+  packages: number;
+  totalViews: number; // Placeholder - would come from analytics
+}
 
 export function useProviderProducts() {
   const [products, setProducts] = useState<Product[]>([]);

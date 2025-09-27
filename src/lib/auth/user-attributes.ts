@@ -1,8 +1,9 @@
-import { 
+import {
   updateUserAttributes,
   fetchUserAttributes,
   type UpdateUserAttributesOutput
 } from 'aws-amplify/auth';
+import { htmlDateToCognito } from '@/utils/date-format-helpers';
 
 /**
  * Servicio para gestión de atributos de usuario en Cognito
@@ -139,7 +140,8 @@ export async function updateUserProfile(
     
     // Atributos comunes
     if (formData.phone_number) attributes.phone_number = formData.phone_number;
-    if (formData.birthdate) attributes.birthdate = formData.birthdate;
+    // Convertir fecha de formato HTML (YYYY-MM-DD) a formato Cognito (DD/MM/YYYY)
+    if (formData.birthdate) attributes.birthdate = htmlDateToCognito(formData.birthdate);
     if (formData.preferred_username) attributes.preferred_username = formData.preferred_username;
     if (formData.profilePhotoPath) attributes['custom:profilePhotoPath'] = formData.profilePhotoPath;
     if (formData.details) attributes['custom:details'] = formData.details;
@@ -164,7 +166,10 @@ export async function updateUserProfile(
     // Atributos específicos de provider
     if (userType === 'provider') {
       if (formData.company_profile) {
-        attributes['custom:company_profile'] = formData.company_profile;
+        // Guardar como JSON con estructura {description: "..."}
+        attributes['custom:company_profile'] = JSON.stringify({
+          description: formData.company_profile
+        });
       }
       if (formData.days_of_service && formData.days_of_service.length > 0) {
         attributes['custom:days_of_service'] = JSON.stringify(formData.days_of_service);
@@ -362,7 +367,23 @@ export async function getMissingProfileFields(): Promise<string[]> {
     }
     
     if (userType === 'provider') {
-      if (!attributes['custom:company_profile']) missingFields.push('Perfil de empresa');
+      // Verificar company_profile parseando el JSON si es necesario
+      const companyProfile = attributes['custom:company_profile'];
+      if (!companyProfile) {
+        missingFields.push('Perfil de empresa');
+      } else {
+        try {
+          const parsed = JSON.parse(companyProfile);
+          if (!parsed.description || parsed.description.trim() === '') {
+            missingFields.push('Descripción de empresa');
+          }
+        } catch {
+          // Si no es JSON válido, verificar si es un string no vacío
+          if (companyProfile.trim() === '') {
+            missingFields.push('Perfil de empresa');
+          }
+        }
+      }
       if (!attributes['custom:days_of_service']) missingFields.push('Horarios de servicio');
       if (!attributes.locale) missingFields.push('País');
       if (!attributes['custom:contact_information']) missingFields.push('Información de contacto');

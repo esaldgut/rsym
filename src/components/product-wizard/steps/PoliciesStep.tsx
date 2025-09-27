@@ -186,16 +186,16 @@ export default function PoliciesStep({ userId, onNext, onPrevious }: StepProps) 
           <button
             type="button"
             onClick={onPrevious}
-            className="bg-gray-200 text-gray-700 px-6 py-3 rounded-lg font-medium hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
           >
-            Anterior
+            ← Anterior
           </button>
           <button
             type="submit"
             disabled={optionFields.length === 0}
-            className="bg-gradient-to-r from-pink-500 to-violet-600 text-white px-8 py-3 rounded-lg font-medium hover:from-pink-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Continuar
+            Continuar →
           </button>
         </div>
       </form>

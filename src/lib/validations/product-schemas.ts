@@ -52,8 +52,7 @@ export const generalInfoCircuitSchema = z.object({
     .max(2000, 'La descripción no puede exceder 2000 caracteres'),
   cover_image_url: z.string().optional(),
   image_url: z.array(z.string()).optional(),
-  video_url: z.array(z.string()).optional(),
-  destination: z.array(locationInputSchema).min(1, 'Agrega al menos un destino')
+  video_url: z.array(z.string()).optional()
 });
 
 // Esquema para información general - Paquetes

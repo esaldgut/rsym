@@ -2,6 +2,7 @@
 
 import { getIdTokenServer, getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct } from '@/lib/graphql/operations';
+import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
 import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
 import { fetchAuthSession } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
@@ -375,12 +376,15 @@ export async function updateProductAction(productId: string, updateData: any): P
           })));
         }
 
+        // 6. Transformar URLs a paths antes de enviar a GraphQL
+        const transformedData = transformProductUrlsToPaths(filteredData);
+
         const filteredInput = {
           id: productId,
-          ...filteredData
+          ...transformedData
         };
 
-        console.log('📋 Filtered input for updateProduct:', JSON.stringify(filteredInput, null, 2));
+        console.log('📋 Filtered and transformed input for updateProduct:', JSON.stringify(filteredInput, null, 2));
 
         // 3. Ejecutar GraphQL directamente con fetch - SIN generateClient
         const response = await fetch(outputs.data.url, {

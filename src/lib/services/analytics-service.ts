@@ -33,7 +33,7 @@ export interface TrackingContext {
   };
   
   // Business Context
-  metadata?: Record<string, string | number | boolean | null>;
+  metadata?: Record<string, any>;
 }
 
 export interface AnalyticsEvent {

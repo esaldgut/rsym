@@ -5,7 +5,7 @@ import "./globals.css";
 import 'aws-amplify/auth/enable-oauth-listener';
 import { ConfigureAmplifyClientSide } from './amplify-client-config';
 import { QueryProvider } from '../components/providers/QueryProvider';
-import { Navbar } from '@/components';
+import { NavbarImproved } from '@/components';
 import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { OAuthHandler } from '../components/auth/OAuthHandler';
 import { ToastContainer } from '@/components/ui/Toast';
@@ -36,7 +36,7 @@ export default function RootLayout({
         <ConfigureAmplifyClientSide />
         <OAuthHandler />
         <QueryProvider>
-          <Navbar />
+          <NavbarImproved />
           <MainContentWrapper>
             {children}
           </MainContentWrapper>

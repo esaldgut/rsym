@@ -108,33 +108,28 @@ const MediaPreviewItem = memo(function MediaPreviewItem({
   
   // Usar la URL de S3 si está disponible, sino usar preview local
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(
-    mediaFile.url || mediaFile.preview
+    mediaFile.preview // Solo usar preview, NO url (que es S3 privada)
   );
   
-  // Actualizar preview URL cuando la URL de S3 esté disponible
-  useEffect(() => {
-    if (url && url !== previewUrl) {
-      setPreviewUrl(url);
-      // Resetear estado de carga para mostrar transición suave
-      setImageLoaded(false);
-      setImageError(false);
-    }
-  }, [url, previewUrl]);
+  // NO actualizar preview URL con la URL de S3
+  // El bucket es privado y requiere URLs prefirmadas
+  // Mantenemos el blob URL local para el preview
   const isVideo = file.type.startsWith('video/');
   const isImage = file.type.startsWith('image/');
 
   // Generar preview URL solo una vez y manejar cleanup
   useEffect(() => {
-    // Solo crear object URL si no tenemos preview URL y no hay URL de S3
-    if (!previewUrl && !url && (isImage || isVideo)) {
+    // Siempre crear object URL si no tenemos preview URL
+    // NO depender de 'url' porque puede ser una URL S3 privada no accesible
+    if (!previewUrl && (isImage || isVideo)) {
       const objectUrl = URL.createObjectURL(file);
       setPreviewUrl(objectUrl);
-      
+
       return () => {
         URL.revokeObjectURL(objectUrl);
       };
     }
-  }, [file, isImage, isVideo, previewUrl, url]);
+  }, [file, isImage, isVideo, previewUrl]); // Removido 'url' de las dependencias
 
   // Manejar carga de imagen
   const handleImageLoad = useCallback(() => {
@@ -162,8 +157,10 @@ const MediaPreviewItem = memo(function MediaPreviewItem({
     uploadStatus === 'idle' && "border-gray-200 hover:border-gray-300"
   );
 
-  // Determinar la URL de imagen a usar (priorizar S3 URL si existe)
-  const displayUrl = url || previewUrl;
+  // Determinar la URL de imagen a usar
+  // Usar preview (blob URL o URL prefirmada) si existe, de lo contrario usar url
+  // Esto es importante porque el bucket S3 es privado y requiere URLs prefirmadas
+  const displayUrl = mediaFile.preview || previewUrl || url;
 
   if (layout === 'grid') {
     return (

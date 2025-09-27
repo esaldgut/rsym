@@ -148,6 +148,12 @@ export function AuthForm() {
         password: signInData.password,
       });
 
+      console.log('🔐 Respuesta de signIn:', {
+        nextStep,
+        user: signInData.email,
+        timestamp: new Date().toISOString()
+      });
+
       // Según la documentación oficial de Amplify v6
       if (nextStep.signInStep === 'DONE') {
         // Inicio de sesión exitoso - pequeña espera para asegurar que el estado se actualice

@@ -38,10 +38,10 @@ export default function AuthTestPage() {
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="font-semibold mb-4">Instrucciones de Prueba</h2>
             <ol className="text-sm space-y-2 list-decimal list-inside">
-              <li>Hacer clic en &quot;Ir a Iniciar Sesión&quot;</li>
-              <li>En la página de auth, buscar el enlace &quot;¿No tienes cuenta? Créala aquí&quot;</li>
+              <li>Hacer clic en "Ir a Iniciar Sesión"</li>
+              <li>En la página de auth, buscar el enlace "¿No tienes cuenta? Créala aquí"</li>
               <li>Hacer clic en ese enlace - debe cambiar a formulario de registro</li>
-              <li>En el formulario de registro, buscar &quot;¿Ya tienes cuenta? Inicia sesión&quot;</li>
+              <li>En el formulario de registro, buscar "¿Ya tienes cuenta? Inicia sesión"</li>
               <li>Hacer clic - debe volver al formulario de login</li>
             </ol>
           </div>
@@ -49,10 +49,10 @@ export default function AuthTestPage() {
           <div className="bg-white p-6 rounded-lg shadow">
             <h2 className="font-semibold mb-4">¿Qué buscar en Console?</h2>
             <p className="text-sm text-gray-600">
-              Abre DevTools {'->'} Console y busca mensajes como:
+              Abre DevTools {`>`} Console y busca mensajes como:
               <br />
               <code className="bg-gray-100 px-2 py-1 rounded text-xs">
-                🔄 Cambiando modo de auth: {'{'} from: &quot;signin&quot;, to: &quot;signup&quot; {'}'}
+                🔄 Cambiando modo de auth: {`{ from: "signin", to: "signup" }`}
               </code>
             </p>
           </div>

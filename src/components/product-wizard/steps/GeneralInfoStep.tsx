@@ -24,7 +24,6 @@ interface GeneralInfoFormData {
   cover_image_url?: string;
   image_url?: string[];
   video_url?: string[];
-  destination?: any[]; // Solo para circuitos
 }
 
 // Idiomas disponibles
@@ -61,8 +60,7 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
       description: formData.description || '',
       cover_image_url: formData.cover_image_url || '',
       image_url: formData.image_url || [],
-      video_url: formData.video_url || [],
-      ...(formData.productType === 'circuit' && { destination: formData.destination || [] })
+      video_url: formData.video_url || []
     }
   });
 
@@ -141,14 +139,26 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
       .filter(f => f.uploadStatus === 'complete')
       .map(f => f.url)
       .filter(Boolean) as string[];
-    
+
     setValue('video_url', videoUrls);
     updateFormData({ video_url: videoUrls });
   }, [setValue, updateFormData]);
 
-  // Cargar archivos existentes solo una vez al montar el componente
+  // Cargar archivos existentes solo en modo EDIT
   useEffect(() => {
     let mounted = true;
+
+    // Detectar si estamos en modo EDIT verificando si hay datos de edición en localStorage
+    const isEditMode = localStorage.getItem('yaan-edit-product-data') !== null;
+
+    // En modo CREATE, NO cargar URLs de S3 ya que el bucket es privado
+    // Los archivos se mantienen con sus blob URLs locales
+    if (!isEditMode) {
+      return () => { mounted = false; };
+    }
+
+    // MODO EDIT: Cargar archivos existentes desde S3
+    // TODO: En el futuro, estas URLs deberán ser prefirmadas usando Amplify Storage v6
 
     // Cargar imagen de portada existente
     if (formData.cover_image_url && coverFiles.length === 0) {
@@ -157,11 +167,13 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
         file: mockFile,
         uploadStatus: 'complete',
         url: formData.cover_image_url,
+        // En modo EDIT, temporalmente usar la URL directa (cambiar a prefirmada después)
+        preview: formData.cover_image_url,
         uploadProgress: 100
       };
       if (mounted) setCoverFiles([coverFile]);
     }
-    
+
     // Cargar galería existente
     if (formData.image_url?.length && galleryFiles.length === 0) {
       const mockFiles: MediaFile[] = formData.image_url.map((url, index) => {
@@ -170,12 +182,14 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
           file: mockFile,
           uploadStatus: 'complete' as const,
           url,
+          // En modo EDIT, temporalmente usar la URL directa (cambiar a prefirmada después)
+          preview: url,
           uploadProgress: 100
         };
       });
       if (mounted) setGalleryFiles(mockFiles);
     }
-    
+
     // Cargar videos existentes
     if (formData.video_url?.length && videoFiles.length === 0) {
       const mockFiles: MediaFile[] = formData.video_url.map((url, index) => {
@@ -184,6 +198,8 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
           file: mockFile,
           uploadStatus: 'complete' as const,
           url,
+          // En modo EDIT, temporalmente usar la URL directa (cambiar a prefirmada después)
+          preview: url,
           uploadProgress: 100
         };
       });
@@ -365,7 +381,7 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
               files={videoFiles}
               onFilesChange={handleVideoFilesChange}
               productId={formData.productId || 'temp'}
-              type="gallery"
+              type="video"
               accept="video"
               maxFiles={5}
             />
