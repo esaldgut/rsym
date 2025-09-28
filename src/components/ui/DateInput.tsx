@@ -11,6 +11,8 @@ interface DateInputProps {
   required?: boolean;
   error?: string;
   className?: string;
+  min?: string;
+  max?: string;
 }
 
 /**
@@ -24,7 +26,9 @@ export function DateInput({
   placeholder = 'DD/MM/AAAA',
   required = false,
   error,
-  className = ''
+  className = '',
+  min,
+  max
 }: DateInputProps) {
   const [displayValue, setDisplayValue] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -140,6 +144,8 @@ export function DateInput({
             onBlur={() => setShowNativeInput(false)}
             className={`${baseInputClasses} ${errorClasses}`}
             required={required}
+            min={min}
+            max={max}
             autoFocus
           />
         )}

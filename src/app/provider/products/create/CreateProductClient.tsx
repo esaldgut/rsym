@@ -15,7 +15,7 @@ export default function CreateProductClient({ userId }: CreateProductClientProps
 
   if (!selectedType) {
     return (
-      <div className="min-h-screen">
+      <div className="pb-8">
         <HeroSection
           title="¿Qué tipo de experiencia quieres crear?"
           subtitle="Escoge el tipo de producto turístico que mejor se adapte a tu propuesta"

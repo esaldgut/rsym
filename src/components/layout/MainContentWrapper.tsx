@@ -12,7 +12,7 @@ export function MainContentWrapper({ children }: MainContentWrapperProps) {
   // y las páginas administrativas pueden agregar su propio padding
   
   return (
-    <main className="min-h-screen">
+    <main>
       {children}
     </main>
   );

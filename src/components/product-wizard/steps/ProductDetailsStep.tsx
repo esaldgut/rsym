@@ -7,13 +7,14 @@ import { useProductForm } from '@/context/ProductFormContext';
 import { productDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
+import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
 import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/lib/graphql/types';
 
 interface ProductDetailsFormData {
   destination: LocationInput[];
-  departures: GuaranteedDeparturesInput[];
+  departures: GuaranteedDeparturesInput;
   itinerary: string;
   seasons: ProductSeasonInput[];
   planned_hotels_or_similar: string[];
@@ -33,7 +34,7 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
     resolver: zodResolver(productDetailsSchema),
     defaultValues: {
       destination: formData.destination || [],
-      departures: formData.departures || [],
+      departures: formData.departures || { regular_departures: [], specific_departures: [] },
       itinerary: formData.itinerary || '',
       seasons: formData.seasons || [],
       planned_hotels_or_similar: formData.planned_hotels_or_similar || []
@@ -225,20 +226,14 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
           )}
 
           {activeTab === 'departures' && (
-            <div className="space-y-4">
-              <h3 className="text-lg font-semibold text-gray-900">Salidas Garantizadas</h3>
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                <p className="text-yellow-800 text-sm">
-                  💡 Define desde qué ciudades de origen salen tus {actualProductType === 'circuit' ? 'circuitos' : 'paquetes'} 
-                  y en qué días de la semana.
-                </p>
-              </div>
-              {/* Aquí iría el componente GuaranteedDeparturesSelector */}
-              <div className="bg-gray-50 rounded-lg p-6 text-center">
-                <p className="text-gray-500">Configuración de salidas garantizadas</p>
-                <p className="text-sm text-gray-400 mt-1">Próximamente disponible</p>
-              </div>
-            </div>
+            <GuaranteedDeparturesSelector
+              departures={watch('departures') || { regular_departures: [], specific_departures: [] }}
+              onChange={(departures) => {
+                setValue('departures', departures);
+                updateFormData({ departures });
+              }}
+              error={errors.departures?.message}
+            />
           )}
 
           {activeTab === 'itinerary' && (

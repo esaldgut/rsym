@@ -70,14 +70,47 @@ export const generalInfoPackageSchema = z.object({
   video_url: z.array(z.string()).optional()
 });
 
+// Esquemas para las nuevas estructuras refactorizadas
+const regularDepartureSchema = z.object({
+  origin: locationInputSchema,
+  days: z.array(z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'])).min(1, 'Selecciona al menos un día para esta ciudad')
+});
+
+const dateRangeSchema = z.object({
+  start_datetime: z.string().min(1, 'Fecha de inicio requerida'),
+  end_datetime: z.string().min(1, 'Fecha de fin requerida')
+}).refine((data) => {
+  // Validar que end_datetime >= start_datetime
+  const startDate = new Date(data.start_datetime);
+  const endDate = new Date(data.end_datetime);
+  return endDate >= startDate;
+}, {
+  message: "La fecha de fin debe ser igual o posterior a la fecha de inicio",
+  path: ["end_datetime"]
+});
+
+const specificDepartureSchema = z.object({
+  origin: locationInputSchema,
+  date_ranges: z.array(dateRangeSchema).min(1, 'Agrega al menos un rango de fechas para esta ciudad')
+});
+
+const guaranteedDeparturesSchema = z.object({
+  regular_departures: z.array(regularDepartureSchema).optional(),
+  specific_departures: z.array(specificDepartureSchema).optional()
+}).refine((data) => {
+  // Al menos una salida regular o específica debe estar definida
+  const hasRegular = data.regular_departures && data.regular_departures.length > 0;
+  const hasSpecific = data.specific_departures && data.specific_departures.length > 0;
+  return hasRegular || hasSpecific;
+}, {
+  message: "Define al menos una salida garantizada (regular o específica)",
+  path: ["regular_departures"]
+});
+
 // Schema unificado para detalles de producto (circuit y package)
 export const productDetailsSchema = z.object({
   destination: z.array(locationInputSchema).min(1, 'Agrega al menos un destino'),
-  departures: z.array(z.object({
-    specific_dates: z.array(z.string()).optional(),
-    origin: z.array(locationInputSchema).optional(),
-    days: z.array(z.enum(['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY'])).optional()
-  })).optional(),
+  departures: guaranteedDeparturesSchema.optional(),
   itinerary: z.string().min(20, 'El itinerario debe ser más detallado (mínimo 20 caracteres)'),
   seasons: z.array(productSeasonSchema).min(1, 'Agrega al menos una temporada'),
   planned_hotels_or_similar: z.array(z.string()).optional()

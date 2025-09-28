@@ -1,36 +1,84 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { LocationSearch } from '@/components/location/LocationSearch';
 import type { CircuitLocation, LocationInput, PointInput } from '@/types/location';
+
+type LocationContext = 'destination' | 'departure' | 'origin';
 
 interface LocationMultiSelectorProps {
   /** Ubicaciones seleccionadas */
   selectedLocations: LocationInput[];
-  
+
   /** Callback cuando cambian las ubicaciones */
   onChange: (locations: LocationInput[]) => void;
-  
+
   /** Si permite múltiples selecciones */
   allowMultiple?: boolean;
-  
+
   /** Número mínimo de selecciones */
   minSelections?: number;
-  
+
   /** Número máximo de selecciones */
   maxSelections?: number;
-  
+
   /** Etiqueta del campo */
   label?: string;
-  
+
   /** Mensaje de error */
   error?: string;
-  
+
   /** Texto de ayuda */
   helpText?: string;
-  
+
   /** Clases CSS adicionales */
   className?: string;
+
+  /** Contexto para determinar terminología apropiada */
+  context?: LocationContext;
+}
+
+function getContextualLabels(context: LocationContext, allowMultiple: boolean, index?: number) {
+  const labels = {
+    destination: {
+      itemName: allowMultiple ? `destino ${index ? index + 1 : ''}` : 'ubicación',
+      searchPlaceholder: allowMultiple ?
+        `Buscar destino ${index ? index + 1 : ''} (Enter para buscar)...` :
+        'Buscar ubicación (Enter para buscar)...',
+      editPlaceholder: allowMultiple ?
+        `Editar destino ${index ? index + 1 : ''}...` :
+        'Editar ubicación...',
+      addButtonText: allowMultiple ?
+        `Agregar destino ${index ? index + 1 : ''}` :
+        'Agregar ubicación'
+    },
+    departure: {
+      itemName: allowMultiple ? `ciudad de salida ${index ? index + 1 : ''}` : 'ciudad de salida',
+      searchPlaceholder: allowMultiple ?
+        `Buscar ciudad de salida ${index ? index + 1 : ''} (Enter para buscar)...` :
+        'Buscar ciudad de salida (Enter para buscar)...',
+      editPlaceholder: allowMultiple ?
+        `Editar ciudad de salida ${index ? index + 1 : ''}...` :
+        'Editar ciudad de salida...',
+      addButtonText: allowMultiple ?
+        `Agregar ciudad de salida ${index ? index + 1 : ''}` :
+        'Agregar ciudad de salida'
+    },
+    origin: {
+      itemName: allowMultiple ? `punto de partida ${index ? index + 1 : ''}` : 'punto de partida',
+      searchPlaceholder: allowMultiple ?
+        `Buscar punto de partida ${index ? index + 1 : ''} (Enter para buscar)...` :
+        'Buscar punto de partida (Enter para buscar)...',
+      editPlaceholder: allowMultiple ?
+        `Editar punto de partida ${index ? index + 1 : ''}...` :
+        'Editar punto de partida...',
+      addButtonText: allowMultiple ?
+        `Agregar punto de partida ${index ? index + 1 : ''}` :
+        'Agregar punto de partida'
+    }
+  };
+
+  return labels[context];
 }
 
 function convertCircuitLocationToLocationInput(circuitLocation: CircuitLocation): LocationInput {
@@ -57,10 +105,13 @@ export function LocationMultiSelector({
   label,
   error,
   helpText,
-  className = ''
+  className = '',
+  context = 'destination'
 }: LocationMultiSelectorProps) {
   const [isSearchVisible, setIsSearchVisible] = useState(selectedLocations.length === 0);
   const [currentEditIndex, setCurrentEditIndex] = useState<number | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
 
   // Actualizar visibilidad de búsqueda cuando cambian las ubicaciones
   useEffect(() => {
@@ -127,6 +178,7 @@ export function LocationMultiSelector({
 
   const canAddMore = allowMultiple && selectedLocations.length < maxSelections;
   const needsMore = selectedLocations.length < minSelections;
+  const contextLabels = getContextualLabels(context, allowMultiple);
 
   return (
     <div className={`space-y-4 ${className}`}>
@@ -142,12 +194,12 @@ export function LocationMultiSelector({
       {selectedLocations.length > 0 && !isSearchVisible && (
         <div className="space-y-3">
           {selectedLocations.map((location, index) => (
-            <div 
+            <div
               key={index}
-              className={`border rounded-xl p-4 bg-white ${error ? 'border-red-300' : 'border-gray-200'}`}
+              className={`border rounded-xl p-4 bg-white overflow-hidden ${error ? 'border-red-300' : 'border-gray-200'}`}
             >
               <div className="flex items-start justify-between">
-                <div className="flex items-start space-x-3 flex-1">
+                <div className="flex items-start space-x-3 flex-1 min-w-0">
                   {/* Número de destino (para circuitos) */}
                   {allowMultiple && (
                     <div className="flex-shrink-0">
@@ -169,18 +221,18 @@ export function LocationMultiSelector({
                   
                   {/* Información de la ubicación */}
                   <div className="flex-1 min-w-0">
-                    <h4 className="font-semibold text-gray-900 truncate">
+                    <h4 className="font-semibold text-gray-900 break-words">
                       {location.place}
                     </h4>
-                    
+
                     {location.placeSub && (
-                      <p className="text-sm text-gray-600 truncate mt-1">
+                      <p className="text-sm text-gray-600 break-words mt-1">
                         {location.placeSub}
                       </p>
                     )}
-                    
+
                     {location.complementary_description && (
-                      <p className="text-xs text-gray-500 truncate mt-1">
+                      <p className="text-xs text-gray-500 break-words mt-1">
                         {location.complementary_description}
                       </p>
                     )}
@@ -239,20 +291,20 @@ export function LocationMultiSelector({
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
-              Agregar {allowMultiple ? `destino ${selectedLocations.length + 1}` : 'ubicación'}
+              {getContextualLabels(context, allowMultiple, selectedLocations.length).addButtonText}
             </button>
           )}
         </div>
       )}
 
-      {/* Componente de búsqueda */}
+      {/* Componente de búsqueda - con espacio para el dropdown */}
       {isSearchVisible && (
-        <div className="space-y-3">
+        <div ref={searchContainerRef} className="space-y-3 relative" style={{ minHeight: '60px' }}>
           <LocationSearch
             onLocationSelect={handleLocationSelect}
-            placeholder={currentEditIndex !== null 
-              ? `Editar ${allowMultiple ? `destino ${currentEditIndex + 1}` : 'ubicación'}...`
-              : `Buscar ${allowMultiple ? `destino ${selectedLocations.length + 1}` : 'ubicación'}...`
+            placeholder={currentEditIndex !== null
+              ? getContextualLabels(context, allowMultiple, currentEditIndex).editPlaceholder
+              : getContextualLabels(context, allowMultiple, selectedLocations.length).searchPlaceholder
             }
             countries={['MEX', 'USA', 'CAN', 'GBR', 'DEU', 'FRA', 'ITA', 'ESP', 'JPN', 'CHN', 'BRA', 'ARG', 'COL', 'PER', 'CHL']}
             maxResults={20}
@@ -290,11 +342,11 @@ export function LocationMultiSelector({
       {allowMultiple && (
         <div className="flex justify-between text-sm text-gray-500">
           <span>
-            {selectedLocations.length} de {maxSelections} destinos seleccionados
+            {selectedLocations.length} de {maxSelections} {context === 'destination' ? 'destinos' : context === 'departure' ? 'ciudades de salida' : 'puntos de partida'} seleccionados
           </span>
           {minSelections > selectedLocations.length && (
             <span className="text-orange-600 font-medium">
-              Faltan {minSelections - selectedLocations.length} destinos mínimos
+              Faltan {minSelections - selectedLocations.length} {context === 'destination' ? 'destinos' : context === 'departure' ? 'ciudades de salida' : 'puntos de partida'} mínimos
             </span>
           )}
         </div>

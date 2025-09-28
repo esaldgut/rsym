@@ -233,17 +233,50 @@ export interface Payment {
   created_at: AWSDateTime;
 }
 
-// Tipos oficiales de Products del GraphQL schema
-export interface GuaranteedDepartures {
-  specific_dates?: AWSDateTime[];
-  origin?: Location[];
-  days?: WeekDays[];
+// Tipos oficiales de Products del GraphQL schema - REFACTORIZADOS
+
+// Salida regular con origen específico y sus días
+export interface RegularDepartureInput {
+  origin: LocationInput;
+  days: WeekDays[];
 }
 
+export interface RegularDeparture {
+  origin: Location;
+  days: WeekDays[];
+}
+
+// Rango de fechas para salidas específicas
+export interface DateRangeInput {
+  start_datetime: AWSDateTime;
+  end_datetime: AWSDateTime;
+}
+
+export interface DateRange {
+  start_datetime: AWSDateTime;
+  end_datetime: AWSDateTime;
+}
+
+// Salida específica con origen específico y sus rangos de fechas
+export interface SpecificDepartureInput {
+  origin: LocationInput;
+  date_ranges: DateRangeInput[];
+}
+
+export interface SpecificDeparture {
+  origin: Location;
+  date_ranges: DateRange[];
+}
+
+// Tipo principal refactorizado para mapeo correcto origen -> días/fechas
 export interface GuaranteedDeparturesInput {
-  specific_dates?: AWSDateTime[];
-  origin?: LocationInput[];
-  days?: WeekDays[];
+  regular_departures?: RegularDepartureInput[];
+  specific_departures?: SpecificDepartureInput[];
+}
+
+export interface GuaranteedDepartures {
+  regular_departures?: RegularDeparture[];
+  specific_departures?: SpecificDeparture[];
 }
 
 export interface ChildRange {

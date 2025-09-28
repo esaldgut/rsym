@@ -89,7 +89,7 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
 
   return (
     <ProductFormProvider steps={steps} productType={productType}>
-      <div className="min-h-screen bg-gray-50">
+      <div className="bg-gray-50 pb-8">
         {/* Modal de captura de nombre - solo mostrar cuando showModal es true */}
         {showModal === true && (
           <ProductNameModal
@@ -335,16 +335,18 @@ function WizardContent({
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-      {/* Progress Bar integrada */}
-      <WizardProgressBar 
-        steps={steps}
-        currentStepIndex={currentStepIndex}
-        productType={formData.productType}
-      />
+    <div className="bg-white rounded-2xl shadow-sm">
+      {/* Progress Bar integrada - con overflow solo en el header */}
+      <div className="overflow-hidden rounded-t-2xl">
+        <WizardProgressBar
+          steps={steps}
+          currentStepIndex={currentStepIndex}
+          productType={formData.productType}
+        />
+      </div>
 
-      {/* Contenido del paso actual */}
-      <div className="p-6 sm:p-8">
+      {/* Contenido del paso actual - sin overflow para permitir dropdowns */}
+      <div className="p-6 sm:p-8 relative">
         {/* Keyboard Navigation Help */}
         <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-4 border border-purple-100">
           <div className="flex items-center justify-between">

@@ -31,31 +31,42 @@ export function LocationSearch({
   const [isOpen, setIsOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  
+  const [hasSearched, setHasSearched] = useState(false); // Track if a search has been performed
+
   const searchInputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const debounceTimerRef = useRef<NodeJS.Timeout>();
+  const lastSearchedText = useRef<string>(''); // Track last searched text to avoid duplicate searches
 
   // Búsqueda con debounce
-  const performSearch = useCallback((text: string) => {
+  const performSearch = useCallback((text: string, isManual: boolean = false) => {
     if (!text.trim()) {
       setResults([]);
       setIsOpen(false);
       setError(null);
+      setHasSearched(false);
       return;
     }
 
+    // Avoid duplicate searches if text hasn't changed (for manual Enter)
+    if (isManual && lastSearchedText.current === text.trim()) {
+      return;
+    }
+
+    lastSearchedText.current = text.trim();
+    setHasSearched(true);
+
     startTransition(async () => {
       setError(null);
-      
+
       const searchOptions: SearchOptions = {
         maxResults,
         countries,
         language: 'es'
       };
-      
+
       const response = await searchPlacesByText(text, searchOptions);
-      
+
       if (response.success && response.locations) {
         setResults(response.locations);
         setIsOpen(response.locations.length > 0);
@@ -72,16 +83,22 @@ export function LocationSearch({
     const value = e.target.value;
     setSearchText(value);
     setSelectedIndex(-1);
-    
+
+    // Reset hasSearched if text is cleared
+    if (!value.trim()) {
+      setHasSearched(false);
+      lastSearchedText.current = '';
+    }
+
     // Cancelar búsqueda anterior
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
     }
-    
-    // Nueva búsqueda con debounce
+
+    // Nueva búsqueda con debounce - 900ms para dar más tiempo al usuario
     debounceTimerRef.current = setTimeout(() => {
-      performSearch(value);
-    }, 300);
+      performSearch(value, false);
+    }, 900);
   }, [performSearch]);
 
   // Seleccionar una ubicación
@@ -94,37 +111,50 @@ export function LocationSearch({
 
   // Navegación con teclado
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!isOpen || results.length === 0) return;
-    
     switch (e.key) {
       case 'ArrowDown':
-        e.preventDefault();
-        setSelectedIndex(prev => 
-          prev < results.length - 1 ? prev + 1 : 0
-        );
-        break;
-        
-      case 'ArrowUp':
-        e.preventDefault();
-        setSelectedIndex(prev => 
-          prev > 0 ? prev - 1 : results.length - 1
-        );
-        break;
-        
-      case 'Enter':
-        e.preventDefault();
-        if (selectedIndex >= 0 && selectedIndex < results.length) {
-          handleLocationSelect(results[selectedIndex]);
+        if (isOpen && results.length > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev =>
+            prev < results.length - 1 ? prev + 1 : 0
+          );
         }
         break;
-        
+
+      case 'ArrowUp':
+        if (isOpen && results.length > 0) {
+          e.preventDefault();
+          setSelectedIndex(prev =>
+            prev > 0 ? prev - 1 : results.length - 1
+          );
+        }
+        break;
+
+      case 'Enter':
+        e.preventDefault();
+
+        // Si hay un elemento seleccionado en la lista, seleccionarlo
+        if (isOpen && selectedIndex >= 0 && selectedIndex < results.length) {
+          handleLocationSelect(results[selectedIndex]);
+        }
+        // Si no hay resultados abiertos pero hay texto, forzar búsqueda
+        else if (searchText.trim()) {
+          // Cancelar debounce pendiente
+          if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+          }
+          // Ejecutar búsqueda inmediata
+          performSearch(searchText, true);
+        }
+        break;
+
       case 'Escape':
         e.preventDefault();
         setIsOpen(false);
         setSelectedIndex(-1);
         break;
     }
-  }, [isOpen, results, selectedIndex, handleLocationSelect]);
+  }, [isOpen, results, selectedIndex, searchText, handleLocationSelect, performSearch]);
 
   // Cerrar dropdown al hacer clic fuera
   useEffect(() => {
@@ -161,7 +191,7 @@ export function LocationSearch({
           onFocus={() => results.length > 0 && setIsOpen(true)}
           placeholder={placeholder}
           autoFocus={autoFocus}
-          className="w-full px-4 py-3 pl-12 pr-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all duration-200"
+          className="w-full px-4 py-3 pl-12 pr-12 border border-gray-300 rounded-xl focus:ring-2 focus:ring-pink-500 focus:border-transparent outline-none transition-all duration-200"
           disabled={isPending}
         />
         
@@ -176,28 +206,42 @@ export function LocationSearch({
           )}
         </div>
 
-        {/* Botón de limpiar */}
-        {searchText && !isPending && (
-          <button
-            onClick={() => {
-              setSearchText('');
-              setResults([]);
-              setIsOpen(false);
-              setError(null);
-              searchInputRef.current?.focus();
-            }}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 hover:bg-gray-100 rounded-full transition-colors"
-          >
-            <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        )}
+        {/* Indicador de Enter o Botón de limpiar */}
+        {searchText ? (
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center gap-2">
+            {/* Indicador de Enter cuando no hay búsqueda activa */}
+            {!isPending && !hasSearched && searchText.trim() && (
+              <span className="text-xs text-gray-400 px-2 py-1 bg-gray-100 rounded-md">
+                Enter
+              </span>
+            )}
+
+            {/* Botón de limpiar */}
+            {!isPending && (
+              <button
+                onClick={() => {
+                  setSearchText('');
+                  setResults([]);
+                  setIsOpen(false);
+                  setError(null);
+                  setHasSearched(false);
+                  lastSearchedText.current = '';
+                  searchInputRef.current?.focus();
+                }}
+                className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </div>
+        ) : null}
       </div>
 
       {/* Mensaje de error */}
       {error && (
-        <div className="absolute w-full mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 z-50">
+        <div className="absolute w-full mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-600 z-[9998] shadow-lg">
           {error}
         </div>
       )}
@@ -206,7 +250,8 @@ export function LocationSearch({
       {isOpen && results.length > 0 && (
         <div
           ref={resultsRef}
-          className="absolute w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-lg max-h-96 overflow-y-auto z-50"
+          className="absolute w-full mt-2 bg-white border border-gray-200 rounded-xl shadow-xl max-h-[400px] overflow-y-auto z-[99999]"
+          style={{ maxHeight: 'min(400px, 60vh)' }}
         >
           {results.map((location, index) => (
             <button
@@ -258,9 +303,24 @@ export function LocationSearch({
 
       {/* Estado cuando no hay resultados */}
       {isOpen && searchText && results.length === 0 && !isPending && !error && (
-        <div className="absolute w-full mt-2 p-4 bg-white border border-gray-200 rounded-xl shadow-lg z-50">
+        <div className="absolute w-full mt-2 p-4 bg-white border border-gray-200 rounded-xl shadow-lg z-[9998]">
           <p className="text-gray-500 text-center">
             No se encontraron resultados para "{searchText}"
+          </p>
+          <p className="text-xs text-gray-400 text-center mt-2">
+            Intenta con otro término o verifica la ortografía
+          </p>
+        </div>
+      )}
+
+      {/* Tooltip de ayuda para nuevos usuarios */}
+      {searchText.length > 0 && searchText.length < 3 && !hasSearched && !isPending && (
+        <div className="absolute w-full mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-600 z-[9997] shadow-md">
+          <p className="flex items-center">
+            <svg className="w-4 h-4 mr-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+            </svg>
+            Presiona <kbd className="px-2 py-0.5 text-xs bg-white border border-blue-300 rounded mx-1">Enter</kbd> para buscar o espera para búsqueda automática
           </p>
         </div>
       )}
