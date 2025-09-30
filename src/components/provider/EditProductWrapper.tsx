@@ -176,7 +176,7 @@ export function EditProductWrapper({ product, userId }: EditProductWrapperProps)
       destination: product.destination || [],
       departures: product.departures || [],
       origin: product.origin || [],
-      itinerary: product.itinerary || [],
+      itinerary: product.itinerary || '',  // Corregido: itinerary es string, no array
       planned_hotels_or_similar: product.planned_hotels_or_similar || [],
       payment_policy: product.payment_policy || null,
       published: product.published

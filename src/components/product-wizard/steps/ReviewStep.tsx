@@ -49,12 +49,14 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
         // Campos específicos según el tipo
         ...(formData.productType === 'circuit' && {
           destination: formData.destination,
+          departures: formData.departures,
           itinerary: formData.itinerary,
         }),
         
         ...(formData.productType === 'package' && {
           origin: formData.origin,
           destination: formData.destination,
+          departures: formData.departures,
         })
       };
 

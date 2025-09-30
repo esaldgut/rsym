@@ -91,19 +91,70 @@ export function ProductFormProvider({
         // Mapear datos del producto existente al formato del form
         // Convertir departures del formato GraphQL al formato interno del frontend
         const departures = parsed.departures || [];
-        const mappedDepartures = {
-          regular_departures: departures.filter((d: any) => d.days && d.days.length > 0).map((d: any) => ({
-            origin: d.origin?.[0] || { place: '', placeSub: '', coordinates: undefined },
-            days: d.days || []
-          })),
-          specific_departures: departures.filter((d: any) => d.specific_dates && d.specific_dates.length > 0).map((d: any) => ({
-            origin: d.origin?.[0] || { place: '', placeSub: '', coordinates: undefined },
-            date_ranges: d.specific_dates?.map((date: string) => ({
-              start_date: date,
-              end_date: date
-            })) || []
-          }))
+
+        // Función auxiliar para convertir coordenadas de GraphQL a formato interno
+        const convertCoordinates = (origin: any) => {
+          if (!origin) return { place: '', placeSub: '', coordinates: undefined };
+
+          // Si las coordenadas vienen como objeto {latitude, longitude}, convertir a array [longitude, latitude]
+          let coordinates = undefined;
+          if (origin.coordinates) {
+            if (typeof origin.coordinates === 'object' && 'latitude' in origin.coordinates && 'longitude' in origin.coordinates) {
+              // Formato GraphQL: {latitude: number, longitude: number}
+              coordinates = [origin.coordinates.longitude, origin.coordinates.latitude];
+            } else if (Array.isArray(origin.coordinates)) {
+              // Ya está en formato array
+              coordinates = origin.coordinates;
+            }
+          }
+
+          return {
+            place: origin.place || '',
+            placeSub: origin.placeSub || '',
+            coordinates: coordinates
+          };
         };
+
+        // Nueva lógica de mapeo que maneja la estructura del esquema GraphQL real
+        const mappedDepartures = {
+          regular_departures: departures
+            .filter((d: any) => d.days && d.days.length > 0)
+            .map((d: any) => ({
+              origin: convertCoordinates(d.origin?.[0]),
+              days: d.days || []
+            })),
+          specific_departures: []
+        };
+
+        // Manejar salidas específicas - pueden venir agrupadas en un solo objeto con múltiples orígenes
+        departures
+          .filter((d: any) => d.specific_dates && d.specific_dates.length > 0)
+          .forEach((d: any) => {
+            // Si hay múltiples orígenes, crear una entrada para cada uno
+            if (d.origin && Array.isArray(d.origin)) {
+              d.origin.forEach((origin: any) => {
+                mappedDepartures.specific_departures.push({
+                  origin: convertCoordinates(origin),
+                  date_ranges: d.specific_dates?.map((date: string) => ({
+                    start_datetime: date,
+                    end_datetime: date
+                  })) || []
+                });
+              });
+            }
+          });
+
+        // Convertir coordenadas en destination también
+        const mappedDestinations = (parsed.destination || []).map((dest: any) => ({
+          place: dest.place || '',
+          placeSub: dest.placeSub || '',
+          complementary_description: dest.complementary_description || '',
+          coordinates: dest.coordinates
+            ? (typeof dest.coordinates === 'object' && 'latitude' in dest.coordinates && 'longitude' in dest.coordinates
+              ? [dest.coordinates.longitude, dest.coordinates.latitude]
+              : dest.coordinates)
+            : undefined
+        }));
 
         return {
           productId: parsed.id,
@@ -116,10 +167,10 @@ export function ProductFormProvider({
           video_url: parsed.video_url ? [parsed.video_url] : [],
           seasons: parsed.seasons || [],
           planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
-          destination: parsed.destination || [],
+          destination: mappedDestinations,
           departures: mappedDepartures,
           origin: parsed.origin || [],
-          itinerary: parsed.itinerary || [],
+          itinerary: parsed.itinerary || '',
           payment_policy: parsed.payment_policy || null,
           published: parsed.published || false,
           productType,

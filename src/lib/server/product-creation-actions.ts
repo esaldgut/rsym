@@ -351,7 +351,7 @@ export async function updateProductAction(productId: string, updateData: any): P
           'name', 'description', 'preferences', 'languages',
           'cover_image_url', 'image_url', 'video_url',
           'seasons', 'planned_hotels_or_similar', 'payment_policy',
-          'published', 'destination', 'origin', 'itinerary'
+          'published', 'destination', 'origin', 'itinerary', 'departures'
         ];
 
         const filteredData = Object.keys(updateData)
@@ -361,22 +361,116 @@ export async function updateProductAction(productId: string, updateData: any): P
             return obj;
           }, {} as any);
 
-        // 5. Normalizar fechas en seasons
+        // 5. Normalizar fechas en seasons y filtrar campos no permitidos en input
         if (filteredData.seasons) {
-          console.log('📅 Original seasons dates:', filteredData.seasons.map(s => ({ 
-            start_date: s.start_date, 
-            end_date: s.end_date 
+          console.log('📅 Original seasons dates:', filteredData.seasons.map(s => ({
+            start_date: s.start_date,
+            end_date: s.end_date
           })));
-          
-          filteredData.seasons = normalizeSeasons(filteredData.seasons);
-          
-          console.log('📅 Normalized seasons dates:', filteredData.seasons.map(s => ({ 
-            start_date: s.start_date, 
-            end_date: s.end_date 
+
+          // Filtrar campos de solo lectura de seasons antes de enviar a GraphQL
+          const seasonsAllowedFields = [
+            'allotment', 'category', 'start_date', 'end_date', 'schedules',
+            'prices', 'aditional_services', 'number_of_nights', 'extra_prices'
+          ];
+
+          filteredData.seasons = normalizeSeasons(filteredData.seasons).map((season: any) => {
+            const filteredSeason = Object.keys(season)
+              .filter(key => seasonsAllowedFields.includes(key))
+              .reduce((obj, key) => {
+                obj[key] = season[key];
+                return obj;
+              }, {} as any);
+
+            // Filtrar campos de solo lectura en prices y extra_prices
+            if (filteredSeason.prices) {
+              filteredSeason.prices = filteredSeason.prices.map((price: any) => {
+                const { id, ...priceWithoutId } = price;
+                return priceWithoutId;
+              });
+            }
+
+            if (filteredSeason.extra_prices) {
+              filteredSeason.extra_prices = filteredSeason.extra_prices.map((price: any) => {
+                const { id, ...priceWithoutId } = price;
+                return priceWithoutId;
+              });
+            }
+
+            return filteredSeason;
+          });
+
+          console.log('📅 Normalized and filtered seasons:', filteredData.seasons.map(s => ({
+            start_date: s.start_date,
+            end_date: s.end_date,
+            fields: Object.keys(s)
           })));
         }
 
-        // 6. Transformar URLs a paths antes de enviar a GraphQL
+        // 6. Mapear departures del formato interno al formato GraphQL según el esquema real
+        if (filteredData.departures) {
+          console.log('🚀 Original departures (internal format):', JSON.stringify(filteredData.departures, null, 2));
+
+          const graphqlDepartures: any[] = [];
+
+          // Mapear salidas regulares - conservar la estructura actual que funciona
+          if (filteredData.departures.regular_departures) {
+            filteredData.departures.regular_departures.forEach((regular: any) => {
+              if (regular.origin && regular.origin.place) {
+                graphqlDepartures.push({
+                  origin: [regular.origin],
+                  days: regular.days || []
+                });
+              }
+            });
+          }
+
+          // Mapear salidas específicas - CORREGIR SEGÚN ESQUEMA GRAPHQL
+          // El esquema GraphQL espera: { specific_dates: AWSDateTime[], origin: LocationInput[], days?: WeekDays[] }
+          if (filteredData.departures.specific_departures) {
+            // Extraer todas las fechas específicas y orígenes
+            const allSpecificDates: string[] = [];
+            const allOrigins: any[] = [];
+
+            filteredData.departures.specific_departures.forEach((specific: any) => {
+              if (specific.origin && specific.origin.place) {
+                allOrigins.push(specific.origin);
+
+                // Extraer fechas de los rangos
+                if (specific.date_ranges) {
+                  specific.date_ranges.forEach((range: any) => {
+                    if (range.start_datetime) {
+                      // Convertir a formato AWSDateTime completo si es solo fecha
+                      const startDate = range.start_datetime.includes('T')
+                        ? range.start_datetime
+                        : range.start_datetime + 'T00:00:00.000Z';
+                      allSpecificDates.push(startDate);
+                    }
+                    if (range.end_datetime && range.end_datetime !== range.start_datetime) {
+                      const endDate = range.end_datetime.includes('T')
+                        ? range.end_datetime
+                        : range.end_datetime + 'T00:00:00.000Z';
+                      allSpecificDates.push(endDate);
+                    }
+                  });
+                }
+              }
+            });
+
+            // Crear una sola entrada con todas las fechas específicas y orígenes
+            if (allSpecificDates.length > 0 && allOrigins.length > 0) {
+              graphqlDepartures.push({
+                specific_dates: allSpecificDates,
+                origin: allOrigins
+              });
+            }
+          }
+
+          filteredData.departures = graphqlDepartures;
+          console.log('🚀 Mapped departures (GraphQL format):', JSON.stringify(filteredData.departures, null, 2));
+        }
+
+        // 7. Transformar URLs a paths antes de enviar a GraphQL
         const transformedData = transformProductUrlsToPaths(filteredData);
 
         const filteredInput = {

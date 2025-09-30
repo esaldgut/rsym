@@ -19,6 +19,7 @@ const childRangeSchema = z.object({
 });
 
 const productPriceSchema = z.object({
+  id: z.string().optional(), // Campo ID opcional (viene de la base de datos en modo edición)
   currency: z.string().min(1, 'Moneda requerida'),
   price: z.number().positive('Precio debe ser mayor a 0'),
   room_name: z.string().min(1, 'Nombre de habitación requerido'),
@@ -28,6 +29,7 @@ const productPriceSchema = z.object({
 });
 
 const productSeasonSchema = z.object({
+  id: z.string().optional(), // Campo ID opcional (viene de la base de datos en modo edición)
   category: z.string().min(1, 'Categoría de temporada requerida'),
   start_date: z.string().min(1, 'Fecha de inicio requerida'),
   end_date: z.string().min(1, 'Fecha de fin requerida'),
