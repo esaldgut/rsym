@@ -1,8 +1,10 @@
 import { lazy } from 'react';
-import { 
+import {
   generalInfoCircuitSchema,
   generalInfoPackageSchema,
   productDetailsSchema,
+  tourDetailsSchema,
+  packageDetailsSchema,
   policiesSchema
 } from '@/lib/validations/product-schemas';
 import type { FormStep } from '@/types/wizard';
@@ -11,6 +13,7 @@ import { z } from 'zod';
 // Lazy load components para mejor performance
 const GeneralInfoStep = lazy(() => import('../steps/GeneralInfoStep'));
 const ProductDetailsStep = lazy(() => import('../steps/ProductDetailsStep'));
+const PackageDetailsStep = lazy(() => import('../steps/PackageDetailsStep'));
 const PoliciesStep = lazy(() => import('../steps/PoliciesStep'));
 const ReviewStep = lazy(() => import('../steps/ReviewStep'));
 
@@ -57,10 +60,12 @@ export function getStepsForProductType(productType: 'circuit' | 'package'): Form
     title: 'Información General'
   };
   
-  // Ajustar título del segundo paso dinámicamente
+  // Ajustar componente, validación y título del segundo paso dinámicamente
   steps[1] = {
     ...steps[1],
-    title: productType === 'circuit' ? 'Detalles del Circuito' : 'Detalles del Paquete'
+    component: productType === 'circuit' ? ProductDetailsStep : PackageDetailsStep,
+    title: productType === 'circuit' ? 'Detalles del Circuito' : 'Detalles del Paquete',
+    validation: productType === 'circuit' ? tourDetailsSchema : packageDetailsSchema
   };
   
   return steps;
