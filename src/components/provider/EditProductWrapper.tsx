@@ -174,6 +174,7 @@ export function EditProductWrapper({ product, userId }: EditProductWrapperProps)
       video_url: product.video_url || '',
       seasons: product.seasons || [],
       destination: product.destination || [],
+      departures: product.departures || [],
       origin: product.origin || [],
       itinerary: product.itinerary || [],
       planned_hotels_or_similar: product.planned_hotels_or_similar || [],

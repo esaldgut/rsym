@@ -89,6 +89,22 @@ export function ProductFormProvider({
         console.log('📝 Cargando datos para edición:', parsed);
         
         // Mapear datos del producto existente al formato del form
+        // Convertir departures del formato GraphQL al formato interno del frontend
+        const departures = parsed.departures || [];
+        const mappedDepartures = {
+          regular_departures: departures.filter((d: any) => d.days && d.days.length > 0).map((d: any) => ({
+            origin: d.origin?.[0] || { place: '', placeSub: '', coordinates: undefined },
+            days: d.days || []
+          })),
+          specific_departures: departures.filter((d: any) => d.specific_dates && d.specific_dates.length > 0).map((d: any) => ({
+            origin: d.origin?.[0] || { place: '', placeSub: '', coordinates: undefined },
+            date_ranges: d.specific_dates?.map((date: string) => ({
+              start_date: date,
+              end_date: date
+            })) || []
+          }))
+        };
+
         return {
           productId: parsed.id,
           name: parsed.name || '',
@@ -101,6 +117,7 @@ export function ProductFormProvider({
           seasons: parsed.seasons || [],
           planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
           destination: parsed.destination || [],
+          departures: mappedDepartures,
           origin: parsed.origin || [],
           itinerary: parsed.itinerary || [],
           payment_policy: parsed.payment_policy || null,

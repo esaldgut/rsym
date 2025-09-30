@@ -1,13 +1,19 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { DateRangeInput } from '@/components/ui/DateRangeInput';
 import type { GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput, DateRangeInput as DateRangeType } from '@/lib/graphql/types';
 
+// Tipo interno para mantener la lógica del frontend
+interface InternalDeparturesData {
+  regular_departures: RegularDepartureInput[];
+  specific_departures: SpecificDepartureInput[];
+}
+
 interface GuaranteedDeparturesSelectorProps {
-  departures: GuaranteedDeparturesInput;
-  onChange: (departures: GuaranteedDeparturesInput) => void;
+  departures: InternalDeparturesData;
+  onChange: (departures: InternalDeparturesData) => void;
   error?: string;
 }
 
@@ -23,6 +29,9 @@ const WEEK_DAYS: { value: WeekDay; label: string; short: string }[] = [
   { value: 'SUNDAY', label: 'Domingo', short: 'D' }
 ];
 
+// NOTA: El mapeo a formato GraphQL se realiza en el backend/server actions
+// Este componente mantiene el formato interno para validación y UI
+
 export function GuaranteedDeparturesSelector({
   departures,
   onChange,
@@ -30,71 +39,95 @@ export function GuaranteedDeparturesSelector({
 }: GuaranteedDeparturesSelectorProps) {
   const [activeTab, setActiveTab] = useState<'regular' | 'specific'>('regular');
 
-  // Extraer datos de la nueva estructura
-  const regularDepartures = departures.regular_departures || [];
-  const specificDepartures = departures.specific_departures || [];
+  // Estado interno del componente para el renderizado
+  const [internalDepartures, setInternalDepartures] = useState<InternalDeparturesData>(departures);
+
+  // Extraer datos del estado interno
+  const regularDepartures = internalDepartures.regular_departures || [];
+  const specificDepartures = internalDepartures.specific_departures || [];
+
+  // Función interna para manejar cambios - mantener formato interno
+  const handleInternalChange = useCallback((newInternalData: InternalDeparturesData) => {
+    console.log('[Departures] Cambio interno:', newInternalData);
+
+    // Actualizar el estado interno para el renderizado
+    setInternalDepartures(newInternalData);
+
+    // Enviar formato interno al padre (para validación y almacenamiento)
+    onChange(newInternalData);
+  }, [onChange]);
 
   // Agregar nueva salida regular
   const addRegularDeparture = useCallback(() => {
+    console.log('[Departures] Agregando salida regular');
     const newRegular: RegularDepartureInput = {
       origin: { place: '', placeSub: '', coordinates: undefined },
       days: []
     };
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       regular_departures: [...regularDepartures, newRegular]
-    });
-  }, [departures, regularDepartures, onChange]);
+    };
+    console.log('[Departures] Nuevos datos internos:', newInternalData);
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, regularDepartures, handleInternalChange]);
 
   // Actualizar salida regular específica
   const updateRegularDeparture = useCallback((index: number, updates: Partial<RegularDepartureInput>) => {
     const newRegulars = [...regularDepartures];
     newRegulars[index] = { ...newRegulars[index], ...updates };
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       regular_departures: newRegulars
-    });
-  }, [departures, regularDepartures, onChange]);
+    };
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, regularDepartures, handleInternalChange]);
 
   // Remover salida regular
   const removeRegularDeparture = useCallback((index: number) => {
     const newRegulars = regularDepartures.filter((_, i) => i !== index);
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       regular_departures: newRegulars
-    });
-  }, [departures, regularDepartures, onChange]);
+    };
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, regularDepartures, handleInternalChange]);
 
   // Agregar nueva salida específica
   const addSpecificDeparture = useCallback(() => {
+    console.log('[Departures] Agregando salida específica');
     const newSpecific: SpecificDepartureInput = {
       origin: { place: '', placeSub: '', coordinates: undefined },
       date_ranges: []
     };
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       specific_departures: [...specificDepartures, newSpecific]
-    });
-  }, [departures, specificDepartures, onChange]);
+    };
+    console.log('[Departures] Nuevos datos internos:', newInternalData);
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, specificDepartures, handleInternalChange]);
 
   // Actualizar salida específica
   const updateSpecificDeparture = useCallback((index: number, updates: Partial<SpecificDepartureInput>) => {
     const newSpecifics = [...specificDepartures];
     newSpecifics[index] = { ...newSpecifics[index], ...updates };
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       specific_departures: newSpecifics
-    });
-  }, [departures, specificDepartures, onChange]);
+    };
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, specificDepartures, handleInternalChange]);
 
   // Remover salida específica
   const removeSpecificDeparture = useCallback((index: number) => {
     const newSpecifics = specificDepartures.filter((_, i) => i !== index);
-    onChange({
-      ...departures,
+    const newInternalData = {
+      ...internalDepartures,
       specific_departures: newSpecifics
-    });
-  }, [departures, specificDepartures, onChange]);
+    };
+    handleInternalChange(newInternalData);
+  }, [internalDepartures, specificDepartures, handleInternalChange]);
 
   return (
     <div className="space-y-6">

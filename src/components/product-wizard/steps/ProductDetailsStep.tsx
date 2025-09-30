@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useProductForm } from '@/context/ProductFormContext';
 import { productDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
@@ -10,34 +9,44 @@ import { SeasonConfiguration } from '../components/SeasonConfiguration';
 import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
-import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/lib/graphql/types';
+import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput } from '@/lib/graphql/types';
+
+// Tipo interno para mantener la compatibilidad con el frontend
+interface InternalDeparturesData {
+  regular_departures: RegularDepartureInput[];
+  specific_departures: SpecificDepartureInput[];
+}
 
 interface ProductDetailsFormData {
   destination: LocationInput[];
-  departures: GuaranteedDeparturesInput;
+  departures: InternalDeparturesData;
   itinerary: string;
   seasons: ProductSeasonInput[];
-  planned_hotels_or_similar: string[];
+  planned_hotels_or_similar: string; // Textarea provides string, converted to array on submit
 }
 
 export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   const [activeTab, setActiveTab] = useState('destination');
 
-  const { 
-    register, 
-    handleSubmit, 
-    formState: { errors }, 
-    watch, 
-    setValue 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    watch,
+    setValue,
+    setError,
+    clearErrors
   } = useForm<ProductDetailsFormData>({
-    resolver: zodResolver(productDetailsSchema),
+    // Removido zodResolver - validación manual en onSubmit
     defaultValues: {
       destination: formData.destination || [],
       departures: formData.departures || { regular_departures: [], specific_departures: [] },
       itinerary: formData.itinerary || '',
       seasons: formData.seasons || [],
-      planned_hotels_or_similar: formData.planned_hotels_or_similar || []
+      planned_hotels_or_similar: Array.isArray(formData.planned_hotels_or_similar)
+        ? formData.planned_hotels_or_similar.join('\n')
+        : formData.planned_hotels_or_similar || ''
     }
   });
 
@@ -76,14 +85,59 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
   }, [seasonsWatch]);
 
   useEffect(() => {
-    if (JSON.stringify(hotelsWatch) !== JSON.stringify(formData.planned_hotels_or_similar)) {
-      updateFormData({ planned_hotels_or_similar: hotelsWatch });
+    // Convertir el string del textarea a array para el contexto
+    const hotelsArray = hotelsWatch
+      ? hotelsWatch.split('\n').filter(line => line.trim().length > 0)
+      : [];
+
+    if (JSON.stringify(hotelsArray) !== JSON.stringify(formData.planned_hotels_or_similar)) {
+      updateFormData({ planned_hotels_or_similar: hotelsArray });
     }
   }, [hotelsWatch]);
 
   const onSubmit = (data: ProductDetailsFormData) => {
-    updateFormData(data);
-    onNext();
+    // Limpiar errores previos
+    clearErrors();
+
+    // Convertir planned_hotels_or_similar de string a array si es necesario
+    const processedData = {
+      ...data,
+      planned_hotels_or_similar: Array.isArray(data.planned_hotels_or_similar)
+        ? data.planned_hotels_or_similar
+        : data.planned_hotels_or_similar
+          ? data.planned_hotels_or_similar.split('\n').filter(line => line.trim().length > 0)
+          : []
+    };
+
+    // Validar con el schema de Zod
+    try {
+      productDetailsSchema.parse(processedData);
+      updateFormData(processedData);
+      onNext();
+    } catch (error: any) {
+      // Manejar errores de validación
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          const fieldPath = err.path;
+          const fieldName = fieldPath[0]; // Primer nivel del campo
+
+          // Mapear errores a campos del formulario
+          if (fieldName === 'destination') {
+            console.error('Error en destinos:', err.message);
+          } else if (fieldName === 'departures') {
+            console.error('Error en salidas garantizadas:', err.message);
+          } else if (fieldName === 'itinerary') {
+            setError('itinerary', { message: err.message });
+          } else if (fieldName === 'seasons') {
+            console.error('Error en temporadas:', err.message);
+          } else if (fieldName === 'planned_hotels_or_similar') {
+            setError('planned_hotels_or_similar' as any, { message: err.message });
+          } else {
+            console.warn('Error de validación en campo no manejado:', fieldPath.join('.'), err.message);
+          }
+        });
+      }
+    }
   };
 
   const generateItinerary = async () => {
@@ -228,9 +282,12 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
           {activeTab === 'departures' && (
             <GuaranteedDeparturesSelector
               departures={watch('departures') || { regular_departures: [], specific_departures: [] }}
-              onChange={(departures) => {
-                setValue('departures', departures);
-                updateFormData({ departures });
+              onChange={(internalDepartures) => {
+                console.log('[ProductDetailsStep] Recibido formato interno:', internalDepartures);
+                // Actualizar formulario con formato interno (para validación)
+                setValue('departures', internalDepartures);
+                // Actualizar contexto con formato interno (se mapea a GraphQL al enviar)
+                updateFormData({ departures: internalDepartures });
               }}
               error={errors.departures?.message}
             />

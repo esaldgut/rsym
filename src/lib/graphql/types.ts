@@ -268,10 +268,11 @@ export interface SpecificDeparture {
   date_ranges: DateRange[];
 }
 
-// Tipo principal refactorizado para mapeo correcto origen -> días/fechas
+// Tipo principal refactorizado para mapeo correcto del esquema GraphQL
 export interface GuaranteedDeparturesInput {
-  regular_departures?: RegularDepartureInput[];
-  specific_departures?: SpecificDepartureInput[];
+  specific_dates?: AWSDateTime[];
+  origin?: LocationInput[];
+  days?: WeekDays[];
 }
 
 export interface GuaranteedDepartures {
@@ -445,6 +446,67 @@ export interface PaymentInput {
   reservation_id: string;
   payment_method: string;
   promotions: boolean;
+}
+
+// Payment Policy Types
+export interface PaymentRequirements {
+  deadline_days_to_pay?: number; // Nullable para evitar error GraphQL
+}
+
+export interface PaymentConfig {
+  cash?: {
+    discount?: number;
+    discount_type?: string;
+    deadline_days_to_pay?: number;
+    payment_methods?: string[];
+  };
+  installments?: {
+    down_payment_before?: number;
+    down_payment_type?: string;
+    down_payment_after?: number;
+    installment_intervals?: string;
+    days_before_must_be_settled?: number;
+    deadline_days_to_pay?: number;
+    payment_methods?: string[];
+  };
+}
+
+export interface PaymentOption {
+  type?: string;
+  description?: string;
+  config?: PaymentConfig;
+  requirements?: PaymentRequirements;
+  benefits_or_legal?: {
+    stated?: string;
+  };
+}
+
+export interface PaymentPolicyInput {
+  product_id: string;
+  options: PaymentOption[];
+  general_policies?: {
+    change_policy?: {
+      allows_date_chage?: boolean;
+      deadline_days_to_make_change?: number;
+    };
+  };
+}
+
+export interface PaymentPolicy {
+  id?: string;
+  product_id?: string;
+  provider_id?: string;
+  status?: string;
+  version?: string;
+  created_at?: AWSDateTime;
+  updated_at?: AWSDateTime;
+  options?: PaymentOption[];
+  general_policies?: {
+    change_policy?: {
+      allows_date_chage?: boolean;
+      deadline_days_to_make_change?: number;
+    };
+  };
 }
 
 // Response Types

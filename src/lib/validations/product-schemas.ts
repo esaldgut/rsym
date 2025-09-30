@@ -32,7 +32,7 @@ const productSeasonSchema = z.object({
   start_date: z.string().min(1, 'Fecha de inicio requerida'),
   end_date: z.string().min(1, 'Fecha de fin requerida'),
   allotment: z.number().int().positive('Disponibilidad debe ser mayor a 0'),
-  allotment_remain: z.number().int().nonnegative('Disponibilidad restante no puede ser negativa'),
+  allotment_remain: z.number().int().nonnegative().optional(), // Opcional porque se calcula en el backend
   schedules: z.string().optional(),
   aditional_services: z.string().optional(),
   number_of_nights: z.string().optional(),
