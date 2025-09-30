@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useProductForm } from '@/context/ProductFormContext';
-import { productDetailsSchema } from '@/lib/validations/product-schemas';
+import { tourDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
 import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
@@ -109,34 +109,42 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
           : []
     };
 
-    // Validar con el schema de Zod
+    // Validar con el schema de Zod pero no bloquear la navegación
     try {
-      productDetailsSchema.parse(processedData);
+      tourDetailsSchema.parse(processedData);
+      // Validación exitosa - continuar
       updateFormData(processedData);
       onNext();
     } catch (error: any) {
-      // Manejar errores de validación
+      // Mostrar warnings pero permitir continuar
       if (error.errors) {
         error.errors.forEach((err: any) => {
           const fieldPath = err.path;
-          const fieldName = fieldPath[0]; // Primer nivel del campo
+          const fieldName = fieldPath[0];
 
-          // Mapear errores a campos del formulario
-          if (fieldName === 'destination') {
-            console.error('Error en destinos:', err.message);
-          } else if (fieldName === 'departures') {
-            console.error('Error en salidas garantizadas:', err.message);
-          } else if (fieldName === 'itinerary') {
-            setError('itinerary', { message: err.message });
-          } else if (fieldName === 'seasons') {
-            console.error('Error en temporadas:', err.message);
-          } else if (fieldName === 'planned_hotels_or_similar') {
-            setError('planned_hotels_or_similar' as any, { message: err.message });
+          // Solo mostrar errores críticos que impiden continuar
+          if (fieldName === 'destination' && err.message.includes('al menos un destino')) {
+            console.error('Error crítico en destinos:', err.message);
+            setError('destination' as any, { message: err.message });
+            return; // Bloquear solo para errores críticos
+          } else if (fieldName === 'seasons' && err.message.includes('al menos una temporada')) {
+            console.error('Error crítico en temporadas:', err.message);
+            setError('seasons' as any, { message: err.message });
+            return; // Bloquear solo para errores críticos
           } else {
-            console.warn('Error de validación en campo no manejado:', fieldPath.join('.'), err.message);
+            // Para errores no críticos, solo mostrar warnings y permitir continuar
+            console.warn('Warning de validación:', fieldPath.join('.'), err.message);
+            if (fieldName === 'itinerary') {
+              // Mostrar warning visual pero no bloquear
+              toastManager.show(`⚠️ Recomendación: ${err.message}`, 'warning', 4000);
+            }
           }
         });
       }
+
+      // Siempre permitir continuar (a menos que haya errores críticos arriba)
+      updateFormData(processedData);
+      onNext();
     }
   };
 

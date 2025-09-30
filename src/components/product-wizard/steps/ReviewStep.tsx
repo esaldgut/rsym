@@ -15,9 +15,10 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitSuccess, setSubmitSuccess] = useState(false);
 
-  // Validar si está listo para publicar
+  // Validar si está listo para publicar (informativo, no bloqueante)
   const publicationValidation = validateForPublication(formData, formData.productType);
-  const canPublish = publicationValidation?.isValid ?? false;
+  const canPublish = true; // Siempre permitir publicar, solo mostrar warnings
+  const hasWarnings = !publicationValidation?.isValid;
 
   const handleSubmit = async () => {
     if (!productId) {
@@ -57,6 +58,7 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
           origin: formData.origin,
           destination: formData.destination,
           departures: formData.departures,
+          itinerary: formData.itinerary,
         })
       };
 
@@ -78,6 +80,7 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
           localStorage.removeItem('yaan-current-product-type');
           localStorage.removeItem('yaan-current-product-name');
           localStorage.removeItem('yaan-product-form-data');
+          localStorage.removeItem('yaan-edit-product-data'); // Limpiar datos de edición
           localStorage.removeItem(`yaan-wizard-${formData.productType}`);
         }
         
@@ -342,7 +345,7 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
 
       {/* Estado de Validación y Botones de Acción */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
-        {!canPublish && publicationValidation && (
+        {hasWarnings && publicationValidation && (
           <div className="mb-6">
             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -409,13 +412,14 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
             <button
               type="button"
               onClick={handleSubmit}
-              disabled={!canPublish || isSubmitting}
+              disabled={isSubmitting}
               className={`
                 px-8 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 w-full sm:w-auto
-                ${canPublish 
-                  ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg transform hover:scale-105' 
-                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                ${hasWarnings
+                  ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white hover:shadow-lg transform hover:scale-105'
+                  : 'bg-gradient-to-r from-purple-600 to-pink-600 text-white hover:shadow-lg transform hover:scale-105'
                 }
+                ${isSubmitting ? 'opacity-75 cursor-not-allowed' : ''}
               `}
             >
               {isSubmitting ? (
@@ -431,7 +435,7 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  Publicar {formData.productType === 'circuit' ? 'Circuito' : 'Paquete'}
+                  {hasWarnings ? 'Publicar de Todos Modos' : `Publicar ${formData.productType === 'circuit' ? 'Circuito' : 'Paquete'}`}
                 </>
               )}
             </button>

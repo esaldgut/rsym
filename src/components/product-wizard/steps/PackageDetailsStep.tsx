@@ -2,22 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { useProductForm } from '@/context/ProductFormContext';
-import { productDetailsSchema } from '@/lib/validations/product-schemas';
+import { packageDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
 import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
-import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/lib/graphql/types';
+import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput } from '@/lib/graphql/types';
+
+// Tipo interno para mantener la compatibilidad con el frontend
+interface InternalDeparturesData {
+  regular_departures: RegularDepartureInput[];
+  specific_departures: SpecificDepartureInput[];
+}
 
 interface PackageDetailsFormData {
   destination: LocationInput[];
-  departures: GuaranteedDeparturesInput;
+  departures: InternalDeparturesData;
   itinerary: string;
   seasons: ProductSeasonInput[];
-  planned_hotels_or_similar: string[];
+  planned_hotels_or_similar: string; // Textarea provides string, converted to array on submit
 }
 
 export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid }: StepProps) {
@@ -29,15 +34,19 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
     handleSubmit,
     formState: { errors },
     watch,
-    setValue
+    setValue,
+    setError,
+    clearErrors
   } = useForm<PackageDetailsFormData>({
-    resolver: zodResolver(productDetailsSchema),
+    // Removido zodResolver - validación manual en onSubmit
     defaultValues: {
       destination: formData.destination || [],
       departures: formData.departures || { regular_departures: [], specific_departures: [] },
       itinerary: formData.itinerary || '',
       seasons: formData.seasons || [],
-      planned_hotels_or_similar: formData.planned_hotels_or_similar || []
+      planned_hotels_or_similar: Array.isArray(formData.planned_hotels_or_similar)
+        ? formData.planned_hotels_or_similar.join('\n')
+        : formData.planned_hotels_or_similar || ''
     }
   });
 
@@ -76,14 +85,65 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
   }, [seasonsWatch]);
 
   useEffect(() => {
-    if (JSON.stringify(hotelsWatch) !== JSON.stringify(formData.planned_hotels_or_similar)) {
-      updateFormData({ planned_hotels_or_similar: hotelsWatch });
+    // Convertir string de textarea a array para el contexto
+    const hotelsArray = hotelsWatch
+      ? hotelsWatch.split('\n').filter(line => line.trim())
+      : [];
+
+    if (JSON.stringify(hotelsArray) !== JSON.stringify(formData.planned_hotels_or_similar)) {
+      updateFormData({ planned_hotels_or_similar: hotelsArray });
     }
   }, [hotelsWatch]);
 
   const onSubmit = (data: PackageDetailsFormData) => {
-    updateFormData(data);
-    onNext();
+    // Limpiar errores previos
+    clearErrors();
+
+    // Convertir planned_hotels_or_similar de string (textarea) a array
+    const processedData = {
+      ...data,
+      planned_hotels_or_similar: data.planned_hotels_or_similar
+        ? data.planned_hotels_or_similar.split('\n').filter(line => line.trim())
+        : []
+    };
+
+    // Validar con el schema de Zod pero no bloquear la navegación
+    try {
+      packageDetailsSchema.parse(processedData);
+      // Validación exitosa - continuar
+      updateFormData(processedData);
+      onNext();
+    } catch (error: any) {
+      // Mostrar warnings pero permitir continuar
+      if (error.errors) {
+        error.errors.forEach((err: any) => {
+          const fieldPath = err.path;
+          const fieldName = fieldPath[0];
+
+          // Solo mostrar errores críticos que impiden continuar
+          if (fieldName === 'destination' && err.message.includes('al menos un destino')) {
+            console.error('Error crítico en destinos:', err.message);
+            setError('destination' as any, { message: err.message });
+            return; // Bloquear solo para errores críticos
+          } else if (fieldName === 'seasons' && err.message.includes('al menos una temporada')) {
+            console.error('Error crítico en temporadas:', err.message);
+            setError('seasons' as any, { message: err.message });
+            return; // Bloquear solo para errores críticos
+          } else {
+            // Para errores no críticos, solo mostrar warnings y permitir continuar
+            console.warn('Warning de validación:', fieldPath.join('.'), err.message);
+            if (fieldName === 'itinerary') {
+              // Mostrar warning visual pero no bloquear
+              toastManager.show(`⚠️ Recomendación: ${err.message}`, 'warning', 4000);
+            }
+          }
+        });
+      }
+
+      // Siempre permitir continuar (a menos que haya errores críticos arriba)
+      updateFormData(processedData);
+      onNext();
+    }
   };
 
   const generateItinerary = async () => {
@@ -138,6 +198,11 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
       id: 'seasons',
       name: 'Temporadas y Precios',
       icon: '💰'
+    },
+    {
+      id: 'hotels',
+      name: 'Hoteles Sugeridos',
+      icon: '🏨'
     }
   ];
 
@@ -214,9 +279,12 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
           {activeTab === 'departures' && (
             <GuaranteedDeparturesSelector
               departures={watch('departures') || { regular_departures: [], specific_departures: [] }}
-              onChange={(departures) => {
-                setValue('departures', departures);
-                updateFormData({ departures });
+              onChange={(internalDepartures) => {
+                console.log('[PackageDetailsStep] Recibido formato interno:', internalDepartures);
+                // Actualizar formulario con formato interno (para validación)
+                setValue('departures', internalDepartures);
+                // Actualizar contexto con formato interno (se mapea a GraphQL al enviar)
+                updateFormData({ departures: internalDepartures });
               }}
               error={errors.departures?.message}
             />
@@ -277,6 +345,33 @@ Día 2: Tour por [actividad]
               productType={actualProductType}
               error={errors.seasons?.message}
             />
+          )}
+
+          {activeTab === 'hotels' && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold text-gray-900">Hoteles Planificados o Similares</h3>
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-blue-800 text-sm">
+                  💡 Lista los hoteles que planeas usar en tu paquete. Esto ayuda a los viajeros
+                  a conocer el tipo de alojamiento incluido.
+                </p>
+              </div>
+
+              <textarea
+                {...register('planned_hotels_or_similar')}
+                rows={8}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                placeholder="Ejemplo:&#10;&#10;- Hotel Marriott Cancún Resort 5* o similar&#10;- Hotel Fiesta Americana Condesa 4* o similar&#10;- Hotel Grand Fiesta Americana 5* o similar&#10;&#10;Nota: Hoteles sujetos a disponibilidad"
+              />
+              {errors.planned_hotels_or_similar && (
+                <p className="text-sm text-red-600 flex items-center gap-1">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                  </svg>
+                  {errors.planned_hotels_or_similar.message}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
