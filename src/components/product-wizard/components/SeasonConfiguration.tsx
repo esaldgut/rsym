@@ -419,7 +419,7 @@ export function SeasonConfiguration({
                   </label>
                   <input
                     type="date"
-                    value={season.start_date}
+                    value={season.start_date || ''}
                     onChange={(e) => updateSeason(seasonIndex, 'start_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
@@ -431,7 +431,7 @@ export function SeasonConfiguration({
                   </label>
                   <input
                     type="date"
-                    value={season.end_date}
+                    value={season.end_date || ''}
                     onChange={(e) => updateSeason(seasonIndex, 'end_date', e.target.value)}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                   />
@@ -458,7 +458,7 @@ export function SeasonConfiguration({
                   Horarios y Frecuencias
                 </label>
                 <textarea
-                  value={season.schedules}
+                  value={season.schedules || ''}
                   onChange={(e) => updateSeason(seasonIndex, 'schedules', e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -471,7 +471,7 @@ export function SeasonConfiguration({
                   Servicios Adicionales
                 </label>
                 <textarea
-                  value={season.aditional_services}
+                  value={season.aditional_services || ''}
                   onChange={(e) => updateSeason(seasonIndex, 'aditional_services', e.target.value)}
                   rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -537,7 +537,7 @@ export function SeasonConfiguration({
                         </label>
                         <input
                           type="text"
-                          value={price.room_name}
+                          value={price.room_name || ''}
                           readOnly
                           className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm bg-gray-100 cursor-not-allowed"
                           title="Los tipos de habitación son fijos: Sencilla, Doble o Triple"
@@ -550,7 +550,7 @@ export function SeasonConfiguration({
                         </label>
                         <input
                           type="number"
-                          value={price.price}
+                          value={price.price || ''}
                           onChange={(e) => updatePrice(seasonIndex, priceIndex, 'price', parseFloat(e.target.value) || 0)}
                           className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
                           min="0"
@@ -564,7 +564,7 @@ export function SeasonConfiguration({
                         </label>
                         <input
                           type="number"
-                          value={price.max_adult}
+                          value={price.max_adult || ''}
                           onChange={(e) => updatePrice(seasonIndex, priceIndex, 'max_adult', parseInt(e.target.value) || 1)}
                           className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
                           min="1"
@@ -578,7 +578,7 @@ export function SeasonConfiguration({
                         </label>
                         <input
                           type="number"
-                          value={price.max_minor}
+                          value={price.max_minor || ''}
                           onChange={(e) => updatePrice(seasonIndex, priceIndex, 'max_minor', parseInt(e.target.value) || 0)}
                           className="w-full px-2 py-1.5 border border-gray-300 rounded-md text-sm"
                           min="0"
@@ -608,7 +608,7 @@ export function SeasonConfiguration({
                                 <label className="block text-xs text-gray-600 mb-1">Nombre del Rango</label>
                                 <input
                                   type="text"
-                                  value={child.name}
+                                  value={child.name || ''}
                                   onChange={(e) => updateChildRange(seasonIndex, priceIndex, childIndex, 'name', e.target.value)}
                                   className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
                                   placeholder="Ej: Menor, Bebé"
@@ -618,7 +618,7 @@ export function SeasonConfiguration({
                                 <label className="block text-xs text-gray-600 mb-1">Edad Mínima</label>
                                 <input
                                   type="number"
-                                  value={child.min_minor_age}
+                                  value={child.min_minor_age !== undefined && child.min_minor_age !== null ? child.min_minor_age : ''}
                                   onChange={(e) => updateChildRange(seasonIndex, priceIndex, childIndex, 'min_minor_age', parseInt(e.target.value) || 0)}
                                   className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
                                   placeholder="0"
@@ -630,7 +630,7 @@ export function SeasonConfiguration({
                                 <label className="block text-xs text-gray-600 mb-1">Edad Máxima</label>
                                 <input
                                   type="number"
-                                  value={child.max_minor_age}
+                                  value={child.max_minor_age !== undefined && child.max_minor_age !== null ? child.max_minor_age : ''}
                                   onChange={(e) => updateChildRange(seasonIndex, priceIndex, childIndex, 'max_minor_age', parseInt(e.target.value) || 0)}
                                   className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
                                   placeholder="12"
@@ -643,7 +643,7 @@ export function SeasonConfiguration({
                                   <label className="block text-xs text-gray-600 mb-1">Precio ({seasonCurrencies[seasonIndex] || 'MXN'})</label>
                                   <input
                                     type="number"
-                                    value={child.child_price}
+                                    value={child.child_price || ''}
                                     onChange={(e) => updateChildRange(seasonIndex, priceIndex, childIndex, 'child_price', parseFloat(e.target.value) || 0)}
                                     className="w-full px-2 py-1 border border-gray-300 rounded text-xs"
                                     placeholder="0.00"

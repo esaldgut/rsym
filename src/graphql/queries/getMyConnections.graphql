@@ -1,0 +1,32 @@
+query getMyConnections($limit: Int, $nextToken: String, $status: FriendshipStatus) {
+  getMyConnections(limit: $limit, nextToken: $nextToken, status: $status) {
+    items {
+      createdAt
+      friend {
+        avatar_url
+        bio
+        email
+        name
+        sub
+        user_type
+        username
+      }
+      friendId
+      id
+      initiatedBy
+      updatedAt
+      user {
+        avatar_url
+        bio
+        email
+        name
+        sub
+        user_type
+        username
+      }
+      userId
+    }
+    nextToken
+    total
+  }
+}

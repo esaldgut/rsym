@@ -1,0 +1,12 @@
+mutation generatePaymentLink($input: PaymentInput!) {
+  generatePaymentLink(input: $input) {
+    created_at
+    currency
+    id
+    payment_method
+    payment_url
+    reservation_id
+    status
+    total
+  }
+}

@@ -1,0 +1,886 @@
+schema {
+  query: Query
+  mutation: Mutation
+  subscription: Subscription
+}
+
+interface LikableItem {
+  id: ID!
+  likeCount: Int!
+  viewerHasLiked: Boolean!
+}
+
+type BlockEvent {
+  blockedBy: ID!
+  blockedUser: ID!
+  timestamp: AWSDateTime!
+}
+
+type CashConfig {
+  deadline_days_to_pay: Int!
+  discount: Float!
+  discount_type: DiscountType!
+  payment_methods: [PaymentMethods!]!
+}
+
+type ChangePolicy {
+  allows_date_chage: Boolean!
+  deadline_days_to_make_change: Int!
+}
+
+type ChatLocation @aws_cognito_user_pools {
+  lat: Float!
+  lng: Float!
+}
+
+type ChildRange {
+  child_price: Float!
+  max_minor_age: Int!
+  min_minor_age: Int!
+  name: String!
+}
+
+type CognitoUser {
+  address: String
+  birthdate: String
+  budget: String
+  cognito_sub: String
+  created_at: AWSDateTime
+  custom_attributes: AWSJSON
+  email: String
+  email_verified: Boolean
+  family_name: String
+  gender: String
+  given_name: String
+  have_a_passport: Boolean
+  have_a_visa: Boolean
+  id: ID
+  interest_rate: String
+  last_sync: AWSDateTime
+  locale: String
+  name: String
+  phone_number: String
+  phone_number_verified: Boolean
+  profile_photo_path: String
+  profile_preferences: String
+  provider_is_approved: Boolean
+  providers_policies: Policy
+  req_special_services: Boolean
+  updated_at: AWSDateTime
+  user_type: String
+  username: String
+  zoneinfo: String
+}
+
+type Comment {
+  comment: String
+  created_at: AWSDateTime
+  id: ID
+  likeCount: Int
+  status: String
+  updated_at: AWSDateTime
+  user_data: User
+  viewerHasLiked: Boolean
+}
+
+#  ============================================
+# CHAT TYPES
+# ============================================
+type Conversation @aws_cognito_user_pools {
+  createdAt: AWSDateTime!
+  id: ID!
+  lastMessage: LastMessage
+  participantIds: [ID!]!
+  participantTypes: [ParticipantType!]!
+  participantUsernames: [String!]!
+  unreadCount: UnreadCount!
+  updatedAt: AWSDateTime!
+}
+
+type ConversationConnection @aws_cognito_user_pools {
+  items: [Conversation!]!
+  nextToken: String
+}
+
+type Follow {
+  createdAt: AWSDateTime!
+  follower: User
+  followerId: ID!
+  following: User
+  followingId: ID!
+  id: ID!
+  notificationEnabled: Boolean!
+  status: FollowStatus!
+}
+
+type FollowConnection {
+  items: [Follow!]!
+  nextToken: String
+  total: Int!
+}
+
+type Friendship {
+  createdAt: AWSDateTime!
+  friend: User
+  friendId: ID!
+  id: ID!
+  initiatedBy: ID!
+  status: FriendshipStatus!
+  updatedAt: AWSDateTime!
+  user: User
+  userId: ID!
+}
+
+type FriendshipConnection {
+  items: [Friendship!]!
+  nextToken: String
+  total: Int!
+}
+
+type GeneralPolicies {
+  change_policy: ChangePolicy
+}
+
+type GuaranteedDepartures {
+  days: [WeekDays]
+  id: ID
+  origin: [Location]
+  specific_dates: [AWSDateTime]
+}
+
+type HolderCompanions {
+  birthday: AWSDateTime!
+  country: String!
+  family_name: String!
+  gender: String!
+  name: String!
+  passport_number: Int
+}
+
+type InstallmentsConfig {
+  days_before_must_be_settled: Int!
+  deadline_days_to_pay: Int!
+  down_payment_after: Float!
+  down_payment_before: Float!
+  down_payment_type: DownPaymentType!
+  installment_intervals: InstallmentIntervals!
+  payment_methods: [PaymentMethods!]!
+}
+
+type LastMessage @aws_cognito_user_pools {
+  content: String!
+  senderId: ID!
+  timestamp: AWSDateTime!
+}
+
+type LikePayload {
+  newLikeCount: Int!
+  success: Boolean!
+  viewerHasLiked: Boolean!
+}
+
+type Location {
+  complementary_description: String
+  coordinates: Point
+  id: ID
+  place: String
+  placeSub: String
+}
+
+type Message @aws_cognito_user_pools {
+  content: String!
+  conversationId: ID!
+  createdAt: AWSDateTime!
+  id: ID!
+  metadata: MessageMetadata
+  senderId: ID!
+  senderUsername: String!
+  status: MessageStatus!
+  timestamp: AWSDateTime!
+  type: MessageType!
+}
+
+type MessageConnection @aws_cognito_user_pools {
+  items: [Message!]!
+  nextToken: String
+}
+
+type MessageMetadata @aws_cognito_user_pools {
+  imageUrl: String
+  location: ChatLocation
+}
+
+type Moment {
+  audioUrl: String
+  comments: [ID]
+  created_at: AWSDateTime
+  description: String
+  destination: [Location]
+  experienceLink: String
+  id: ID
+  likeCount: Int
+  likes: User @connection(name : "User")
+  preferences: [String]
+  resourceType: String
+  resourceUrl: [String]
+  saveCount: Int
+  saves: User @connection(name : "User")
+  status: String
+  tags: [String]
+  updated_at: AWSDateTime
+  user_data: User
+  viewerHasLiked: Boolean
+  viewerHasSaved: Boolean
+}
+
+type Mutation {
+  acceptConnectionRequest(requestId: ID!): Friendship!
+  blockUser(targetUserId: ID!): Boolean!
+  cancelConnectionRequest(requestId: ID!): Friendship!
+  createComment(input: CreateCommentInput!): Comment
+  createMoment(input: CreateMomentInput!): Moment
+  createProductOfTypeCircuit(input: CreateProductOfTypeCircuitInput!): Product @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  createProductOfTypePackage(input: CreateProductOfTypePackageInput!): Product @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  createReservation(input: ReservationInput): Reservation
+  deleteProduct(id: ID!): String! @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  followUser(targetUserId: ID!): Follow!
+  generatePaymentLink(input: PaymentInput!): PaymentResponse
+  generatePaymentPlan(input: PaymentPlanInput!): PaymentPlan @aws_cognito_user_pools
+  markMessageAsDelivered(messageId: ID!): Message! @aws_cognito_user_pools
+  markMessagesAsRead(conversationId: ID!): Boolean! @aws_cognito_user_pools
+  rejectConnectionRequest(requestId: ID!): Friendship!
+  removeConnection(connectionId: ID!): Boolean!
+  sendConnectionRequest(targetUserId: ID!): Friendship!
+  #  Chat Mutations
+  sendMessage(input: SendMessageInput!): Message! @aws_cognito_user_pools
+  toggleLike(item_id: ID!, item_type: String!): LikePayload!
+  toggleSave(item_id: ID!, item_type: String!): SavePayload!
+  unblockUser(targetUserId: ID!): Boolean!
+  unfollowUser(targetUserId: ID!): Boolean!
+  updatePaymentPlan(input: UpdatePaymentPlanInput!): PaymentPlan @aws_cognito_user_pools
+  updateProduct(input: UpdateProductInput!): Product @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  updateProvidersPoliciesBySUB(providers_policies: [PolicyInput!]): [Policy]
+  updateReservation(input: UpdateReservationInput): Reservation
+}
+
+type ParticipantType @aws_cognito_user_pools {
+  userId: ID!
+  userType: String!
+}
+
+type Payment {
+  created_at: AWSDateTime!
+  currency: String!
+  id: ID!
+  mit_authorization: String
+  mit_reference: String
+  mit_transaction_id: String
+  payment_date: AWSDateTime
+  payment_method: String!
+  payment_url: String
+  reservation_id: String!
+  status: String!
+  total: Float!
+}
+
+type PaymentConfig {
+  cash: CashConfig
+  installments: InstallmentsConfig
+}
+
+type PaymentOption {
+  benefits_or_legal: [Statements]
+  config: PaymentConfig!
+  description: String!
+  requirements: PaymentRequirements!
+  type: PaymentType!
+}
+
+#   Type para el plan de pagos generado durante la reservación
+type PaymentPlan {
+  #   Política de cambios
+  allows_date_change: Boolean
+  #   Declaraciones legales/beneficios
+  benefits_statements: [String!]
+  cash_discount_amount: Float
+  #   Para pago de contado
+  cash_discount_percentage: Float
+  cash_final_amount: Float
+  cash_payment_deadline: AWSDateTime
+  cash_payment_methods: [String!]
+  change_deadline_days: Int
+  created_at: AWSDateTime!
+  currency: String!
+  id: ID!
+  installment_amount_per_payment: Float
+  installment_available_days: Int
+  installment_down_payment_amount: Float
+  #   Para pago a plazos
+  installment_down_payment_percentage: Float
+  installment_first_payment_deadline: AWSDateTime
+  installment_frequency_days: Int
+  installment_number_of_payments: Float
+  installment_payment_deadline: AWSDateTime
+  installment_payment_methods: [String!]
+  installment_total_amount: Float
+  #   Opción de pago seleccionada
+  payment_type_selected: PaymentType!
+  product_id: ID!
+  reservation_date: AWSDateTime!
+  reservation_id: ID!
+  #   Metadata
+  status: PaymentPlanStatus!
+  total_cost: Float!
+  #   Información base
+  travel_date: AWSDateTime!
+  updated_at: AWSDateTime!
+}
+
+type PaymentPolicy {
+  created_at: AWSDateTime!
+  general_policies: GeneralPolicies!
+  id: ID!
+  options: [PaymentOption!]!
+  product_id: ID!
+  provider_id: ID!
+  status: StatePolicy!
+  updated_at: AWSDateTime!
+  version: Int!
+}
+
+type PaymentRequirements {
+  deadline_days_to_pay: Int!
+}
+
+type PaymentResponse {
+  created_at: AWSDateTime!
+  currency: String!
+  id: ID!
+  payment_method: String!
+  payment_url: String
+  reservation_id: String!
+  status: String!
+  total: Float!
+}
+
+type Point {
+  latitude: Float
+  longitude: Float
+}
+
+type Policy {
+  policy: String
+  title: String
+}
+
+type Product @aws_cognito_user_pools {
+  cover_image_url: String
+  created_at: AWSDateTime
+  departures: [GuaranteedDepartures]
+  description: String
+  destination: [Location]
+  id: ID!
+  image_url: [String]
+  is_foreign: Boolean
+  itinerary: String
+  languages: [String]
+  min_product_price: Float
+  name: String
+  payment_policy: PaymentPolicy
+  planned_hotels_or_similar: [String]
+  preferences: [String]
+  product_type: String
+  provider_id: String
+  published: Boolean
+  seasons: [ProductSeason]
+  status: String
+  updated_at: AWSDateTime
+  user_data: User
+  video_url: [String]
+}
+
+#   Pagination types
+type ProductConnection {
+  items: [Product]
+  nextToken: String
+  total: Int
+}
+
+type ProductPrice {
+  children: [ChildRange!]!
+  currency: String!
+  id: ID!
+  max_adult: Int!
+  max_minor: Int!
+  price: Float!
+  room_name: String!
+}
+
+type ProductSeason {
+  aditional_services: String
+  allotment: Int
+  allotment_remain: Int
+  category: String
+  end_date: AWSDateTime
+  extra_prices: [ProductPrice]
+  id: ID!
+  number_of_nights: String
+  prices: [ProductPrice]
+  schedules: String
+  start_date: AWSDateTime
+}
+
+type Query {
+  getAllActiveAndPublishedProducts(filter: ProductFilterInput, pagination: PaginationInput): ProductConnection @aws_cognito_user_pools
+  getAllActiveMoments: [Moment]
+  getAllActiveProductsByProvider(filter: ProductFilterInput, pagination: PaginationInput): ProductConnection @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  getAllCommentsByMomentID(moment_id: ID!): [Comment]
+  getAllMomentsByFollowing: [Moment]
+  getAllMomentsByMyPreferences: [Moment]
+  getAllMomentsByUser: [Moment]
+  getAllProductsByEmail(pagination: PaginationInput): ProductConnection @aws_auth(cognito_groups : ["providers"]) @aws_cognito_user_pools
+  getBlockedUsers(limit: Int, nextToken: String): FriendshipConnection!
+  getConversationById(conversationId: ID!): Conversation! @aws_cognito_user_pools
+  getConversationMessages(conversationId: ID!, limit: Int, nextToken: String): MessageConnection! @aws_cognito_user_pools
+  getMyConnections(limit: Int, nextToken: String, status: FriendshipStatus): FriendshipConnection!
+  getMyFollowers(limit: Int, nextToken: String): FollowConnection!
+  getMyFollowing(limit: Int, nextToken: String): FollowConnection!
+  getMyStats: UserStats!
+  getOrCreateConversation(participantId: ID!): Conversation! @aws_cognito_user_pools
+  getPaymentPlan(id: ID!): PaymentPlan @aws_cognito_user_pools
+  getPaymentPlanByReservation(reservation_id: ID!): PaymentPlan @aws_cognito_user_pools
+  getPendingConnectionRequests(limit: Int, nextToken: String): FriendshipConnection!
+  getProductById(id: ID!): Product @aws_cognito_user_pools
+  getProductsByType(filter: ProductFilterInput, pagination: PaginationInput, product_type: String!): ProductConnection @aws_cognito_user_pools
+  getProvidersPoliciesBySub: [Policy]
+  getRelationshipStatus(targetUserId: ID!): RelationshipStatus!
+  getReservationsBySUB: [Reservation]
+  getSentConnectionRequests(limit: Int, nextToken: String): FriendshipConnection!
+  getUserByUsername(username: String!): CognitoUser
+  getUserStats(userId: ID!): UserStats!
+  #  Chat Queries
+  listMyConversations(limit: Int, nextToken: String): ConversationConnection! @aws_cognito_user_pools
+}
+
+type RelationshipStatus {
+  canFollow: Boolean!
+  canSendRequest: Boolean!
+  connectionStatus: FriendshipStatus
+  isConnected: Boolean!
+  isFollower: Boolean!
+  isFollowing: Boolean!
+  type: RelationshipType!
+}
+
+type Reservation {
+  adults: Int
+  babys: Int
+  companions: HolderCompanions
+  experience_id: String
+  experience_type: String
+  id: ID!
+  kids: Int
+  payment_method: PaymentMethods
+  price_per_kid: Float
+  price_per_person: Float
+  reservationDate: AWSDateTime
+  status: ReservationStatus
+  total_price: Float
+  type: PaymentType!
+}
+
+type SavePayload {
+  newSaveCount: Int!
+  success: Boolean!
+  viewerHasSaved: Boolean!
+}
+
+type Statements {
+  stated: String
+}
+
+type Subscription {
+  onConnectionRequestAccepted(userId: ID!): Friendship @aws_subscribe(mutations : ["acceptConnectionRequest"])
+  onConnectionRequestReceived(userId: ID!): Friendship @aws_subscribe(mutations : ["sendConnectionRequest"])
+  onMessageDelivered(conversationId: ID!): Message @aws_subscribe(mutations : ["markMessageAsDelivered"])
+  onMessagesRead(conversationId: ID!): Boolean @aws_subscribe(mutations : ["markMessagesAsRead"])
+  onNewFollower(userId: ID!): Follow @aws_subscribe(mutations : ["followUser"])
+  #  Chat Subscriptions
+  onNewMessage(conversationId: ID!): Message @aws_subscribe(mutations : ["sendMessage"])
+  onUserBlocked(userId: ID!): Boolean @aws_subscribe(mutations : ["blockUser"])
+}
+
+type UnreadCount @aws_cognito_user_pools {
+  count: Int!
+  userId: ID!
+}
+
+type User {
+  avatar_url: String
+  bio: String
+  email: String
+  name: String
+  sub: String
+  user_type: String
+  username: String
+}
+
+type UserStats {
+  blockedUsersCount: Int!
+  connectionsCount: Int!
+  followersCount: Int!
+  followingCount: Int!
+  pendingRequestsReceived: Int!
+  pendingRequestsSent: Int!
+  userId: ID!
+}
+
+enum DiscountType {
+  AMOUNT
+  PERCENTAGE
+}
+
+enum DownPaymentType {
+  AMOUNT
+  PERCENTAGE
+}
+
+enum FollowStatus {
+  ACTIVE
+  BLOCKED
+}
+
+enum FriendshipStatus {
+  ACCEPTED
+  BLOCKED
+  CANCELLED
+  PENDING
+  REJECTED
+}
+
+enum InstallmentIntervals {
+  MENSUAL
+  QUINCENAL
+}
+
+enum MessageStatus {
+  delivered
+  read
+  sent
+}
+
+enum MessageType {
+  image
+  location
+  text
+}
+
+enum PaymentMethods {
+  APPLE_PAY
+  BANK_CARD
+  CASH
+  CLICK_TO_PAY
+  CODI
+  GOOGLE_PAY
+}
+
+enum PaymentPlanStatus {
+  ACTIVE
+  CANCELLED
+  SELECTED
+}
+
+enum PaymentType {
+  CONTADO
+  PLAZOS
+}
+
+enum RelationshipType {
+  CONNECTION
+  FOLLOWING
+  MUTUAL
+  NONE
+}
+
+enum ReservationStatus {
+  AWAITING_MANUAL_PAYMENT
+  CANCELED
+  FINALIZED
+  IN_PROGRESS
+  MIT_PAYMENT_PENDING
+  PROCESSED
+}
+
+enum StatePolicy {
+  ACTIVA
+  ARCHIVADA
+  INACTIVA
+}
+
+enum WeekDays {
+  FRIDAY
+  MONDAY
+  SATURDAY
+  SUNDAY
+  THURSDAY
+  TUESDAY
+  WEDNESDAY
+}
+
+input CashConfigInput {
+  deadline_days_to_pay: Int!
+  discount: Float!
+  discount_type: DiscountType!
+  payment_methods: [PaymentMethods!]!
+}
+
+input ChangePolicyInput {
+  allows_date_chage: Boolean!
+  deadline_days_to_make_change: Int!
+}
+
+input ChatLocationInput {
+  lat: Float!
+  lng: Float!
+}
+
+input ChildRangeInput {
+  child_price: Float!
+  max_minor_age: Int!
+  min_minor_age: Int!
+  name: String!
+}
+
+input CommentMomentInput {
+  commentsCommentID: [ID]
+}
+
+input CreateCommentInput {
+  comment: String
+  moment_id: String
+}
+
+input CreateMomentInput {
+  audioUrl: String
+  description: String
+  destination: [LocationInput]
+  experienceLink: String
+  preferences: [String]
+  resourceType: String
+  resourceUrl: [String]
+  tags: [String]
+}
+
+input CreateProductOfTypeCircuitInput {
+  name: String!
+}
+
+input CreateProductOfTypePackageInput {
+  name: String!
+}
+
+input GeneralPoliciesInput {
+  change_policy: ChangePolicyInput
+}
+
+input GuaranteedDeparturesInput {
+  days: [WeekDays]
+  origin: [LocationInput]
+  specific_dates: [AWSDateTime]
+}
+
+input HolderCompanionsInput {
+  birthday: AWSDateTime!
+  country: String!
+  family_name: String!
+  gender: String!
+  name: String!
+  passport_number: Int
+}
+
+input InstallmentsConfigInput {
+  days_before_must_be_settled: Int!
+  deadline_days_to_pay: Int!
+  down_payment_after: Float!
+  down_payment_before: Float!
+  down_payment_type: DownPaymentType!
+  installment_intervals: InstallmentIntervals!
+  payment_methods: [PaymentMethods!]!
+}
+
+input LikeMomentInput {
+  likesUserId: [ID]
+}
+
+input LocationInput {
+  complementary_description: String
+  coordinates: PointInput
+  place: String
+  placeSub: String
+}
+
+input MessageMetadataInput {
+  imageUrl: String
+  location: ChatLocationInput
+}
+
+input PaginationInput {
+  limit: Int
+  nextToken: String
+}
+
+input PaymentConfigInput {
+  cash: CashConfigInput
+  installments: InstallmentsConfigInput
+}
+
+input PaymentInput {
+  payment_method: String!
+  promotions: Boolean!
+  reservation_id: String!
+}
+
+input PaymentOptionInput {
+  benefits_or_legal: [StatementsInput]
+  config: PaymentConfigInput!
+  description: String!
+  requirements: PaymentRequirementsInput!
+  type: PaymentType!
+}
+
+#   Input para crear plan de pagos
+input PaymentPlanInput {
+  currency: String!
+  payment_type_selected: PaymentType!
+  product_id: ID!
+  total_cost: Float!
+  travel_date: AWSDateTime!
+}
+
+input PaymentPolicyInput {
+  general_policies: GeneralPoliciesInput
+  options: [PaymentOptionInput]
+}
+
+input PaymentRequirementsInput {
+  deadline_days_to_pay: Int!
+}
+
+input PointInput {
+  latitude: Float
+  longitude: Float
+}
+
+input PolicyInput {
+  policy: String!
+  title: String!
+}
+
+input ProductFilterInput {
+  product_type: String
+  provider_id: String
+  published: Boolean
+  status: String
+}
+
+input ProductPriceInput {
+  children: [ChildRangeInput!]!
+  currency: String!
+  max_adult: Int!
+  max_minor: Int!
+  price: Float!
+  room_name: String!
+}
+
+input ProductSeasonInput {
+  aditional_services: String
+  allotment: Int
+  allotment_remain: Int
+  category: String
+  end_date: AWSDateTime
+  extra_prices: [ProductPriceInput]
+  number_of_nights: String
+  prices: [ProductPriceInput]
+  schedules: String
+  start_date: AWSDateTime
+}
+
+input ReservationInput {
+  adults: Int!
+  babys: Int!
+  collection_type: String!
+  companions: HolderCompanionsInput
+  experience_id: String!
+  kids: Int!
+  payment_method: PaymentMethods
+  price_per_kid: Float!
+  price_per_person: Float!
+  reservationDate: AWSDateTime
+  status: ReservationStatus
+  total_price: Float!
+  type: PaymentType!
+}
+
+input SaveMomentInput {
+  savesUserId: [ID]
+}
+
+#  ============================================
+# CHAT INPUTS
+# ============================================
+input SendMessageInput {
+  content: String!
+  metadata: MessageMetadataInput
+  recipientId: ID!
+  type: MessageType
+}
+
+input StatementsInput {
+  stated: String
+}
+
+#   Input para actualizar plan de pagos
+input UpdatePaymentPlanInput {
+  id: ID!
+  payment_type_selected: PaymentType
+  status: PaymentPlanStatus
+}
+
+input UpdateProductInput {
+  cover_image_url: String
+  departures: [GuaranteedDeparturesInput]
+  description: String
+  destination: [LocationInput]
+  id: ID!
+  image_url: [String]
+  itinerary: String
+  languages: [String]
+  name: String
+  payment_policy: PaymentPolicyInput
+  planned_hotels_or_similar: [String]
+  preferences: [String]
+  published: Boolean
+  seasons: [ProductSeasonInput]
+  video_url: [String]
+}
+
+input UpdateReservationInput {
+  adults: Int!
+  babys: Int!
+  companions: HolderCompanionsInput
+  kids: Int!
+  payment_method: PaymentMethods
+  reservationDate: AWSDateTime!
+  type: PaymentType!
+}
+
+input UserInput {
+  bio: String
+  created_at: AWSDateTime
+  email: String
+  id: ID
+  name: String
+  profile_picture: String
+  sub: String
+  username: String
+}

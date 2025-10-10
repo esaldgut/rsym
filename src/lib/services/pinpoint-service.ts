@@ -4,15 +4,27 @@
  */
 
 import { Amplify } from 'aws-amplify';
-import { 
+// Analytics para eventos y tracking
+import {
   record as pinpointRecord,
-  recordEvent,
-  flushEvents,
-  initializePushNotifications,
-  identifyUser,
-  updateEndpoint
+  flushEvents
+} from 'aws-amplify/analytics';
+// In-App Messaging para notificaciones en la app
+import {
+  initializeInAppMessaging,
+  identifyUser as identifyUserInApp,
+  syncMessages,
+  clearMessages
 } from 'aws-amplify/in-app-messaging';
-import { PushNotification } from '@aws-amplify/pushnotification';
+// Push Notifications para notificaciones push
+import {
+  initializePushNotifications,
+  onTokenReceived,
+  onNotificationReceivedInForeground,
+  onNotificationReceivedInBackground,
+  requestPermissions,
+  identifyUser as identifyUserPush
+} from 'aws-amplify/push-notifications';
 import type { ToastType } from '@/components/ui/Toast';
 
 /**
@@ -113,18 +125,24 @@ class PinpointService {
         }
       });
       
+      // Inicializar In-App Messaging
+      initializeInAppMessaging();
+
       // Identificar usuario si está autenticado
       if (userId) {
         await this.identifyUser(userId);
       }
-      
+
       // Inicializar push notifications si está soportado
       if (this.isPushNotificationSupported()) {
         await this.initializePushNotifications();
       }
-      
+
+      // Sync messages para in-app messaging
+      await syncMessages();
+
       this.initialized = true;
-      console.log('✅ Amazon Pinpoint initialized successfully');
+      console.log('✅ Amazon Pinpoint initialized successfully (In-App Messaging + Push Notifications + Analytics)');
       
       // Procesar eventos encolados
       await this.processQueuedEvents();
@@ -141,18 +159,27 @@ class PinpointService {
   async identifyUser(userId: string, attributes?: Record<string, any>) {
     try {
       this.userId = userId;
-      
-      await identifyUser({
+
+      // Identify user for in-app messaging
+      await identifyUserInApp({
         userId,
         userProfile: {
           ...attributes,
           environment: this.config?.environment
         }
       });
-      
-      // Actualizar endpoint con información del dispositivo
-      await this.updateEndpointInfo();
-      
+
+      // Identify user for push notifications (si están habilitadas)
+      if (this.isPushNotificationSupported()) {
+        await identifyUserPush({
+          userId,
+          userProfile: {
+            ...attributes,
+            environment: this.config?.environment
+          }
+        });
+      }
+
     } catch (error) {
       console.error('Error identifying user in Pinpoint:', error);
     }
@@ -160,26 +187,15 @@ class PinpointService {
   
   /**
    * Actualiza información del endpoint
+   * NOTA: En Amplify v6, el endpoint se actualiza automáticamente al identificar al usuario
    */
   private async updateEndpointInfo() {
+    // En Amplify Gen 2 v6, no hay updateEndpoint() standalone
+    // El endpoint se actualiza automáticamente con identifyUser()
     try {
       const deviceInfo = this.getDeviceInfo();
-      
-      await updateEndpoint({
-        address: this.userId || 'anonymous',
-        channelType: 'IN_APP',
-        optOut: 'NONE',
-        attributes: {
-          browser: deviceInfo.browser,
-          platform: deviceInfo.platform,
-          language: deviceInfo.language,
-          timezone: deviceInfo.timezone
-        },
-        metrics: {
-          screenWidth: deviceInfo.screenWidth,
-          screenHeight: deviceInfo.screenHeight
-        }
-      });
+      console.log('📱 Device info:', deviceInfo);
+      // El dispositivo info se puede enviar como atributos en identifyUser()
     } catch (error) {
       console.error('Error updating endpoint:', error);
     }
@@ -313,38 +329,43 @@ class PinpointService {
   private async initializePushNotifications() {
     try {
       // Solicitar permisos
-      const permission = await Notification.requestPermission();
-      
-      if (permission === 'granted') {
+      const permissions = await requestPermissions();
+
+      if (permissions) {
         await initializePushNotifications();
-        
-        // Registrar token de dispositivo
-        PushNotification.onRegister((token) => {
-          console.log('Push notification token:', token);
+
+        // Registrar listener para token de dispositivo
+        onTokenReceived((token) => {
+          console.log('✅ Push notification token received:', token);
           this.updatePushToken(token);
         });
-        
-        // Manejar notificaciones recibidas
-        PushNotification.onNotification((notification) => {
-          console.log('Push notification received:', notification);
+
+        // Manejar notificaciones en primer plano
+        onNotificationReceivedInForeground((notification) => {
+          console.log('📨 Push notification received (foreground):', notification);
+          this.handlePushNotification(notification);
+        });
+
+        // Manejar notificaciones en segundo plano
+        onNotificationReceivedInBackground((notification) => {
+          console.log('📨 Push notification received (background):', notification);
           this.handlePushNotification(notification);
         });
       }
     } catch (error) {
-      console.error('Error initializing push notifications:', error);
+      console.error('❌ Error initializing push notifications:', error);
     }
   }
   
   /**
    * Actualiza el token de push
+   * NOTA: En Amplify v6, el token se registra automáticamente
    */
   private async updatePushToken(token: string) {
     try {
-      await updateEndpoint({
-        address: token,
-        channelType: 'GCM', // o 'APNS' para iOS
-        optOut: 'NONE'
-      });
+      console.log('📱 Push token registered:', token.substring(0, 20) + '...');
+      // En Amplify Gen 2 v6, el token se registra automáticamente
+      // cuando se llama a initializePushNotifications() y onTokenReceived()
     } catch (error) {
       console.error('Error updating push token:', error);
     }

@@ -1,5 +1,5 @@
 import { getUrl, uploadData, remove } from 'aws-amplify/storage';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
 
 /**
  * Utilidades para manejo de archivos usando AWS Amplify Storage
@@ -32,11 +32,34 @@ export async function getSignedImageUrl(
       return path;
     }
 
+    // CRÍTICO: Para accessLevel 'protected' o 'private', verificar sesión válida primero
+    const accessLevel = options.accessLevel || 'protected';
+    if (accessLevel === 'protected' || accessLevel === 'private') {
+      try {
+        // Verificar que tenemos una sesión válida con identity ID
+        const session = await fetchAuthSession();
+
+        if (!session.identityId) {
+          console.warn('⚠️ No hay identity ID, intentando refresh de sesión...');
+          // Intentar refresh forzado una sola vez
+          const refreshedSession = await fetchAuthSession({ forceRefresh: true });
+
+          if (!refreshedSession.identityId) {
+            console.error('❌ No se pudo obtener identity ID después del refresh');
+            return null;
+          }
+        }
+      } catch (authError) {
+        console.error('❌ Error verificando sesión para Storage:', authError);
+        return null;
+      }
+    }
+
     // Obtener URL firmada usando Amplify Storage
     const result = await getUrl({
       path: path,
       options: {
-        accessLevel: options.accessLevel || 'protected',
+        accessLevel,
         expiresIn: options.expiresIn || 3600, // 1 hora por defecto
         validateObjectExistence: options.validateObjectExistence ?? false // No validar para evitar errores
       }

@@ -366,23 +366,24 @@ export async function createPackageAction(
     if (sanitizedInput.video_url && sanitizedInput.video_url.length > 0) graphqlInput.video_url = sanitizedInput.video_url;
     if (sanitizedInput.extraPrices && sanitizedInput.extraPrices.length > 0) graphqlInput.extraPrices = sanitizedInput.extraPrices;
 
-    // 9. Ejecutar GraphQL mutation
-    console.log('🔄 [CreatePackage] Ejecutando mutación GraphQL...');
+    // 9. Ejecutar GraphQL mutation con idToken (CRÍTICO para validación de permisos en AppSync)
+    console.log('🔄 [CreatePackage] Ejecutando mutación GraphQL con idToken...');
     console.log('📦 [CreatePackage] Input a enviar:', JSON.stringify(graphqlInput, null, 2));
-    
-    // Importar cliente GraphQL server
-    const { executeGraphQLOperation } = await import('@/lib/graphql/server-client');
-    
-    const result = await executeGraphQLOperation({
+
+    // Importar cliente GraphQL con idToken (SIGUIENDO EL PATRÓN DE product-creation-actions.ts)
+    const { getGraphQLClientWithIdToken } = await import('./amplify-graphql-client');
+    const client = await getGraphQLClientWithIdToken();
+
+    const result = await client.graphql({
       query: createPackage,
       variables: { input: graphqlInput }
     });
 
-    if (!result.success || !result.data?.createPackage) {
-      console.log('❌ [CreatePackage] Error en GraphQL:', result.error);
+    if (result.errors || !result.data?.createPackage) {
+      console.log('❌ [CreatePackage] Error en GraphQL:', result.errors);
       return {
         success: false,
-        error: result.error || 'Error al crear el paquete en la base de datos'
+        error: result.errors?.[0]?.message || 'Error al crear el paquete en la base de datos'
       };
     }
 
@@ -454,22 +455,23 @@ export async function getProviderPackagesAction(): Promise<PackageListResponse> 
       userType: user.userType
     });
 
-    // 5. Ejecutar query GraphQL
-    const { executeGraphQLOperation } = await import('@/lib/graphql/server-client');
-    
+    // 5. Ejecutar query GraphQL con idToken (CRÍTICO para validación de permisos en AppSync)
+    const { getGraphQLClientWithIdToken } = await import('./amplify-graphql-client');
+    const client = await getGraphQLClientWithIdToken();
+
     const providerId = user.sub || user.userId;
-    console.log('📝 [GetProviderPackages] Using provider_id:', providerId);
-    
-    const result = await executeGraphQLOperation({
+    console.log('📝 [GetProviderPackages] Using provider_id con idToken:', providerId);
+
+    const result = await client.graphql({
       query: getAllActivePackagesByProvider,
       variables: { provider_id: providerId }
     });
 
-    if (!result.success) {
-      console.log('❌ [GetProviderPackages] Error en GraphQL:', result.error);
+    if (result.errors) {
+      console.log('❌ [GetProviderPackages] Error en GraphQL:', result.errors);
       return {
         success: false,
-        error: result.error || 'Error al obtener los paquetes'
+        error: result.errors?.[0]?.message || 'Error al obtener los paquetes'
       };
     }
 

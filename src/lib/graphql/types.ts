@@ -1,7 +1,32 @@
 /**
- * Tipos TypeScript generados desde el esquema GraphQL de AppSync
+ * Tipos TypeScript actualizados desde el backend GraphQL real
+ * Importados desde /Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql.ts
  * Mantiene compatibilidad con AWS Amplify v6
  */
+
+// Re-export backend types for consistency
+export type {
+  Product,
+  ProductConnection,
+  ProductFilterInput,
+  ProductSeason,
+  ProductSeasonInput,
+  ProductPrice,
+  ProductPriceInput,
+  Location,
+  LocationInput,
+  Point,
+  PointInput,
+  GuaranteedDepartures,
+  GuaranteedDeparturesInput,
+  PaymentPolicy,
+  PaymentPolicyInput,
+  User,
+  PaginationInput,
+  CreateProductOfTypeCircuitInput,
+  CreateProductOfTypePackageInput,
+  UpdateProductInput
+} from '/Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql';
 
 // Tipos escalares de AWS
 export type AWSDateTime = string;
@@ -521,6 +546,16 @@ export interface SavePayload {
   newSaveCount: number;
   viewerHasSaved: boolean;
 }
+
+// Product Query Response Types
+export interface ProductQueryResponse {
+  items: Product[];
+  nextToken?: string;
+  total?: number;
+}
+
+// Product interface is now imported from backend
+// Backend Product includes user_data which was missing in my implementation
 
 export interface PaymentResponse {
   id: string;

@@ -1,0 +1,21 @@
+query getConversationMessages($conversationId: ID!, $limit: Int, $nextToken: String) {
+  getConversationMessages(conversationId: $conversationId, limit: $limit, nextToken: $nextToken) {
+    items {
+      content
+      conversationId
+      createdAt
+      id
+      metadata {
+        imageUrl
+        location {
+          lat
+          lng
+        }
+      }
+      senderId
+      senderUsername
+      timestamp
+    }
+    nextToken
+  }
+}

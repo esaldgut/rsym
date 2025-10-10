@@ -1,5 +1,5 @@
 import ProfileSettingsClient from './profile-client';
-import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
+import { UnifiedAuthSystem } from '@/lib/auth/unified-auth-system';
 import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
@@ -9,11 +9,13 @@ import { cognitoDateToHTML } from '@/utils/date-format-helpers';
 
 /**
  * Server Component que obtiene los datos del usuario antes de renderizar
- * Implementa las mejores prácticas de Next.js App Router con datos server-side
+ * Implementa las mejores prácticas de Next.js 15 App Router con datos server-side
+ * Usa UnifiedAuthSystem para protección de rutas
  */
 export default async function ProfileSettingsPage() {
-  // Proteger ruta con autenticación básica usando el patrón SSR
-  await RouteProtectionWrapper.protectProfile();
+  // Proteger ruta con autenticación usando UnifiedAuthSystem
+  // Solo requiere autenticación básica ya que cualquier usuario puede editar su perfil
+  const authResult = await UnifiedAuthSystem.requireAuthentication('/settings/profile');
 
   // Obtener atributos del usuario desde el servidor con manejo seguro
   const userAttributes = await runWithAmplifyServerContext({
@@ -44,12 +46,16 @@ export default async function ProfileSettingsPage() {
   }
 
   // Preparar los datos para el cliente
+  // Usar el userType del authResult que ya fue validado por UnifiedAuthSystem
   const initialData = {
-    userType: userAttributes['custom:user_type'] as 'traveler' | 'influencer' | 'provider' | undefined,
+    userType: authResult.user?.userType || userAttributes['custom:user_type'] as 'traveler' | 'influencer' | 'provider' | undefined,
+    userId: authResult.user?.id || '',
+    email: authResult.user?.email || userAttributes.email || '',
+    username: authResult.user?.username || '',
+    isProviderApproved: authResult.permissions?.isApproved || false,
     phone_number: userAttributes.phone_number || '',
     birthdate: cognitoDateToHTML(userAttributes.birthdate), // Convertir DD/MM/YYYY a YYYY-MM-DD para input[type="date"]
     preferred_username: userAttributes.preferred_username || '',
-    email: userAttributes.email || '',
     given_name: userAttributes.given_name || '',
     family_name: userAttributes.family_name || '',
     'custom:details': userAttributes['custom:details'] || '',
@@ -76,6 +82,7 @@ export default async function ProfileSettingsPage() {
   };
 
   // Renderizar cliente con datos sanitizados
-  // No necesitamos AuthGuard porque RouteProtectionWrapper ya validó la sesión
+  // UnifiedAuthSystem ya validó la sesión y permisos
+  // Los datos vienen del servidor, evitando llamadas duplicadas al cliente
   return <ProfileSettingsClient initialAttributes={initialData} />;
 }

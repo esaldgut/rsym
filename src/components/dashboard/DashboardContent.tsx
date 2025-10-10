@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import {
-  useMarketplaceFeed,
-  useActiveCircuits,
-  useActivePackages,
+  useMarketplaceProducts,
+  useProductsByType,
   useActiveMoments,
   useCreateMoment,
   useToggleLike
@@ -33,23 +32,23 @@ export function DashboardContent({ userType }: DashboardContentProps) {
   const [providerPackagesError, setProviderPackagesError] = useState<string | null>(null);
   const isProvider = userType === 'provider';
 
-  // Queries optimizadas siguiendo patrones de aws-samples
-  const { 
-    data: marketplaceData = [], 
+  // Queries optimizadas usando Product-based approach
+  const {
+    data: marketplaceData = [],
     isLoading: isLoadingMarketplace,
     error: marketplaceError,
     refetch: refetchMarketplace
-  } = useMarketplaceFeed();
+  } = useMarketplaceProducts();
 
-  const { 
-    data: circuitsData = [], 
+  const {
+    data: circuitsData = [],
     isLoading: isLoadingCircuits
-  } = useActiveCircuits();
+  } = useProductsByType('circuit');
 
-  const { 
-    data: packagesData = [], 
+  const {
+    data: packagesData = [],
     isLoading: isLoadingPackages
-  } = useActivePackages();
+  } = useProductsByType('package');
 
   const { 
     data: momentsData = [], 
@@ -145,20 +144,24 @@ export function DashboardContent({ userType }: DashboardContentProps) {
                   <p className="text-gray-600 text-sm mb-2 line-clamp-2">{item.description}</p>
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-blue-600 font-bold">
-                      ${item.product_pricing?.toFixed(2) || 'N/A'}
+                      ${item.min_product_price?.toFixed(2) || 'N/A'}
                     </span>
-                    <LocationDescription locations={item.location} className="text-sm text-gray-600" />
+                    {item.destination && item.destination.length > 0 && (
+                      <span className="text-sm text-gray-600">
+                        📍 {item.destination[0].place}
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center justify-between text-sm text-gray-500">
                     <div className="flex items-center gap-2">
-                      <span>@{item.username}</span>
+                      <span>@{item.user_data?.username || 'Unknown'}</span>
                       <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded text-xs font-medium">
-                        Proveedor
+                        {item.product_type === 'circuit' ? 'Circuito' : 'Paquete'}
                       </span>
                     </div>
-                    {item.followerNumber && (
-                      <span>{item.followerNumber} seguidores</span>
-                    )}
+                    <span className="text-xs text-gray-400">
+                      {item.user_data?.name || 'Proveedor'}
+                    </span>
                   </div>
                   {item.preferences && item.preferences.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
@@ -205,8 +208,14 @@ export function DashboardContent({ userType }: DashboardContentProps) {
                       ))}
                     </div>
                     <div className="text-sm text-gray-500">
-                      <span>Inicio: {circuit.startDate ? new Date(circuit.startDate).toLocaleDateString('es-ES') : 'N/A'}</span>
-                      <span className="ml-4">Fin: {circuit.endDate ? new Date(circuit.endDate).toLocaleDateString('es-ES') : 'N/A'}</span>
+                      {circuit.seasons && circuit.seasons.length > 0 && circuit.seasons[0].start_date && (
+                        <>
+                          <span>Inicio: {new Date(circuit.seasons[0].start_date).toLocaleDateString('es-ES')}</span>
+                          {circuit.seasons[0].end_date && (
+                            <span className="ml-4">Fin: {new Date(circuit.seasons[0].end_date).toLocaleDateString('es-ES')}</span>
+                          )}
+                        </>
+                      )}
                     </div>
                   </div>
                   {circuit.cover_image_url && (
@@ -253,17 +262,21 @@ export function DashboardContent({ userType }: DashboardContentProps) {
                   <div className="grid grid-cols-2 gap-4 text-sm mb-3">
                     <div>
                       <span className="text-gray-500">Noches:</span>
-                      <span className="ml-1 font-medium">{pkg.numberOfNights || 'N/A'}</span>
+                      <span className="ml-1 font-medium">
+                        {pkg.seasons && pkg.seasons.length > 0 && pkg.seasons[0].number_of_nights
+                          ? pkg.seasons[0].number_of_nights
+                          : 'N/A'}
+                      </span>
                     </div>
                     <div>
-                      <span className="text-gray-500">Capacidad:</span>
-                      <span className="ml-1 font-medium">{pkg.capacity || 'N/A'}</span>
+                      <span className="text-gray-500">Precio:</span>
+                      <span className="ml-1 font-medium">${pkg.min_product_price?.toFixed(2) || 'N/A'}</span>
                     </div>
                   </div>
-                  {pkg.prices && pkg.prices.length > 0 && (
+                  {pkg.min_product_price && (
                     <div className="mb-3">
                       <span className="text-green-600 font-bold text-lg">
-                        ${pkg.prices[0].price?.toFixed(2)} {pkg.prices[0].currency}
+                        ${pkg.min_product_price.toFixed(2)} MXN
                       </span>
                     </div>
                   )}

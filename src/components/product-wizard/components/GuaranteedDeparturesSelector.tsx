@@ -142,6 +142,7 @@ export function GuaranteedDeparturesSelector({
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8" aria-label="Tabs">
           <button
+            type="button"
             onClick={() => setActiveTab('regular')}
             className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
               activeTab === 'regular'
@@ -153,6 +154,7 @@ export function GuaranteedDeparturesSelector({
             Salidas Regulares ({regularDepartures.length})
           </button>
           <button
+            type="button"
             onClick={() => setActiveTab('specific')}
             className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors ${
               activeTab === 'specific'

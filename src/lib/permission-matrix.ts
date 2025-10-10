@@ -119,29 +119,27 @@ export const PERMISSIONS: Record<UserType, Permission[]> = {
  */
 export const GRAPHQL_OPERATIONS: Record<UserType, string[]> = {
   consumer: [
-    'getAllMarketplaceFeed',
-    'getAllActiveCircuits',
-    'getAllActivePackages', 
+    'getAllActiveAndPublishedProducts',
+    'getProductById',
     'getAllActiveMoments',
     'createMoment',
     'toggleLike',
     'updateProfile'
   ],
-  
+
   provider: [
-    'getAllMarketplaceFeed',
-    'getAllActiveCircuits',
-    'getAllActivePackages',
+    'getAllActiveAndPublishedProducts',
+    'getProductById',
+    'getAllProductsByEmail',
+    'getAllActiveProductsByProvider',
+    'getProductsByType',
     'getAllActiveMoments',
     'createMoment',
-    'createCircuit',
-    'createPackage',
-    'updateCircuit',
-    'updatePackage',
+    'createProductOfTypeCircuit',
+    'createProductOfTypePackage',
+    'updateProduct',
     'toggleLike',
-    'updateProfile',
-    'getMyCircuits',
-    'getMyPackages'
+    'updateProfile'
   ]
 };
 

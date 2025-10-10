@@ -1,0 +1,3 @@
+subscription onUserBlocked($userId: ID!) {
+  onUserBlocked(userId: $userId)
+}

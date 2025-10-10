@@ -1,0 +1,28 @@
+mutation sendConnectionRequest($targetUserId: ID!) {
+  sendConnectionRequest(targetUserId: $targetUserId) {
+    createdAt
+    friend {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    friendId
+    id
+    initiatedBy
+    updatedAt
+    user {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    userId
+  }
+}

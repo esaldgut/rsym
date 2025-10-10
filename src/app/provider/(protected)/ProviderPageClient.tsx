@@ -1,8 +1,8 @@
 'use client';
 
-import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
-import { AuthSecurityWrapper } from '../../components/auth/AuthSecurityWrapper';
-import { HeroSection } from '../../components/ui/HeroSection';
+import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { AuthSecurityWrapper } from '@/components/auth/AuthSecurityWrapper';
+import { HeroSection } from '@/components/ui/HeroSection';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';

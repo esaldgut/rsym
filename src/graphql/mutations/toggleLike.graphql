@@ -1,0 +1,7 @@
+mutation toggleLike($item_id: ID!, $item_type: String!) {
+  toggleLike(item_id: $item_id, item_type: $item_type) {
+    newLikeCount
+    success
+    viewerHasLiked
+  }
+}

@@ -98,7 +98,7 @@ export function LocationSearch({
     // Nueva búsqueda con debounce - 900ms para dar más tiempo al usuario
     debounceTimerRef.current = setTimeout(() => {
       performSearch(value, false);
-    }, 900);
+    }, 1800);
   }, [performSearch]);
 
   // Seleccionar una ubicación

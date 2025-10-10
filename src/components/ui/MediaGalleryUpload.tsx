@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
-import { toastManager } from '@/components/ui/Toast';
+import { toastManager } from '@/components/ui/ToastWithPinpoint';
 
 interface UploadedFile {
   id: string;

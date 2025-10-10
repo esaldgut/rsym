@@ -42,6 +42,17 @@ export async function executeQuery<T = any>(
     return result.data;
   } catch (error) {
     console.error('Error executing query:', error);
+
+    // Log más detallado para debugging
+    if (error instanceof Error) {
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+    }
+
+    // Log del query que falló
+    console.error('Failed query:', query);
+    console.error('Variables:', variables);
+
     return null;
   }
 }

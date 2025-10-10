@@ -1,0 +1,11 @@
+query getUserStats($userId: ID!) {
+  getUserStats(userId: $userId) {
+    blockedUsersCount
+    connectionsCount
+    followersCount
+    followingCount
+    pendingRequestsReceived
+    pendingRequestsSent
+    userId
+  }
+}

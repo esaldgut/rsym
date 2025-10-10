@@ -1,0 +1,133 @@
+query getAllActiveAndPublishedProducts($filter: ProductFilterInput, $pagination: PaginationInput) {
+  getAllActiveAndPublishedProducts(filter: $filter, pagination: $pagination) {
+    items {
+      cover_image_url
+      created_at
+      departures {
+        id
+        origin {
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
+          id
+          place
+          placeSub
+        }
+        specific_dates
+      }
+      description
+      destination {
+        complementary_description
+        coordinates {
+          latitude
+          longitude
+        }
+        id
+        place
+        placeSub
+      }
+      id
+      image_url
+      is_foreign
+      itinerary
+      languages
+      min_product_price
+      name
+      payment_policy {
+        created_at
+        general_policies {
+          change_policy {
+            allows_date_chage
+            deadline_days_to_make_change
+          }
+        }
+        id
+        options {
+          benefits_or_legal {
+            stated
+          }
+          config {
+            cash {
+              deadline_days_to_pay
+              discount
+            }
+            installments {
+              days_before_must_be_settled
+              deadline_days_to_pay
+              down_payment_after
+              down_payment_before
+            }
+          }
+          description
+          requirements {
+            deadline_days_to_pay
+          }
+        }
+        product_id
+        provider_id
+        updated_at
+        version
+      }
+      planned_hotels_or_similar
+      preferences
+      product_type
+      provider_id
+      published
+      seasons {
+        aditional_services
+        allotment
+        allotment_remain
+        category
+        end_date
+        extra_prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
+        id
+        number_of_nights
+        prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
+        schedules
+        start_date
+      }
+      status
+      updated_at
+      user_data {
+        avatar_url
+        bio
+        email
+        name
+        sub
+        user_type
+        username
+      }
+      video_url
+    }
+    nextToken
+    total
+  }
+}

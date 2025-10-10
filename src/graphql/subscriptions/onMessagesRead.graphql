@@ -1,0 +1,3 @@
+subscription onMessagesRead($conversationId: ID!) {
+  onMessagesRead(conversationId: $conversationId)
+}

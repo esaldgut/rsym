@@ -2,9 +2,11 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { uploadData } from 'aws-amplify/storage';
-import { runWithAmplifyServerContext } from '@/lib/amplify-server-utils';
+import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
+import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
-import { getCurrentUser } from 'aws-amplify/auth/server';
+import outputs from '../../../amplify/outputs.json';
+import type { Schema } from '@/amplify/data/resource';
 import type { CreateMomentInput } from '@/lib/graphql/types';
 
 // Tipos para media
@@ -43,13 +45,10 @@ function validateMediaFile(file: File): { valid: boolean; error?: string; type: 
 // Server Action: Crear momento
 export async function createMomentAction(formData: FormData) {
   try {
-    // Obtener usuario autenticado
-    const user = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => getCurrentUser(contextSpec)
-    });
+    // Obtener usuario autenticado (PATRÓN CORRECTO AWS Amplify Gen 2 v6)
+    const user = await getAuthenticatedUser();
 
-    if (!user?.userId) {
+    if (!user?.sub) {
       throw new Error('Usuario no autenticado');
     }
 
@@ -78,30 +77,26 @@ export async function createMomentAction(formData: FormData) {
 
       // Subir archivo a S3
       const fileExtension = mediaFile.name.split('.').pop();
-      const fileName = `moments/${user.userId}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExtension}`;
-      
-      const uploadResult = await runWithAmplifyServerContext({
-        nextServerContext: { cookies },
-        operation: async () => {
-          const result = await uploadData({
-            path: fileName,
-            data: mediaFile,
-            options: {
-              accessLevel: 'protected',
-              contentType: mediaFile.type,
-              metadata: {
-                userId: user.userId,
-                uploadedAt: new Date().toISOString(),
-                originalName: mediaFile.name
-              }
-            }
-          }).result;
-          
-          return result.path;
-        }
-      });
+      const fileName = `moments/${user.sub}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${fileExtension}`;
 
-      resourceUrl = uploadResult;
+      // Usar uploadData directamente sin runWithAmplifyServerContext
+      // AWS Amplify Gen 2 v6 maneja automáticamente las cookies en SSR
+      const uploadResult = await uploadData({
+        path: fileName,
+        data: mediaFile,
+        options: {
+          accessLevel: 'protected',
+          contentType: mediaFile.type,
+          metadata: {
+            userId: user.sub,
+            uploadedAt: new Date().toISOString(),
+            originalName: mediaFile.name
+          }
+        }
+      }).result;
+
+      resourceUrl = uploadResult.path;
+
     }
 
     // Crear momento en GraphQL
@@ -125,7 +120,7 @@ export async function createMomentAction(formData: FormData) {
         user_data: {
           name: user.userId,
           username: user.userId,
-          avatar_url: null
+          avatar_url: undefined
         },
         created_at: new Date().toISOString(),
         likeCount: 0,
@@ -154,12 +149,10 @@ export async function createMomentAction(formData: FormData) {
 // Server Action: Toggle Like
 export async function toggleLikeAction(itemId: string, _itemType: 'Moment' | 'MarketplaceFeed' = 'Moment') {
   try {
-    const user = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => getCurrentUser(contextSpec)
-    });
+    // Obtener usuario autenticado (PATRÓN CORRECTO AWS Amplify Gen 2 v6)
+    const user = await getAuthenticatedUser();
 
-    if (!user?.userId) {
+    if (!user?.sub) {
       throw new Error('Usuario no autenticado');
     }
 
@@ -205,7 +198,7 @@ export async function getMomentsAction(limit: number = 20, _nextToken?: string) 
       user_data: {
         name: `Usuario ${i + 1}`,
         username: `user${i + 1}`,
-        avatar_url: null
+        avatar_url: undefined
       },
       created_at: new Date(Date.now() - i * 1000 * 60 * 60).toISOString(),
       likeCount: Math.floor(Math.random() * 50),
@@ -230,12 +223,10 @@ export async function getMomentsAction(limit: number = 20, _nextToken?: string) 
 // Server Action: Eliminar momento (solo el propietario)
 export async function deleteMomentAction(_momentId: string) {
   try {
-    const user = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => getCurrentUser(contextSpec)
-    });
+    // Obtener usuario autenticado (PATRÓN CORRECTO AWS Amplify Gen 2 v6)
+    const user = await getAuthenticatedUser();
 
-    if (!user?.userId) {
+    if (!user?.sub) {
       throw new Error('Usuario no autenticado');
     }
 
@@ -261,12 +252,10 @@ export async function deleteMomentAction(_momentId: string) {
 // Server Action: Reportar contenido
 export async function reportContentAction(itemId: string, reason: string, details?: string) {
   try {
-    const user = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: (contextSpec) => getCurrentUser(contextSpec)
-    });
+    // Obtener usuario autenticado (PATRÓN CORRECTO AWS Amplify Gen 2 v6)
+    const user = await getAuthenticatedUser();
 
-    if (!user?.userId) {
+    if (!user?.sub) {
       throw new Error('Usuario no autenticado');
     }
 

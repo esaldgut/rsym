@@ -6,7 +6,7 @@ import { Hub } from 'aws-amplify/utils';
 import { logger } from '../utils/logger';
 import { SecurityValidator, type SecurityValidationResult } from '../lib/security-validator';
 
-export type UserType = 'provider' | 'consumer';
+export type UserType = 'provider' | 'influencer' | 'traveler' | 'admin';
 
 export interface AmplifyAuthUser {
   userId: string;
@@ -72,7 +72,13 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
         signInDetails: currentUser.signInDetails,
         securityValidation
       };
-      
+
+      console.log('🔄 RefreshUser - UserType detectado:', securityValidation.userType);
+      console.log('🔄 RefreshUser - Atributos custom:', {
+        'custom:user_type': userAttributes['custom:user_type'],
+        'custom:provider_is_approved': userAttributes['custom:provider_is_approved']
+      });
+
       setUser(amplifyUser);
       logger.auth('Usuario configurado exitosamente', 'refreshUser');
       

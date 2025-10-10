@@ -1,7 +1,7 @@
 'use server';
 
-import { 
-  LocationClient, 
+import {
+  LocationClient,
   SearchPlaceIndexForTextCommand,
   SearchPlaceIndexForPositionCommand,
   GetPlaceCommand,
@@ -10,8 +10,7 @@ import {
 } from '@aws-sdk/client-location';
 import { fromCognitoIdentityPool } from '@aws-sdk/credential-providers';
 import { revalidatePath } from 'next/cache';
-import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
-import { fetchAuthSession } from 'aws-amplify/auth/server';
+import { getIdTokenServer as getIdTokenFromUtils } from '@/utils/amplify-server-utils';
 import type { 
   CircuitLocation,
   Location,
@@ -26,22 +25,16 @@ import type {
 
 /**
  * Obtiene el ID Token del usuario autenticado desde el servidor
+ * Usando el patrón correcto de AWS Amplify Gen 2 v6
  */
 async function getIdTokenServer(): Promise<string> {
-  const { cookies } = await import('next/headers');
-  
-  return runWithAmplifyServerContext({
-    nextServerContext: { cookies },
-    operation: async (contextSpec) => {
-      const session = await fetchAuthSession(contextSpec);
-      
-      if (!session.tokens?.idToken) {
-        throw new Error('No se pudo obtener el ID Token - usuario no autenticado');
-      }
-      
-      return session.tokens.idToken.toString();
-    }
-  });
+  const idToken = await getIdTokenFromUtils();
+
+  if (!idToken) {
+    throw new Error('No se pudo obtener el ID Token - usuario no autenticado');
+  }
+
+  return idToken.toString();
 }
 
 // Configuración del cliente AWS Location con credenciales autenticadas

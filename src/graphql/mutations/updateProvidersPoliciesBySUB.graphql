@@ -1,0 +1,6 @@
+mutation updateProvidersPoliciesBySUB($providers_policies: [PolicyInput!]) {
+  updateProvidersPoliciesBySUB(providers_policies: $providers_policies) {
+    policy
+    title
+  }
+}

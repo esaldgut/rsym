@@ -1,0 +1,18 @@
+mutation markMessageAsDelivered($messageId: ID!) {
+  markMessageAsDelivered(messageId: $messageId) {
+    content
+    conversationId
+    createdAt
+    id
+    metadata {
+      imageUrl
+      location {
+        lat
+        lng
+      }
+    }
+    senderId
+    senderUsername
+    timestamp
+  }
+}

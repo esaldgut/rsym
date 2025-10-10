@@ -1,0 +1,27 @@
+mutation followUser($targetUserId: ID!) {
+  followUser(targetUserId: $targetUserId) {
+    createdAt
+    follower {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    followerId
+    following {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    followingId
+    id
+    notificationEnabled
+  }
+}

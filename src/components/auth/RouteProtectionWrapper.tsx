@@ -75,6 +75,12 @@ export class RouteProtectionWrapper {
       return await UnifiedAuthSystem.requireAuthentication(redirectTo || '/moments');
 
     } catch (error) {
+      // NEXT_REDIRECT es el mecanismo normal de Next.js para redirecciones
+      // Debe ser re-lanzado para que funcione correctamente
+      if (error instanceof Error && error.message === 'NEXT_REDIRECT') {
+        throw error;
+      }
+
       console.error('Error in route protection:', error);
       // En caso de error, redirigir a auth
       redirect('/auth?error=system_error');
@@ -97,7 +103,7 @@ export class RouteProtectionWrapper {
   static async protectMarketplace() {
     return this.protect({
       authenticationOnly: true,
-      redirectTo: '/auth'
+      redirectTo: '/marketplace'  // CORREGIDO: debe redirigir a marketplace, no a auth
     });
   }
 
@@ -166,24 +172,15 @@ export class RouteProtectionWrapper {
     });
   }
 
-
-  // Marketplace (solo lectura para todos)
-  static async protectMarketplace() {
-    return this.protect({
-      authenticationOnly: true,
-      redirectTo: '/marketplace'
-    });
-  }
-
   /**
    * Métodos utilitarios privados
    */
 
   private static getDefaultRedirectForUserType(userTypes: YAANUserType | YAANUserType[]): string {
     const types = Array.isArray(userTypes) ? userTypes : [userTypes];
-    
+
     if (types.includes('admin')) return '/admin';
-    if (types.includes('provider')) return '/provider/pending-approval';
+    if (types.includes('provider')) return '/provider';
     if (types.includes('influencer')) return '/influencer';
     
     return '/dashboard';

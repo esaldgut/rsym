@@ -14,7 +14,57 @@ STACK_STATUS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --reg
 
 echo "Estado actual: $STACK_STATUS"
 
-if [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
+if [ "$STACK_STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
+    echo ""
+    echo "⚠️  Stack en UPDATE_ROLLBACK_FAILED - necesita continuar el rollback"
+    echo ""
+    echo "🔧 Continuando rollback..."
+
+    # Continuar el rollback para salir del estado fallido
+    aws cloudformation continue-update-rollback \
+        --stack-name $STACK_NAME \
+        --region us-west-2
+
+    echo "⏳ Esperando que el rollback complete..."
+
+    # Esperar hasta que el rollback termine
+    while true; do
+        CURRENT_STATUS=$(aws cloudformation describe-stacks --stack-name $STACK_NAME --region us-west-2 --query "Stacks[0].StackStatus" --output text 2>/dev/null)
+        echo "  Estado: $CURRENT_STATUS"
+
+        if [ "$CURRENT_STATUS" = "UPDATE_ROLLBACK_COMPLETE" ]; then
+            echo "✅ Rollback completado exitosamente"
+            break
+        elif [ "$CURRENT_STATUS" = "UPDATE_ROLLBACK_FAILED" ]; then
+            echo "❌ El rollback falló nuevamente"
+            echo ""
+            echo "🔧 Intentando skip de recursos problemáticos..."
+
+            # Obtener recursos fallidos
+            FAILED_RESOURCES=$(aws cloudformation list-stack-resources \
+                --stack-name $STACK_NAME \
+                --region us-west-2 \
+                --query "StackResourceSummaries[?ResourceStatus=='UPDATE_FAILED'].LogicalResourceId" \
+                --output text)
+
+            if [ ! -z "$FAILED_RESOURCES" ]; then
+                echo "  Recursos fallidos: $FAILED_RESOURCES"
+
+                # Continuar rollback saltando recursos fallidos
+                aws cloudformation continue-update-rollback \
+                    --stack-name $STACK_NAME \
+                    --region us-west-2 \
+                    --resources-to-skip $FAILED_RESOURCES
+
+                echo "⏳ Esperando rollback con skip..."
+                sleep 30
+            fi
+        fi
+
+        sleep 10
+    done
+
+elif [ "$STACK_STATUS" = "ROLLBACK_COMPLETE" ]; then
     echo ""
     echo "⚠️  Stack en ROLLBACK_COMPLETE - necesita eliminarse primero"
     echo ""

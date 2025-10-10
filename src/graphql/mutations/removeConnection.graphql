@@ -1,0 +1,3 @@
+mutation removeConnection($connectionId: ID!) {
+  removeConnection(connectionId: $connectionId)
+}

@@ -1,0 +1,20 @@
+mutation createComment($input: CreateCommentInput!) {
+  createComment(input: $input) {
+    comment
+    created_at
+    id
+    likeCount
+    status
+    updated_at
+    user_data {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    viewerHasLiked
+  }
+}

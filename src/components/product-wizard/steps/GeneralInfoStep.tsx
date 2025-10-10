@@ -75,12 +75,14 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
   const preferences = watch('preferences');
   const languages = watch('languages');
 
+  /**
   // Sincronizar el valor del nombre desde el contexto cuando cambie
   useEffect(() => {
     if (formData.name && formData.name !== name) {
       setValue('name', formData.name);
     }
   }, [formData.name, name, setValue]);
+  */
 
   // Actualizar nombre en el context cuando cambie (debounced)
   useEffect(() => {
@@ -408,19 +410,19 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
 }
 
 // Componente para selección de preferencias - memoizado
-const PreferencesSelector = ({ 
-  selectedPreferences, 
-  onChange, 
-  error 
+const PreferencesSelector = ({
+  selectedPreferences,
+  onChange,
+  error
 }: {
   selectedPreferences: string[];
   onChange: (preferences: string[]) => void;
   error?: string;
 }) => {
-  const togglePreference = useCallback((prefId: string) => {
-    const newPreferences = selectedPreferences.includes(prefId)
-      ? selectedPreferences.filter(id => id !== prefId)
-      : [...selectedPreferences, prefId];
+  const togglePreference = useCallback((prefName: string) => {
+    const newPreferences = selectedPreferences.includes(prefName)
+      ? selectedPreferences.filter(name => name !== prefName)
+      : [...selectedPreferences, prefName];
     onChange(newPreferences);
   }, [selectedPreferences, onChange]);
 
@@ -434,9 +436,9 @@ const PreferencesSelector = ({
           <button
             key={preference.id}
             type="button"
-            onClick={() => togglePreference(preference.id)}
+            onClick={() => togglePreference(preference.name)}
             className={`p-3 border rounded-lg text-sm font-medium transition-all duration-200 ${
-              selectedPreferences.includes(preference.id)
+              selectedPreferences.includes(preference.name)
                 ? 'bg-gradient-to-r from-pink-500 to-violet-600 text-white border-pink-500'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-pink-300 hover:bg-pink-50'
             }`}
@@ -453,19 +455,19 @@ const PreferencesSelector = ({
 };
 
 // Componente para selección de idiomas - memoizado
-const LanguageSelector = ({ 
-  selectedLanguages, 
-  onChange, 
-  error 
+const LanguageSelector = ({
+  selectedLanguages,
+  onChange,
+  error
 }: {
   selectedLanguages: string[];
   onChange: (languages: string[]) => void;
   error?: string;
 }) => {
-  const toggleLanguage = useCallback((langId: string) => {
-    const newLanguages = selectedLanguages.includes(langId)
-      ? selectedLanguages.filter(id => id !== langId)
-      : [...selectedLanguages, langId];
+  const toggleLanguage = useCallback((langName: string) => {
+    const newLanguages = selectedLanguages.includes(langName)
+      ? selectedLanguages.filter(name => name !== langName)
+      : [...selectedLanguages, langName];
     onChange(newLanguages);
   }, [selectedLanguages, onChange]);
 
@@ -479,9 +481,9 @@ const LanguageSelector = ({
           <button
             key={language.id}
             type="button"
-            onClick={() => toggleLanguage(language.id)}
+            onClick={() => toggleLanguage(language.name)}
             className={`p-3 border rounded-lg text-sm font-medium transition-all duration-200 ${
-              selectedLanguages.includes(language.id)
+              selectedLanguages.includes(language.name)
                 ? 'bg-gradient-to-r from-pink-500 to-violet-600 text-white border-pink-500'
                 : 'bg-white text-gray-700 border-gray-300 hover:border-pink-300 hover:bg-pink-50'
             }`}

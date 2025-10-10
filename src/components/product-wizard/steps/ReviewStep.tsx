@@ -55,7 +55,6 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
         }),
         
         ...(formData.productType === 'package' && {
-          origin: formData.origin,
           destination: formData.destination,
           departures: formData.departures,
           itinerary: formData.itinerary,
@@ -150,15 +149,27 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
           <div className="relative p-4 sm:p-6 lg:p-8 text-white">
             <h1 className="text-2xl sm:text-3xl font-bold mb-3">{formData.name || 'Producto Sin Nombre'}</h1>
             <div className="flex flex-col sm:flex-row flex-wrap gap-4 text-sm">
-              {formData.productType === 'circuit' && (
+              {totalDestinations > 0 && (
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">🗺️</span>
+                  <span className="text-2xl">{formData.productType === 'circuit' ? '🗺️' : '📍'}</span>
                   <div>
-                    <div className="font-semibold">{totalDestinations} destinos</div>
-                    <div className="opacity-90 text-xs">
-                      {formData.destination?.slice(0, 3).map(d => d.place).join(' • ')}
-                      {totalDestinations > 3 && ` • +${totalDestinations - 3} más`}
+                    <div className="font-semibold">
+                      {formData.productType === 'circuit'
+                        ? `${totalDestinations} destinos`
+                        : formData.destination?.[0]?.place || 'Destino'
+                      }
                     </div>
+                    {formData.productType === 'circuit' && (
+                      <div className="opacity-90 text-xs">
+                        {formData.destination?.slice(0, 3).map(d => d.place).join(' • ')}
+                        {totalDestinations > 3 && ` • +${totalDestinations - 3} más`}
+                      </div>
+                    )}
+                    {formData.productType === 'package' && formData.destination?.[0]?.placeSub && (
+                      <div className="opacity-90 text-xs">
+                        {formData.destination[0].placeSub}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -282,6 +293,11 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
                     ))}
                   </div>
                 </div>
+                {formData.productType === 'package' && season.number_of_nights && (
+                  <p className="text-xs text-gray-600 mt-1">
+                    🌙 {season.number_of_nights} noches
+                  </p>
+                )}
                 {season.aditional_services && (
                   <p className="text-xs text-gray-600 mt-1">
                     Servicios: {season.aditional_services}
@@ -329,16 +345,39 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
         </div>
       </div>
 
-      {/* Itinerario Detallado (Solo para Circuitos) */}
-      {formData.productType === 'circuit' && formData.itinerary && (
+      {/* Itinerario Detallado */}
+      {formData.itinerary && (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
           <h3 className="font-semibold text-lg text-gray-900 mb-4 flex items-center gap-2">
-            <span className="text-purple-600">📝</span> Itinerario Detallado
+            <span className="text-purple-600">📝</span> Itinerario {formData.productType === 'circuit' ? 'del Circuito' : 'del Paquete'}
           </h3>
           <div className="prose prose-sm max-w-none">
             <pre className="whitespace-pre-wrap text-gray-700 text-sm font-sans">
               {formData.itinerary}
             </pre>
+          </div>
+        </div>
+      )}
+
+      {/* Hoteles Planificados */}
+      {formData.planned_hotels_or_similar && formData.planned_hotels_or_similar.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h3 className="font-semibold text-lg text-gray-900 mb-4 flex items-center gap-2">
+            <span className="text-purple-600">🏨</span> Hoteles Planificados
+          </h3>
+          <div className="space-y-2">
+            {formData.planned_hotels_or_similar.map((hotel, index) => (
+              <div key={index} className="flex items-start gap-3">
+                <div className="flex-shrink-0">
+                  <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
+                    {index + 1}
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-gray-700 text-sm">{hotel}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}

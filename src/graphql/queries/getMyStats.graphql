@@ -1,0 +1,11 @@
+query getMyStats {
+  getMyStats {
+    blockedUsersCount
+    connectionsCount
+    followersCount
+    followingCount
+    pendingRequestsReceived
+    pendingRequestsSent
+    userId
+  }
+}

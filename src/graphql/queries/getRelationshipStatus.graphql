@@ -1,0 +1,9 @@
+query getRelationshipStatus($targetUserId: ID!) {
+  getRelationshipStatus(targetUserId: $targetUserId) {
+    canFollow
+    canSendRequest
+    isConnected
+    isFollower
+    isFollowing
+  }
+}

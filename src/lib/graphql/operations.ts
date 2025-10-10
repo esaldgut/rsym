@@ -70,6 +70,8 @@ export const getAllCommentsByMomentID = /* GraphQL */ `
   }
 `;
 
+// Legacy query - DEPRECATED
+// Use getAllActiveAndPublishedProducts instead
 export const getAllMarketplaceFeed = /* GraphQL */ `
   query GetAllMarketplaceFeed {
     getAllMarketplaceFeed {
@@ -94,6 +96,42 @@ export const getAllMarketplaceFeed = /* GraphQL */ `
   }
 `;
 
+// OPTIMIZED: Marketplace-specific lightweight query (reduces 90% of fields)
+export const getAllActiveAndPublishedProducts = /* GraphQL */ `
+  query getAllActiveAndPublishedProducts($filter: ProductFilterInput, $pagination: PaginationInput) {
+    getAllActiveAndPublishedProducts(filter: $filter, pagination: $pagination) {
+      items {
+        id
+        name
+        description
+        product_type
+        published
+        cover_image_url
+        min_product_price
+        preferences
+        destination {
+          place
+          placeSub
+        }
+        seasons {
+          id
+          start_date
+          end_date
+          number_of_nights
+        }
+        user_data {
+          username
+          name
+          avatar_url
+        }
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+// DEPRECATED: Use getProductById instead
 export const getPackageByID = /* GraphQL */ `
   query GetPackageByID($id: ID!) {
     getPackageByID(id: $id) {
@@ -188,6 +226,7 @@ export const getAllActivePackagesByProvider = /* GraphQL */ `
   }
 `;
 
+// DEPRECATED: Use getProductById instead
 export const getCircuitByID = /* GraphQL */ `
   query GetCircuitByID($id: ID!) {
     getCircuitByID(id: $id) {
@@ -229,135 +268,7 @@ export const getUserByUsername = /* GraphQL */ `
   }
 `;
 
-export const getProductById = /* GraphQL */ `
-  query GetProductById($id: ID!) {
-    getProductById(id: $id) {
-      id
-      name
-      description
-      product_type
-      status
-      published
-      cover_image_url
-      image_url
-      video_url
-      created_at
-      updated_at
-      provider_id
-      preferences
-      languages
-      seasons {
-        id
-        start_date
-        end_date
-        category
-        allotment
-        allotment_remain
-        schedules
-        number_of_nights
-        aditional_services
-        prices {
-          id
-          currency
-          price
-          room_name
-          max_adult
-          max_minor
-          children {
-            name
-            min_minor_age
-            max_minor_age
-            child_price
-          }
-        }
-        extra_prices {
-          id
-          currency
-          price
-          room_name
-          max_adult
-          max_minor
-          children {
-            name
-            min_minor_age
-            max_minor_age
-            child_price
-          }
-        }
-      }
-      destination {
-        id
-        place
-        placeSub
-        complementary_description
-        coordinates {
-          latitude
-          longitude
-        }
-      }
-      departures {
-        specific_dates
-        days
-        origin {
-          id
-          place
-          placeSub
-          complementary_description
-          coordinates {
-            latitude
-            longitude
-          }
-        }
-      }
-      itinerary
-      planned_hotels_or_similar
-      payment_policy {
-        id
-        product_id
-        provider_id
-        status
-        version
-        created_at
-        updated_at
-        options {
-          type
-          description
-          config {
-            cash {
-              discount
-              discount_type
-              deadline_days_to_pay
-              payment_methods
-            }
-            installments {
-              down_payment_before
-              down_payment_type
-              down_payment_after
-              installment_intervals
-              days_before_must_be_settled
-              deadline_days_to_pay
-              payment_methods
-            }
-          }
-          requirements {
-            deadline_days_to_pay
-          }
-          benefits_or_legal {
-            stated
-          }
-        }
-        general_policies {
-          change_policy {
-            allows_date_chage
-            deadline_days_to_make_change
-          }
-        }
-      }
-      min_product_price
-      is_foreign
-    }
-  }
-`;
+// REMOVED: Duplicate definition - using the enhanced version below
 
 // MUTATIONS
 
@@ -623,6 +534,143 @@ export const createProductOfTypePackage = /* GraphQL */ `
   }
 `;
 
+// NEW: Get single Product by ID (replaces getPackageByID and getCircuitByID)
+export const getProductById = /* GraphQL */ `
+  query GetProductById($id: ID!) {
+    getProductById(id: $id) {
+      id
+      name
+      description
+      product_type
+      status
+      published
+      cover_image_url
+      image_url
+      video_url
+      preferences
+      languages
+      created_at
+      updated_at
+      provider_id
+      destination {
+        place
+        placeSub
+        complementary_description
+        coordinates {
+          latitude
+          longitude
+        }
+      }
+      departures {
+        origin {
+          place
+          placeSub
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
+        }
+        days
+        specific_dates
+      }
+      itinerary
+      seasons {
+        id
+        start_date
+        end_date
+        category
+        allotment
+        allotment_remain
+        number_of_nights
+        schedules
+        aditional_services
+        prices {
+          id
+          price
+          currency
+          room_name
+          max_adult
+          max_minor
+          children {
+            name
+            min_minor_age
+            max_minor_age
+            child_price
+          }
+        }
+        extra_prices {
+          id
+          price
+          currency
+          room_name
+          max_adult
+          max_minor
+          children {
+            name
+            min_minor_age
+            max_minor_age
+            child_price
+          }
+        }
+      }
+      planned_hotels_or_similar
+      payment_policy {
+        id
+        product_id
+        provider_id
+        status
+        version
+        created_at
+        updated_at
+        options {
+          type
+          description
+          config {
+            cash {
+              discount
+              discount_type
+              deadline_days_to_pay
+              payment_methods
+            }
+            installments {
+              down_payment_before
+              down_payment_type
+              down_payment_after
+              installment_intervals
+              days_before_must_be_settled
+              deadline_days_to_pay
+              payment_methods
+            }
+          }
+          requirements {
+            deadline_days_to_pay
+          }
+          benefits_or_legal {
+            stated
+          }
+        }
+        general_policies {
+          change_policy {
+            allows_date_chage
+            deadline_days_to_make_change
+          }
+        }
+      }
+      min_product_price
+      is_foreign
+      user_data {
+        sub
+        username
+        name
+        avatar_url
+        email
+        user_type
+      }
+    }
+  }
+`;
+
 // Provider Products Queries
 export const getAllProductsByEmail = /* GraphQL */ `
   query GetAllProductsByEmail($pagination: PaginationInput, $filter: ProductFilterInput) {
@@ -701,8 +749,11 @@ export const getProductsByType = /* GraphQL */ `
         status
         published
         cover_image_url
+        image_url
         created_at
         updated_at
+        preferences
+        languages
         seasons {
           id
           start_date
@@ -710,12 +761,26 @@ export const getProductsByType = /* GraphQL */ `
           category
           allotment
           allotment_remain
+          prices {
+            id
+            price
+            currency
+            room_name
+            max_adult
+            max_minor
+          }
         }
         destination {
           place
           placeSub
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
         }
         min_product_price
+        provider_id
       }
       nextToken
       total

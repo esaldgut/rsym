@@ -3,14 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
 import { GraphQLAuthInspector } from '@/utils/graphql-auth-inspector';
-import { useMarketplaceFeed } from '@/hooks/useAmplifyData';
-import { toastManager } from '@/components/ui/Toast';
+import { useMarketplaceProducts } from '@/hooks/useAmplifyData';
+import { toastManager } from '@/components/ui/ToastWithPinpoint';
 
 export default function GraphQLAuthTestPage() {
   const { isAuthenticated, userType } = useAmplifyAuth();
   const [authInspection, setAuthInspection] = useState<any>(null);
   const [appSyncConfig, setAppSyncConfig] = useState<any>(null);
-  const marketplaceFeed = useMarketplaceFeed();
+  const marketplaceProducts = useMarketplaceProducts();
 
   useEffect(() => {
     // Verificar configuración de AppSync
@@ -39,11 +39,11 @@ export default function GraphQLAuthTestPage() {
     
     try {
       // Refrescar datos del marketplace
-      await marketplaceFeed.refetch();
+      await marketplaceProducts.refetch();
       toastManager.success('✅ Query ejecutada exitosamente. Revisa la consola para detalles.', {
         trackingContext: {
           feature: 'graphql_testing',
-          queryType: 'marketplace_feed',
+          queryType: 'marketplace_products',
           category: 'testing_success'
         }
       });
@@ -53,7 +53,7 @@ export default function GraphQLAuthTestPage() {
         trackingContext: {
           feature: 'graphql_testing',
           error: error instanceof Error ? error.message : 'Unknown error',
-          queryType: 'marketplace_feed',
+          queryType: 'marketplace_products',
           category: 'error_handling'
         }
       });
@@ -177,40 +177,40 @@ export default function GraphQLAuthTestPage() {
           <div className="space-y-4">
             <button
               onClick={handleTestQuery}
-              disabled={!isAuthenticated || marketplaceFeed.isLoading}
+              disabled={!isAuthenticated || marketplaceProducts.isLoading}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:bg-gray-400 disabled:cursor-not-allowed hover:bg-blue-700"
             >
-              {marketplaceFeed.isLoading ? 'Cargando...' : 'Ejecutar Query Marketplace'}
+              {marketplaceProducts.isLoading ? 'Cargando...' : 'Ejecutar Query Marketplace'}
             </button>
-            
+
             <div className="text-sm">
               <div className="flex">
                 <span className="font-medium w-32">Estado:</span>
                 <span className={`px-2 py-1 rounded text-xs ${
-                  marketplaceFeed.isSuccess ? 'bg-green-100 text-green-800' :
-                  marketplaceFeed.isError ? 'bg-red-100 text-red-800' :
-                  marketplaceFeed.isLoading ? 'bg-yellow-100 text-yellow-800' :
+                  marketplaceProducts.isSuccess ? 'bg-green-100 text-green-800' :
+                  marketplaceProducts.isError ? 'bg-red-100 text-red-800' :
+                  marketplaceProducts.isLoading ? 'bg-yellow-100 text-yellow-800' :
                   'bg-gray-100 text-gray-800'
                 }`}>
-                  {marketplaceFeed.isSuccess ? 'ÉXITO' :
-                   marketplaceFeed.isError ? 'ERROR' :
-                   marketplaceFeed.isLoading ? 'CARGANDO' : 'INACTIVO'}
+                  {marketplaceProducts.isSuccess ? 'ÉXITO' :
+                   marketplaceProducts.isError ? 'ERROR' :
+                   marketplaceProducts.isLoading ? 'CARGANDO' : 'INACTIVO'}
                 </span>
               </div>
-              
-              {marketplaceFeed.data && (
+
+              {marketplaceProducts.data && (
                 <div className="flex mt-2">
                   <span className="font-medium w-32">Registros:</span>
-                  <span className="text-gray-700">{marketplaceFeed.data.length}</span>
+                  <span className="text-gray-700">{marketplaceProducts.data.length}</span>
                 </div>
               )}
-              
-              {marketplaceFeed.error && (
+
+              {marketplaceProducts.error && (
                 <div className="mt-2">
                   <span className="font-medium">Error:</span>
                   <div className="bg-red-50 border border-red-200 rounded p-2 mt-1">
                     <span className="text-red-700 text-xs">
-                      {marketplaceFeed.error instanceof Error ? marketplaceFeed.error.message : 'Error desconocido'}
+                      {marketplaceProducts.error instanceof Error ? marketplaceProducts.error.message : 'Error desconocido'}
                     </span>
                   </div>
                 </div>

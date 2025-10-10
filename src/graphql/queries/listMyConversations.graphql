@@ -1,0 +1,25 @@
+query listMyConversations($limit: Int, $nextToken: String) {
+  listMyConversations(limit: $limit, nextToken: $nextToken) {
+    items {
+      createdAt
+      id
+      lastMessage {
+        content
+        senderId
+        timestamp
+      }
+      participantIds
+      participantTypes {
+        userId
+        userType
+      }
+      participantUsernames
+      unreadCount {
+        count
+        userId
+      }
+      updatedAt
+    }
+    nextToken
+  }
+}

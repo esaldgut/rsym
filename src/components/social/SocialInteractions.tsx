@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useOptimistic } from 'react';
 import { toggleLikeAction } from '@/lib/server/moments-actions';
-import { toastManager } from '@/components/ui/Toast';
+import { toastManager } from '@/components/ui/ToastWithPinpoint';
 
 interface SocialInteractionsProps {
   itemId: string;

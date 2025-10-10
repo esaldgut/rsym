@@ -9,6 +9,7 @@ import { NavbarImproved } from '@/components';
 import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { OAuthHandler } from '../components/auth/OAuthHandler';
 import { ToastContainer } from '@/components/ui/Toast';
+import { AuthProvider } from '@/contexts/AuthContext';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,13 +36,15 @@ export default function RootLayout({
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}>
         <ConfigureAmplifyClientSide />
         <OAuthHandler />
-        <QueryProvider>
-          <NavbarImproved />
-          <MainContentWrapper>
-            {children}
-          </MainContentWrapper>
-          <ToastContainer />
-        </QueryProvider>
+        <AuthProvider>
+          <QueryProvider>
+            <NavbarImproved />
+            <MainContentWrapper>
+              {children}
+            </MainContentWrapper>
+            <ToastContainer />
+          </QueryProvider>
+        </AuthProvider>
       </body>
     </html>
   );

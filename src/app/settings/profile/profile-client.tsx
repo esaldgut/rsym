@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAmplifyAuth } from '../../../hooks/useAmplifyAuth';
-import { 
-  updateUserProfile, 
-  validateProfileData,
-  type ProfileFormData,
-} from '@/lib/auth/user-attributes';
+import { useAuth } from '@/contexts/AuthContext';
+import {
+  updateUserProfileAction,
+  validateProfileDataAction,
+  revalidateProfilePages,
+  type ProfileUpdateData as ProfileFormData,
+} from '@/lib/server/profile-settings-actions';
+import { updateUserAttributes } from 'aws-amplify/auth';
 import { uploadProfileImage } from '@/utils/storage-helpers';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { SocialMediaManager } from '@/components/profile/SocialMediaManager';
@@ -39,9 +41,9 @@ interface ProfileSettingsClientProps {
 
 export default function ProfileSettingsClient({ initialAttributes }: ProfileSettingsClientProps) {
   const router = useRouter();
-  const { user } = useAmplifyAuth();
-  const [userType, setUserType] = useState<UserType | null>(initialAttributes.userType || null);
-  const [step, setStep] = useState(initialAttributes.userType ? 2 : 1);
+  const { user, refreshUser } = useAuth();
+  const [userType, setUserType] = useState<UserType | null>((initialAttributes['custom:user_type'] as UserType) || null);
+  const [step, setStep] = useState(initialAttributes['custom:user_type'] ? 2 : 1);
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
@@ -204,8 +206,8 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
     setErrors({});
 
     try {
-      // Validar datos del formulario
-      const validation = validateProfileData(userType, formData);
+      // Validar datos del formulario usando Server Action
+      const validation = await validateProfileDataAction(userType, formData);
       if (!validation.isValid) {
         setErrors(validation.errors);
         setIsLoading(false);
@@ -215,22 +217,59 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
         return;
       }
 
-      // Actualizar perfil usando el servicio
-      await updateUserProfile(userType, formData);
+      // PATRÓN HÍBRIDO: Server prepara, Cliente actualiza
+      const result = await updateUserProfileAction(userType, formData);
 
-      // Resetear el estado de cambios no guardados
-      resetInitialData();
+      if (result.message === 'client_update_required' && result.attributesToUpdate) {
+        // El servidor validó y preparó los atributos, ahora el cliente actualiza
+        try {
+          // Actualizar atributos usando Amplify con el contexto del cliente
+          // Esto mantiene el IDToken necesario para el backend
+          await updateUserAttributes({
+            userAttributes: result.attributesToUpdate
+          });
 
-      // Redirigir según el contexto de origen
-      const returnUrl = sessionStorage.getItem('profileCompleteReturnUrl');
-      
-      if (returnUrl) {
-        sessionStorage.removeItem('profileCompleteReturnUrl');
-        sessionStorage.removeItem('profileCompleteAction');
-        sessionStorage.removeItem('profileCompleteData');
-        router.push(returnUrl);
-      } else {
+          console.log('✅ Atributos actualizados exitosamente en Cognito');
+          console.log('📝 Atributos enviados:', result.attributesToUpdate);
+          console.log('🔄 UserType actualizado:', userType);
+
+          // Llamar Server Action para revalidar páginas y refresh token
+          await revalidateProfilePages(userType);
+
+          // Refrescar el usuario en el contexto de autenticación
+          // Esto actualizará el Navbar y todos los componentes que usen el hook
+          console.log('🔄 Refrescando usuario en el contexto...');
+          await refreshUser();
+          console.log('✅ Usuario refrescado, Navbar debería actualizarse');
+
+          // Resetear el estado de cambios no guardados
+          resetInitialData();
+
+          // Pequeño delay para asegurar que los tokens se actualicen
+          await new Promise(resolve => setTimeout(resolve, 1000));
+
+          // Redirigir según el contexto de origen
+          const returnUrl = sessionStorage.getItem('profileCompleteReturnUrl');
+
+          if (returnUrl) {
+            sessionStorage.removeItem('profileCompleteReturnUrl');
+            sessionStorage.removeItem('profileCompleteAction');
+            sessionStorage.removeItem('profileCompleteData');
+            router.push(returnUrl);
+          } else {
+            router.push('/profile');
+          }
+        } catch (clientError) {
+          console.error('❌ Error actualizando atributos desde el cliente:', clientError);
+          setErrors({ general: 'Error al guardar el perfil. Por favor intenta de nuevo.' });
+        }
+      } else if (result.success) {
+        // Por si acaso hay una respuesta exitosa directa (compatibilidad)
+        resetInitialData();
         router.push('/profile');
+      } else {
+        // Mostrar errores retornados por el Server Action
+        setErrors(result.errors || { general: result.message || 'Error al guardar el perfil' });
       }
     } catch (error) {
       console.error('❌ Error actualizando perfil:', error);

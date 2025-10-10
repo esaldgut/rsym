@@ -1,7 +1,7 @@
 import { JWT } from 'aws-amplify/auth';
 import { logger } from '../utils/logger';
 
-export type UserType = 'provider' | 'consumer';
+export type UserType = 'provider' | 'influencer' | 'traveler' | 'admin';
 
 export interface SecurityValidationResult {
   isValid: boolean;
@@ -38,7 +38,7 @@ export class SecurityValidator {
     'iat'
   ];
 
-  private static readonly VALID_USER_TYPES: UserType[] = ['provider', 'consumer'];
+  private static readonly VALID_USER_TYPES: UserType[] = ['provider', 'influencer', 'traveler', 'admin'];
   private static readonly TOKEN_EXPIRY_BUFFER = 300; // 5 minutos en segundos
 
   /**
@@ -48,7 +48,7 @@ export class SecurityValidator {
   static validateIdToken(idToken: JWT | undefined): SecurityValidationResult {
     const result: SecurityValidationResult = {
       isValid: false,
-      userType: 'consumer',
+      userType: 'traveler',
       userId: '',
       errors: [],
       warnings: []
@@ -74,9 +74,9 @@ export class SecurityValidator {
     if (userType && this.VALID_USER_TYPES.includes(userType)) {
       result.userType = userType;
     } else {
-      // Fallback seguro sin error - permitir acceso como consumer
-      result.userType = 'consumer';
-      result.warnings.push('UserType no encontrado, usando consumer por defecto');
+      // Fallback seguro sin error - permitir acceso como traveler
+      result.userType = 'traveler';
+      result.warnings.push('UserType no encontrado, usando traveler por defecto');
     }
 
     // Validación 3: Expiración (Amplify ya maneja esto, solo advertencia)
@@ -280,28 +280,50 @@ export class SecurityValidator {
    */
   private static getPermissionMatrix(): Record<UserType, string[]> {
     return {
-      consumer: [
+      traveler: [
         'read:marketplace',
-        'read:circuits', 
-        'read:packages',
+        'read:products',
         'read:moments',
         'create:moment',
         'update:own_profile',
-        'like:content'
+        'like:content',
+        'create:reservation',
+        'view:own_reservations'
+      ],
+      influencer: [
+        'read:marketplace',
+        'read:products',
+        'read:moments',
+        'create:moment',
+        'update:own_profile',
+        'like:content',
+        'create:influencer_content',
+        'manage:influencer_campaigns',
+        'create:reservation',
+        'view:own_reservations'
       ],
       provider: [
         'read:marketplace',
-        'read:circuits',
-        'read:packages', 
+        'read:products',
         'read:moments',
         'create:moment',
-        'create:circuit',
-        'create:package',
-        'update:own_circuit',
-        'update:own_package',
+        'create:product',
+        'update:own_products',
+        'delete:own_products',
         'update:own_profile',
         'like:content',
-        'manage:own_content'
+        'manage:own_content',
+        'view:own_reservations',
+        'manage:payment_policies'
+      ],
+      admin: [
+        'read:all',
+        'write:all',
+        'delete:all',
+        'manage:users',
+        'manage:content',
+        'manage:system',
+        'approve:providers'
       ]
     };
   }

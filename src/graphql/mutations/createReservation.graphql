@@ -1,0 +1,22 @@
+mutation createReservation($input: ReservationInput) {
+  createReservation(input: $input) {
+    adults
+    babys
+    companions {
+      birthday
+      country
+      family_name
+      gender
+      name
+      passport_number
+    }
+    experience_id
+    experience_type
+    id
+    kids
+    price_per_kid
+    price_per_person
+    reservationDate
+    total_price
+  }
+}

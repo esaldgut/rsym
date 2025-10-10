@@ -1,0 +1,6 @@
+query getProvidersPoliciesBySub {
+  getProvidersPoliciesBySub {
+    policy
+    title
+  }
+}

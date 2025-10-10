@@ -55,7 +55,7 @@ export function CustomAuthenticator({ children }: CustomAuthenticatorProps) {
     <Authenticator
       formFields={amplifyFormFields}
       theme={theme}
-      socialProviders={['Google', 'Apple', 'Facebook']}
+      socialProviders={['google', 'apple', 'facebook']}
       signUpAttributes={['given_name', 'family_name', 'email']}
       hideSignUp={false}
       services={services}

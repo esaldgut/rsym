@@ -6,7 +6,7 @@ import { MediaPlayer } from '@/components/media/MediaPlayer';
 import { SocialInteractions } from '@/components/social/SocialInteractions';
 import { formatDistanceToNow } from '@/utils/date-helpers';
 import { deleteMomentAction } from '@/lib/server/moments-actions';
-import { toastManager } from '@/components/ui/Toast';
+import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import type { Moment } from '@/lib/graphql/types';
 
 interface FeedPostProps {

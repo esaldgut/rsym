@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import Link from 'next/link';
-import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
-import { useRouter, usePathname } from 'next/navigation';
-import YaanLogo from '../ui/YaanLogo';
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { useAuth } from '@/contexts/AuthContext'
+import YaanLogo from '../ui/YaanLogo'
 
 
 // Hook para cerrar menu al hacer click fuera, excluyendo el botón hamburger
@@ -40,7 +40,7 @@ const useClickOutside = (
 export const NavbarImproved = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const { isAuthenticated, signOut, user } = useAmplifyAuth();
+  const { isAuthenticated, signOut, user } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -89,9 +89,8 @@ export const NavbarImproved = () => {
       { href: '/moments', label: 'Momentos' },
     ],
     authenticatedLinks: [
-      { href: '/dashboard', label: 'Dashboard', userTypes: ['buyer', 'provider'] },
-      { href: '/provider', label: 'Business', userTypes: ['provider'] },
-      { href: '/profile', label: 'Mi Cuenta', userTypes: ['buyer', 'provider'] },
+      { href: '/profile', label: 'Mi Cuenta', userTypes: ['traveler', 'influencer', 'provider', 'admin'] }, // Visible para todos los usuarios autenticados
+      { href: '/provider', label: 'Business', userTypes: ['provider'] }, // Solo visible para providers
     ],
     authLinks: {
       login: { href: '/auth', label: 'Iniciar Sesión' },

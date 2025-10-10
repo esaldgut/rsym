@@ -1,0 +1,22 @@
+query getConversationById($conversationId: ID!) {
+  getConversationById(conversationId: $conversationId) {
+    createdAt
+    id
+    lastMessage {
+      content
+      senderId
+      timestamp
+    }
+    participantIds
+    participantTypes {
+      userId
+      userType
+    }
+    participantUsernames
+    unreadCount {
+      count
+      userId
+    }
+    updatedAt
+  }
+}

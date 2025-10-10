@@ -1,0 +1,57 @@
+query getAllActiveMoments {
+  getAllActiveMoments {
+    audioUrl
+    comments
+    created_at
+    description
+    destination {
+      complementary_description
+      coordinates {
+        latitude
+        longitude
+      }
+      id
+      place
+      placeSub
+    }
+    experienceLink
+    id
+    likeCount
+    likes {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    preferences
+    resourceType
+    resourceUrl
+    saveCount
+    saves {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    status
+    tags
+    updated_at
+    user_data {
+      avatar_url
+      bio
+      email
+      name
+      sub
+      user_type
+      username
+    }
+    viewerHasLiked
+    viewerHasSaved
+  }
+}

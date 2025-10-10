@@ -1,0 +1,7 @@
+mutation toggleSave($item_id: ID!, $item_type: String!) {
+  toggleSave(item_id: $item_id, item_type: $item_type) {
+    newSaveCount
+    success
+    viewerHasSaved
+  }
+}

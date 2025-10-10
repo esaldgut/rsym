@@ -1,21 +1,26 @@
 import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
+import MarketplaceGuard from '@/components/guards/MarketplaceGuard';
 
 /**
- * Layout para el Marketplace
- * Requiere solo autenticación básica (tener cuenta en YAAN)
- * Las interacciones (reservas) requieren perfil completo
+ * Layout para el Marketplace - Enhanced Security
+ * Protección multi-capa:
+ * 1. Server-side: RouteProtectionWrapper.protectMarketplace()
+ * 2. Client-side: MarketplaceGuard con validación de sesión real-time
+ * 3. Feature-level: Profile completion para reservas
  */
 export default async function MarketplaceLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Validar autenticación básica (solo tener cuenta)
+  // Server-side protection (primera capa)
   await RouteProtectionWrapper.protectMarketplace();
-  
+
   return (
-    <div className="marketplace-layout">
-      {children}
-    </div>
+    <MarketplaceGuard>
+      <div className="marketplace-layout">
+        {children}
+      </div>
+    </MarketplaceGuard>
   );
 }

@@ -1,11 +1,8 @@
 'use server';
 
-import { getIdTokenServer, getAuthenticatedUser } from '@/utils/amplify-server-utils';
+import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { getAllActiveProductsByProvider, getProductById } from '@/lib/graphql/operations';
-import { runWithAmplifyServerContext } from '@/app/amplify-config-ssr';
-import { fetchAuthSession } from 'aws-amplify/auth/server';
-import { cookies } from 'next/headers';
-import outputs from '../../../amplify/outputs.json';
+import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 
 // SIGUIENDO EXACTAMENTE EL PATTERN DE product-creation-actions.ts
 interface ServerActionResponse<T = any> {
@@ -182,15 +179,7 @@ interface GetProductsParams {
  */
 export async function getProviderProductsAction(params: GetProductsParams = {}): Promise<ServerActionResponse<ProductConnection>> {
   try {
-    // 1. Validar autenticación (EXACTO COMO product-creation-actions.ts)
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado'
-      };
-    }
-
+    // 1. Validar autenticación
     const user = await getAuthenticatedUser();
     if (!user) {
       return {
@@ -211,63 +200,41 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
 
     console.log('🚀 [Server Action] Obteniendo productos del proveedor:', user.sub);
 
-    // 3. Ejecutar GraphQL usando el patrón establecido
-    const result = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        // 1. Obtener la sesión de autenticación con ID token
-        const session = await fetchAuthSession(contextSpec);
-        
-        if (!session.tokens?.idToken) {
-          throw new Error('No se encontró ID token en la sesión');
-        }
+    // 3. Debug de claims del idToken (solo en desarrollo)
+    if (process.env.NODE_ENV === 'development') {
+      await debugIdTokenClaims();
+    }
 
-        const idToken = session.tokens.idToken.toString();
-        console.log('🔑 ID Token obtenido:', idToken.substring(0, 50) + '...');
-        console.log('🚀 AppSync URL:', outputs.data.url);
+    // 4. Crear cliente GraphQL con idToken (necesario para validación de permisos en AppSync)
+    // IMPORTANTE: Las queries de provider requieren idToken porque AppSync valida:
+    // - cognito:groups debe incluir 'providers'
+    // - custom:user_type debe ser 'provider'
+    // - custom:provider_is_approved debe ser true
+    const client = await getGraphQLClientWithIdToken();
 
-        // 2. Preparar variables para GraphQL
-        const variables: any = {};
-        
-        if (params.pagination) {
-          variables.pagination = {
-            limit: params.pagination.limit || 12,
-            ...(params.pagination.nextToken && { nextToken: params.pagination.nextToken })
-          };
-        } else {
-          variables.pagination = { limit: 12 };
-        }
+    // 4. Preparar variables para GraphQL
+    const variables: any = {};
 
-        // Solo incluir filtro si hay parámetros de filtro
-        if (params.filter && Object.keys(params.filter).length > 0) {
-          variables.filter = params.filter;
-        }
+    if (params.pagination) {
+      variables.pagination = {
+        limit: params.pagination.limit || 12,
+        ...(params.pagination.nextToken && { nextToken: params.pagination.nextToken })
+      };
+    } else {
+      variables.pagination = { limit: 12 };
+    }
 
-        console.log('📋 Variables para GraphQL:', JSON.stringify(variables, null, 2));
+    // Solo incluir filtro si hay parámetros de filtro
+    if (params.filter && Object.keys(params.filter).length > 0) {
+      variables.filter = params.filter;
+    }
 
-        // 3. Ejecutar GraphQL directamente con fetch - SIN generateClient
-        const response = await fetch(outputs.data.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': idToken,
-            'x-api-key': outputs.data.api_key || ''
-          },
-          body: JSON.stringify({
-            query: getAllActiveProductsByProvider,
-            variables
-          })
-        });
+    console.log('📋 Variables para GraphQL:', JSON.stringify(variables, null, 2));
 
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const graphqlResult = await response.json();
-        console.log('📤 GraphQL Response:', graphqlResult);
-
-        return graphqlResult;
-      }
+    // 5. Ejecutar query GraphQL (el idToken ya está configurado en el cliente)
+    const result = await client.graphql({
+      query: getAllActiveProductsByProvider,
+      variables
     });
 
     if (result.errors) {
@@ -354,14 +321,6 @@ export async function getProviderMetricsAction(): Promise<ServerActionResponse<P
 export async function getProviderProductByIdAction(productId: string): Promise<ServerActionResponse<Product>> {
   try {
     // 1. Validar autenticación
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado'
-      };
-    }
-
     const user = await getAuthenticatedUser();
     if (!user) {
       return {
@@ -389,41 +348,13 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
 
     console.log('🔍 [Server Action] Obteniendo producto:', productId, 'Usuario:', user.sub);
 
-    // 4. Ejecutar GraphQL siguiendo el patrón establecido
-    const result = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const session = await fetchAuthSession(contextSpec);
-        
-        if (!session.tokens?.idToken) {
-          throw new Error('No se encontró ID token en la sesión');
-        }
+    // 4. Crear cliente GraphQL con idToken (necesario para validación de permisos en AppSync)
+    const client = await getGraphQLClientWithIdToken();
 
-        const idToken = session.tokens.idToken.toString();
-
-        // Usar la query importada desde operations.ts
-        const response = await fetch(outputs.data.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': idToken,
-            'x-api-key': outputs.data.api_key || ''
-          },
-          body: JSON.stringify({
-            query: getProductById,
-            variables: { id: productId }
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const graphqlResult = await response.json();
-        console.log('📤 Get Product GraphQL Response:', graphqlResult);
-
-        return graphqlResult;
-      }
+    // 5. Ejecutar query GraphQL (el idToken ya está configurado en el cliente)
+    const result = await client.graphql({
+      query: getProductById,
+      variables: { id: productId }
     });
 
     if (result.errors) {
@@ -465,14 +396,6 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
 export async function deleteProductAction(productId: string): Promise<ServerActionResponse<{ productId: string }>> {
   try {
     // 1. Validar autenticación
-    const idToken = await getIdTokenServer();
-    if (!idToken) {
-      return {
-        success: false,
-        error: 'Usuario no autenticado'
-      };
-    }
-
     const user = await getAuthenticatedUser();
     if (!user) {
       return {
@@ -500,47 +423,20 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
 
     console.log('🗑️ [Server Action] Eliminando producto:', productId, 'Usuario:', user.sub);
 
-    // 4. Ejecutar GraphQL siguiendo el patrón establecido
-    const result = await runWithAmplifyServerContext({
-      nextServerContext: { cookies },
-      operation: async (contextSpec) => {
-        const session = await fetchAuthSession(contextSpec);
-        
-        if (!session.tokens?.idToken) {
-          throw new Error('No se encontró ID token en la sesión');
-        }
+    // 4. Crear cliente GraphQL con idToken (necesario para validación de permisos en AppSync)
+    const client = await getGraphQLClientWithIdToken();
 
-        const idToken = session.tokens.idToken.toString();
-
-        // GraphQL mutation para eliminar producto
-        const deleteProductMutation = `
-          mutation DeleteProduct($id: ID!) {
-            deleteProduct(id: $id)
-          }
-        `;
-
-        const response = await fetch(outputs.data.url, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': idToken,
-            'x-api-key': outputs.data.api_key || ''
-          },
-          body: JSON.stringify({
-            query: deleteProductMutation,
-            variables: { id: productId }
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-
-        const graphqlResult = await response.json();
-        console.log('📤 Delete GraphQL Response:', graphqlResult);
-
-        return graphqlResult;
+    // 5. GraphQL mutation para eliminar producto
+    const deleteProductMutation = `
+      mutation DeleteProduct($id: ID!) {
+        deleteProduct(id: $id)
       }
+    `;
+
+    // 6. Ejecutar mutación GraphQL (el idToken ya está configurado en el cliente)
+    const result = await client.graphql({
+      query: deleteProductMutation,
+      variables: { id: productId }
     });
 
     if (result.errors) {

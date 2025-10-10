@@ -1,0 +1,18 @@
+subscription onMessageDelivered($conversationId: ID!) {
+  onMessageDelivered(conversationId: $conversationId) {
+    content
+    conversationId
+    createdAt
+    id
+    metadata {
+      imageUrl
+      location {
+        lat
+        lng
+      }
+    }
+    senderId
+    senderUsername
+    timestamp
+  }
+}

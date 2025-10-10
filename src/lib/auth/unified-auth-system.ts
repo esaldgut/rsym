@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation';
-import { getServerSession } from '@/utils/amplify-server-utils';
-import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
+import { getServerSession, runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
 import type { JWT } from 'aws-amplify/auth';
@@ -197,26 +196,33 @@ export class UnifiedAuthSystem {
       case 'provider':
         // Providers requieren aprobación especial
         const providerApprovalAttr = attributes['custom:provider_is_approved'];
-        console.log('🔍 Verificando aprobación de provider:');
-        console.log('   - Atributo raw:', providerApprovalAttr);
-        console.log('   - Tipo:', typeof providerApprovalAttr);
-        console.log('   - Todos los atributos:', attributes);
-        
+
+        // Log solo en desarrollo para debugging
+        if (process.env.NODE_ENV === 'development') {
+          console.log('🔍 Verificando aprobación de provider:');
+          console.log('   - Atributo raw:', providerApprovalAttr);
+          console.log('   - Tipo:', typeof providerApprovalAttr);
+          console.log('   - Usuario:', attributes.email);
+        }
+
         // Manejar diferentes formatos del atributo (string o boolean)
         // Solo considerar aprobado si explícitamente es 'true' o true
         if (providerApprovalAttr === 'true' || providerApprovalAttr === true) {
           permissions.isApproved = true;
         } else {
           // Cualquier otro valor (false, 'false', undefined, null) = no aprobado
+          // Esto es intencional por seguridad - providers deben ser explícitamente aprobados
           permissions.isApproved = false;
         }
         
         permissions.inRequiredGroup = groups.includes('providers');
         permissions.canCreateProducts = permissions.isApproved && permissions.inRequiredGroup;
         permissions.canManageContent = permissions.canCreateProducts;
-        
-        console.log('   - Resultado isApproved:', permissions.isApproved);
-        console.log('   - En grupo providers:', permissions.inRequiredGroup);
+
+        if (process.env.NODE_ENV === 'development') {
+          console.log('   - Resultado isApproved:', permissions.isApproved);
+          console.log('   - En grupo providers:', permissions.inRequiredGroup);
+        }
         break;
         
       case 'influencer':
@@ -270,6 +276,7 @@ export class UnifiedAuthSystem {
         userType: validation.user.userType,
         message: `${validation.user.userType} no aprobado`
       });
+      // Los Route Groups no aparecen en la URL, solo /provider/pending-approval
       redirect(`/${validation.user.userType}/pending-approval?${params}`);
     }
 
@@ -278,6 +285,7 @@ export class UnifiedAuthSystem {
         userType: validation.user.userType,
         message: `No perteneces al grupo requerido`
       });
+      // Los Route Groups no aparecen en la URL, solo /provider/pending-approval
       redirect(`/${validation.user.userType}/pending-approval?${params}`);
     }
 
@@ -364,7 +372,7 @@ export class UnifiedAuthSystem {
    */
   static async requireAuthentication(redirectTo = '/moments') {
     const validation = await this.getValidatedSession();
-    
+
     if (!validation.isAuthenticated) {
       redirect(`/auth?error=authentication_required&callbackUrl=${redirectTo}`);
     }

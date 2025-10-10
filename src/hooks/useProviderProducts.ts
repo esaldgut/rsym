@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { executeQuery } from '@/lib/graphql/client';
 import { getAllProductsByEmail } from '@/lib/graphql/operations';
-import { toastManager } from '@/components/ui/Toast';
+import { toastManager } from '@/components/ui/ToastWithPinpoint';
 
 export type ProductFilter = 'all' | 'circuit' | 'package' | 'draft' | 'published';
 
