@@ -312,7 +312,7 @@ export class UnifiedAuthSystem {
   static async requirePermission(
     permission: keyof UserPermissions,
     value: any = true,
-    redirectTo = '/dashboard'
+    redirectTo = '/profile'
   ): Promise<AuthValidationResult> {
     const validation = await this.getValidatedSession();
     
@@ -363,7 +363,7 @@ export class UnifiedAuthSystem {
    */
   static async requireTraveler() {
     return this.requireUserType('traveler', {
-      redirectTo: '/dashboard'
+      redirectTo: '/profile'
     });
   }
 

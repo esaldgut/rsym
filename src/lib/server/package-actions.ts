@@ -391,7 +391,7 @@ export async function createPackageAction(
     console.log('✅ [CreatePackage] Paquete creado exitosamente:', createdPackage.id);
 
     // 10. Revalidar cache
-    revalidatePath('/dashboard');
+    revalidatePath('/provider');
     revalidateTag('packages');
     revalidateTag(`provider-packages-${user.sub}`);
 

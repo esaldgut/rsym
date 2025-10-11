@@ -76,12 +76,12 @@ export async function createCircuitProductAction(
 
     // 5. Revalidar cache y redireccionar
     revalidateTag(`user-products-${user.userId}`);
-    revalidatePath('/dashboard/products');
+    revalidatePath('/provider/products');
 
     return {
       success: true,
       data: result.data.createProductOfTypeCircuit,
-      redirectTo: `/dashboard/products/${result.data.createProductOfTypeCircuit.id}`
+      redirectTo: `/provider/products/${result.data.createProductOfTypeCircuit.id}`
     };
 
   } catch (error: any) {
@@ -143,12 +143,12 @@ export async function createPackageProductAction(
 
     // 5. Revalidar cache y redireccionar
     revalidateTag(`user-products-${user.userId}`);
-    revalidatePath('/dashboard/products');
+    revalidatePath('/provider/products');
 
     return {
       success: true,
       data: result.data.createProductOfTypePackage,
-      redirectTo: `/dashboard/products/${result.data.createProductOfTypePackage.id}`
+      redirectTo: `/provider/products/${result.data.createProductOfTypePackage.id}`
     };
 
   } catch (error: any) {
@@ -214,8 +214,8 @@ export async function updateProductAction(
     // 6. Revalidar cache
     revalidateTag(`product-${productId}`);
     revalidateTag(`user-products-${user.userId}`);
-    revalidatePath('/dashboard/products');
-    revalidatePath(`/dashboard/products/${productId}`);
+    revalidatePath('/provider/products');
+    revalidatePath(`/provider/products/${productId}`);
 
     return {
       success: true,
