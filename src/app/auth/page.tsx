@@ -2,7 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { useAmplifyAuth } from '../../hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { AuthForm } from '../../components/auth/AuthForm';
 import { AuthErrorBoundary } from '../../components/auth/AuthErrorBoundary';
 import { HeroSection } from '../../components/ui/HeroSection';
@@ -11,7 +11,7 @@ import { useSearchParams } from 'next/navigation';
 export default function AuthPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated } = useAmplifyAuth();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated) {

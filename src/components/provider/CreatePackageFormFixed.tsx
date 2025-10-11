@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { LocationSelector } from '@/components/location/LocationSelector';
 import { useLocationSelector } from '@/hooks/useLocationSelector';
 import { createPackageAction } from '@/lib/server/package-actions';
@@ -42,7 +42,7 @@ interface FormData {
  */
 function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
   const router = useRouter();
-  const { user } = useAmplifyAuth();
+  const { user } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
@@ -1072,7 +1072,7 @@ function PackageFormContent({ onSubmit, onCancel }: CreatePackageFormProps) {
  * Componente principal que verifica permisos antes de renderizar
  */
 export function CreatePackageFormFixed({ onSubmit, onCancel }: CreatePackageFormProps) {
-  const { userType, isLoading } = useAmplifyAuth();
+  const { userType, isLoading } = useAuth();
 
   // Loading state
   if (isLoading) {

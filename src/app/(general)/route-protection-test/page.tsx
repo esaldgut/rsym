@@ -1,11 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 
 export default function RouteProtectionTestPage() {
-  const { isAuthenticated, user, userType } = useAmplifyAuth();
+  const { isAuthenticated, user, userType } = useAuth();
   const [testResults, setTestResults] = useState<Array<{
     test: string;
     result: string;
@@ -15,17 +15,17 @@ export default function RouteProtectionTestPage() {
   const runProtectionTests = async () => {
     const results = [];
     
-    // Test 1: Acceso directo a dashboard
+    // Test 1: Acceso directo a profile
     try {
-      const response = await fetch('/dashboard', { method: 'HEAD' });
+      const response = await fetch('/profile', { method: 'HEAD' });
       results.push({
-        test: 'Acceso directo a /dashboard',
+        test: 'Acceso directo a /profile',
         result: `HTTP ${response.status} - ${response.status === 307 ? 'Redirigido correctamente' : 'Posible problema'}`,
         status: response.status === 307 ? 'success' : 'fail'
       });
     } catch (error) {
       results.push({
-        test: 'Acceso directo a /dashboard',
+        test: 'Acceso directo a /profile',
         result: 'Error de conexión',
         status: 'fail'
       });
@@ -33,7 +33,7 @@ export default function RouteProtectionTestPage() {
 
     // Test 2: Headers de protección
     try {
-      const response = await fetch('/dashboard', { method: 'HEAD' });
+      const response = await fetch('/profile', { method: 'HEAD' });
       const protectedHeader = response.headers.get('X-Protected-Route');
       results.push({
         test: 'Header X-Protected-Route',
@@ -101,10 +101,10 @@ export default function RouteProtectionTestPage() {
             
             <div className="flex space-x-4">
               <Link
-                href="/dashboard"
+                href="/profile"
                 className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 inline-block"
               >
-                Intentar acceder al Dashboard
+                Intentar acceder al Profile
               </Link>
               
               <Link

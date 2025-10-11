@@ -1,6 +1,6 @@
 'use client';
 
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { AuthSecurityWrapper } from '@/components/auth/AuthSecurityWrapper';
 import { HeroSection } from '@/components/ui/HeroSection';
 import { useSearchParams } from 'next/navigation';
@@ -8,7 +8,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 
 export default function ProviderPageClient() {
-  const { isAuthenticated, isLoading, user, signOut, userType } = useAmplifyAuth();
+  const { isAuthenticated, isLoading, user, signOut, userType } = useAuth();
   const searchParams = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
 

@@ -55,7 +55,7 @@ export function OAuthCallback({ onSuccess, onError }: OAuthCallbackProps) {
 
         // Redirigir después de un breve delay
         setTimeout(() => {
-          const redirectUrl = searchParams.get('redirect') || '/dashboard';
+          const redirectUrl = searchParams.get('redirect') || '/profile';
           router.push(redirectUrl);
         }, 1500);
 

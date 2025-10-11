@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { LocationSelector } from '@/components/location/LocationSelector';
 import { useLocationSelector } from '@/hooks/useLocationSelector';
 import { createPackageAction } from '@/lib/server/package-actions';
@@ -36,7 +36,7 @@ interface FormData {
 
 export function CreatePackageFormNew({ onSubmit, onCancel }: CreatePackageFormProps) {
   const router = useRouter();
-  const { user, userType } = useAmplifyAuth();
+  const { user, userType } = useAuth();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});

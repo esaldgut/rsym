@@ -1,8 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-//import { useAmplifyAuth } from '@/hooks/useAmplifyAuth-mock';
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { MediaUploader } from '@/components/media/MediaUploader';
 import { createMomentAction } from '@/lib/server/moments-actions';
@@ -13,7 +12,7 @@ interface CreatePostCardProps {
 }
 
 export function CreatePostCard({ onPostCreated }: CreatePostCardProps) {
-  const { user } = useAmplifyAuth();
+  const { user } = useAuth();
   const [isExpanded, setIsExpanded] = useState(false);
   const [description, setDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);

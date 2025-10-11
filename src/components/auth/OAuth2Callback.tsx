@@ -55,7 +55,7 @@ export function OAuth2Callback({ onSuccess, onError }: OAuth2CallbackProps) {
           onSuccess?.();
           
           // Redirigir usando router de Next.js
-          const redirectUrl = searchParams.get('redirect') || '/dashboard';
+          const redirectUrl = searchParams.get('redirect') || '/profile';
           router.push(redirectUrl);
           break;
           
@@ -71,7 +71,7 @@ export function OAuth2Callback({ onSuccess, onError }: OAuth2CallbackProps) {
           setMessage('¡Autenticación exitosa!');
           onSuccess?.();
           
-          const successRedirectUrl = searchParams.get('redirect') || '/dashboard';
+          const successRedirectUrl = searchParams.get('redirect') || '/profile';
           router.push(successRedirectUrl);
           break;
       }

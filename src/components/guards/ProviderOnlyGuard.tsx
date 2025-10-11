@@ -1,6 +1,6 @@
 'use client';
 
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 import { ReactNode } from 'react';
 
 interface ProviderOnlyGuardProps {
@@ -18,7 +18,7 @@ export function ProviderOnlyGuard({
   fallback,
   showError = true 
 }: ProviderOnlyGuardProps) {
-  const { userType, isLoading } = useAmplifyAuth();
+  const { userType, isLoading } = useAuth();
 
   // Mostrar loading mientras se verifica el tipo de usuario
   if (isLoading) {

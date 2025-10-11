@@ -68,16 +68,20 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       ).data || [],
       
       // Campos de provider
-      // Parsear company_profile si viene como JSON, o usar el string directo
+      // El campo company_profile ahora se guarda como string simple (sin JSON wrapper)
+      // para cumplir con el límite de 255 caracteres de AWS Cognito
       company_profile: (() => {
         const rawProfile = initialAttributes['custom:company_profile'] || '';
-        const parsed = safeJsonParse<{ description?: string }>(rawProfile, null);
 
-        // Si es un JSON válido con description, usar solo la description
-        if (parsed.success && parsed.data?.description) {
-          return parsed.data.description;
+        // Por compatibilidad, verificar si es JSON antiguo
+        if (rawProfile.startsWith('{') && rawProfile.endsWith('}')) {
+          const parsed = safeJsonParse<{ description?: string }>(rawProfile, null);
+          if (parsed.success && parsed.data?.description) {
+            return parsed.data.description;
+          }
         }
-        // Si no es JSON o no tiene description, usar el valor raw
+
+        // Usar el valor directo (string simple)
         return rawProfile;
       })(),
       locale: initialAttributes.locale || 'MX',
@@ -113,14 +117,56 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       days_of_service: initialAttributes['custom:days_of_service']
         ? JSON.parse(initialAttributes['custom:days_of_service'])
         : [],
-      contact_information: safeJsonParse<{ contact_name: string; contact_phone: string; contact_email: string }>(
-        initialAttributes['custom:contact_information'],
-        { contact_name: '', contact_phone: '', contact_email: '' }
-      ).data || { contact_name: '', contact_phone: '', contact_email: '' },
-      emgcy_details: safeJsonParse<{ contact_name: string; contact_phone: string; contact_email: string }>(
-        initialAttributes['custom:emgcy_details'],
-        { contact_name: '', contact_phone: '', contact_email: '' }
-      ).data || { contact_name: '', contact_phone: '', contact_email: '' },
+      contact_information: (() => {
+        const parsed = safeJsonParse<any>(
+          initialAttributes['custom:contact_information'],
+          null
+        );
+        if (parsed.success && parsed.data) {
+          // Manejar tanto formato nuevo (claves cortas) como antiguo
+          if ('n' in parsed.data) {
+            // Formato nuevo con claves cortas
+            return {
+              contact_name: parsed.data.n || '',
+              contact_phone: parsed.data.p || '',
+              contact_email: parsed.data.e || ''
+            };
+          } else {
+            // Formato antiguo con claves completas
+            return {
+              contact_name: parsed.data.contact_name || '',
+              contact_phone: parsed.data.contact_phone || '',
+              contact_email: parsed.data.contact_email || ''
+            };
+          }
+        }
+        return { contact_name: '', contact_phone: '', contact_email: '' };
+      })(),
+      emgcy_details: (() => {
+        const parsed = safeJsonParse<any>(
+          initialAttributes['custom:emgcy_details'],
+          null
+        );
+        if (parsed.success && parsed.data) {
+          // Manejar tanto formato nuevo (claves cortas) como antiguo
+          if ('n' in parsed.data) {
+            // Formato nuevo con claves cortas
+            return {
+              contact_name: parsed.data.n || '',
+              contact_phone: parsed.data.p || '',
+              contact_email: parsed.data.e || ''
+            };
+          } else {
+            // Formato antiguo con claves completas
+            return {
+              contact_name: parsed.data.contact_name || '',
+              contact_phone: parsed.data.contact_phone || '',
+              contact_email: parsed.data.contact_email || ''
+            };
+          }
+        }
+        return { contact_name: '', contact_phone: '', contact_email: '' };
+      })(),
       
       // Documentos
       proofOfTaxStatusPath: safeJsonParse<any>(
@@ -584,15 +630,27 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Descripción del perfil *
+                <span className="text-xs text-gray-500 ml-2">
+                  ({formData.details?.length || 0}/250 caracteres)
+                </span>
               </label>
               <textarea
                 name="details"
                 value={formData.details || ''}
-                onChange={(e) => updateFormData('details', e.target.value)}
+                onChange={(e) => {
+                  const value = e.target.value.slice(0, 250);
+                  updateFormData('details', value);
+                }}
+                maxLength={250}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
-                placeholder="Cuéntanos sobre ti, tus intereses de viaje..."
+                placeholder="Cuéntanos sobre ti, tus intereses de viaje... (máximo 250 caracteres)"
               />
+              <p className={`text-xs mt-1 ${
+                (formData.details?.length || 0) > 240 ? 'text-orange-600' : 'text-gray-500'
+              }`}>
+                {250 - (formData.details?.length || 0)} caracteres restantes
+              </p>
               {errors.details && (
                 <p className="text-sm text-red-600 mt-1">{errors.details}</p>
               )}
@@ -664,14 +722,27 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Perfil de empresa *
+                    <span className="text-xs text-gray-500 ml-2">
+                      ({formData.company_profile?.length || 0}/250 caracteres)
+                    </span>
                   </label>
                   <textarea
                     value={formData.company_profile || ''}
-                    onChange={(e) => updateFormData('company_profile', e.target.value)}
+                    onChange={(e) => {
+                      // Limitar a 250 caracteres
+                      const value = e.target.value.slice(0, 250);
+                      updateFormData('company_profile', value);
+                    }}
                     rows={3}
+                    maxLength={250}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    placeholder="Describe tu empresa y servicios..."
+                    placeholder="Describe tu empresa y servicios (máximo 250 caracteres)..."
                   />
+                  <p className={`text-xs mt-1 ${
+                    (formData.company_profile?.length || 0) > 240 ? 'text-orange-600' : 'text-gray-500'
+                  }`}>
+                    {250 - (formData.company_profile?.length || 0)} caracteres restantes
+                  </p>
                   {errors.company_profile && (
                     <p className="text-sm text-red-600 mt-1">{errors.company_profile}</p>
                   )}

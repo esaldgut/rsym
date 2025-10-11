@@ -48,7 +48,7 @@ export default async function ProfileSettingsPage() {
   // Preparar los datos para el cliente
   // Usar el userType del authResult que ya fue validado por UnifiedAuthSystem
   const initialData = {
-    userType: authResult.user?.userType || userAttributes['custom:user_type'] as 'traveler' | 'influencer' | 'provider' | undefined,
+    'custom:user_type': authResult.user?.userType || userAttributes['custom:user_type'] as 'traveler' | 'influencer' | 'provider' | undefined,
     userId: authResult.user?.id || '',
     email: authResult.user?.email || userAttributes.email || '',
     username: authResult.user?.username || '',

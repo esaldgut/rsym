@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { fetchUserAttributes } from 'aws-amplify/auth';
-import { useAmplifyAuth } from './useAmplifyAuth';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileCompletionState {
   isComplete: boolean;
@@ -20,7 +20,7 @@ interface ProfileCompletionContext {
 
 export function useProfileCompletion() {
   const router = useRouter();
-  const { isAuthenticated, user } = useAmplifyAuth();
+  const { isAuthenticated, user } = useAuth();
   const [state, setState] = useState<ProfileCompletionState>({
     isComplete: false,
     isLoading: true,

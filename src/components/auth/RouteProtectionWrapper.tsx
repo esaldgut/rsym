@@ -182,8 +182,8 @@ export class RouteProtectionWrapper {
     if (types.includes('admin')) return '/admin';
     if (types.includes('provider')) return '/provider';
     if (types.includes('influencer')) return '/influencer';
-    
-    return '/dashboard';
+
+    return '/profile';
   }
 
   private static hasPermission(auth: any, permission: string): boolean {
@@ -219,7 +219,7 @@ export class RouteProtectionWrapper {
 
       // Normalizar rutas conocidas
       const knownRoutes = [
-        '/moments', '/profile', '/settings', '/dashboard', '/marketplace',
+        '/moments', '/profile', '/settings', '/marketplace',
         '/provider', '/admin', '/influencer', '/auth'
       ];
 

@@ -78,7 +78,14 @@ export async function updateUserProfileAction(
       attributesToUpdate.birthdate = htmlDateToCognito(data.birthdate);
     }
     if (data.preferred_username) attributesToUpdate.preferred_username = data.preferred_username;
-    if (data.details !== undefined) attributesToUpdate['custom:details'] = data.details;
+    if (data.details !== undefined) {
+      // LÍMITE: AWS Cognito permite máximo 255 caracteres en atributos personalizados
+      const maxDetailsLength = 250; // Dejar margen de seguridad
+      const truncatedDetails = data.details.length > maxDetailsLength
+        ? data.details.substring(0, maxDetailsLength)
+        : data.details;
+      attributesToUpdate['custom:details'] = truncatedDetails;
+    }
     if (data.profilePhotoPath !== undefined) attributesToUpdate['custom:profilePhotoPath'] = data.profilePhotoPath;
 
     // Documentos de viaje
@@ -101,10 +108,14 @@ export async function updateUserProfileAction(
     // Atributos específicos de provider
     if (userType === 'provider') {
       if (data.company_profile) {
-        // Guardar como JSON con estructura {description: "..."}
-        attributesToUpdate['custom:company_profile'] = JSON.stringify({
-          description: data.company_profile
-        });
+        // LÍMITE CRÍTICO: AWS Cognito permite máximo 255 caracteres en atributos personalizados
+        // Truncar si es necesario y guardar solo el texto plano (sin JSON wrapper)
+        const maxLength = 250; // Dejar margen de seguridad
+        const truncatedProfile = data.company_profile.length > maxLength
+          ? data.company_profile.substring(0, maxLength)
+          : data.company_profile;
+
+        attributesToUpdate['custom:company_profile'] = truncatedProfile;
       }
       if (data.locale) {
         attributesToUpdate.locale = data.locale;
@@ -116,10 +127,22 @@ export async function updateUserProfileAction(
         attributesToUpdate['custom:days_of_service'] = JSON.stringify(data.days_of_service);
       }
       if (data.contact_information) {
-        attributesToUpdate['custom:contact_information'] = JSON.stringify(data.contact_information);
+        // Optimizar JSON usando claves cortas para ahorrar espacio
+        const optimizedContact = {
+          n: data.contact_information.contact_name || '',
+          p: data.contact_information.contact_phone || '',
+          e: data.contact_information.contact_email || ''
+        };
+        attributesToUpdate['custom:contact_information'] = JSON.stringify(optimizedContact);
       }
       if (data.emgcy_details) {
-        attributesToUpdate['custom:emgcy_details'] = JSON.stringify(data.emgcy_details);
+        // Optimizar JSON usando claves cortas para ahorrar espacio
+        const optimizedEmergency = {
+          n: data.emgcy_details.contact_name || '',
+          p: data.emgcy_details.contact_phone || '',
+          e: data.emgcy_details.contact_email || ''
+        };
+        attributesToUpdate['custom:emgcy_details'] = JSON.stringify(optimizedEmergency);
       }
 
       // Documentos
@@ -216,6 +239,10 @@ export async function validateProfileDataAction(
   if (!data.details || data.details.length < 10) {
     errors.details = 'La descripción debe tener al menos 10 caracteres';
   }
+  // VALIDACIÓN CRÍTICA: AWS Cognito límite de 255 caracteres
+  if (data.details && data.details.length > 250) {
+    errors.details = 'La descripción no puede exceder 250 caracteres';
+  }
 
   // Validaciones específicas para influencer
   if (userType === 'influencer') {
@@ -231,6 +258,10 @@ export async function validateProfileDataAction(
   if (userType === 'provider') {
     if (!data.company_profile || data.company_profile.length < 20) {
       errors.company_profile = 'El perfil de empresa debe tener al menos 20 caracteres';
+    }
+    // VALIDACIÓN CRÍTICA: AWS Cognito límite de 255 caracteres
+    if (data.company_profile && data.company_profile.length > 250) {
+      errors.company_profile = 'El perfil de empresa no puede exceder 250 caracteres';
     }
     if (!data.locale) {
       errors.locale = 'El país de operación es requerido';

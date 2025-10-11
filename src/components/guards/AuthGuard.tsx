@@ -2,8 +2,7 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
-//import { useAmplifyAuth } from '@/hooks/useAmplifyAuth-mock';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AuthGuardProps {
   children: ReactNode;
@@ -20,7 +19,7 @@ export function AuthGuard({
   redirectTo = '/auth',
   fallback
 }: AuthGuardProps) {
-  const { isAuthenticated, isLoading } = useAmplifyAuth();
+  const { isAuthenticated, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
