@@ -23,11 +23,17 @@ export function useStorageUrl(path: string | undefined | null): {
       setIsLoading(true);
       setError(null);
 
+      console.log('[useStorageUrl] 📦 Procesando path:', path);
+
       try {
+        // Si es una URL completa, retornarla directamente
         if (path.startsWith('http://') || path.startsWith('https://')) {
+          console.log('[useStorageUrl] ✅ URL pública detectada, usando directamente');
           setUrl(path);
           return;
         }
+
+        console.log('[useStorageUrl] 🔐 Path de Storage, obteniendo URL firmada...');
 
         const result = await getUrl({
           path: path,
@@ -38,11 +44,12 @@ export function useStorageUrl(path: string | undefined | null): {
         });
 
         if (!cancelled) {
+          console.log('[useStorageUrl] ✅ URL firmada obtenida:', result.url.toString().substring(0, 100) + '...');
           setUrl(result.url.toString());
         }
       } catch (err) {
         if (!cancelled) {
-          console.error('Error generando URL:', err);
+          console.error('[useStorageUrl] ❌ Error generando URL:', err);
           setError(err instanceof Error ? err : new Error('Error desconocido'));
           setUrl(null);
         }

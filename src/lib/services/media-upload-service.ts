@@ -46,12 +46,26 @@ export class MediaUploadService {
     try {
       // Determinar folder según tipo y tamaño
       const folder = this.getFolderByType(type, file);
-      
+
+      // Detectar si es contenido social (Moments) según estructura del productId
+      const isMoment = productId.startsWith('moment-');
+      const momentId = isMoment ? productId.replace('moment-', '') : undefined;
+
       // Preparar FormData
       const formData = new FormData();
       formData.append('file', file);
       formData.append('folder', folder);
       formData.append('productId', productId);
+
+      // Agregar parámetros específicos para Moments (contenido social)
+      if (isMoment && momentId) {
+        formData.append('contentType', 'moment');
+        formData.append('momentId', momentId);
+        console.log(`[MediaUploadService] 📱 Subiendo a social-content: moment-${momentId}`);
+      } else {
+        formData.append('contentType', 'product');
+        console.log(`[MediaUploadService] 🛍️ Subiendo a products: ${productId}`);
+      }
 
       // Configurar XMLHttpRequest para tracking de progreso
       return new Promise<MediaUploadResult>((resolve, reject) => {
@@ -176,11 +190,11 @@ export class MediaUploadService {
    * Validar archivo antes del upload
    */
   validateFile(file: File, type: 'cover' | 'gallery' | 'video'): { valid: boolean; error?: string } {
-    // Validar tamaño
+    // Validar tamaño - Límites para creadores profesionales e influencers
     const maxSizes = {
-      cover: 10 * 1024 * 1024,     // 10MB para imágenes de portada
-      gallery: 50 * 1024 * 1024,   // 50MB para galería
-      video: 5 * 1024 * 1024 * 1024 // 5GB para videos (límite S3)
+      cover: 25 * 1024 * 1024,      // 25MB para portadas (RAW images)
+      gallery: 100 * 1024 * 1024,   // 100MB para galería (ProRAW, DNG)
+      video: 10 * 1024 * 1024 * 1024 // 10GB para videos profesionales (ProRes 4K puede ser ~6GB/min)
     };
 
     if (file.size > maxSizes[type]) {
@@ -213,10 +227,63 @@ export class MediaUploadService {
       ]
     };
 
+    // Si el archivo no tiene MIME type o es genérico, verificar por extensión
+    const fileName = file.name.toLowerCase();
+
+    // Extensiones válidas para influencers y creadores profesionales
+    const validVideoExtensions = [
+      '.mov', '.MOV',     // iPhone, cámaras profesionales
+      '.mp4', '.MP4',     // Universal
+      '.m4v', '.M4V',     // Apple
+      '.webm',            // Web
+      '.avi',             // Windows
+      '.mkv',             // Alta calidad
+      '.mts', '.m2ts',    // Cámaras Sony/Panasonic
+      '.mxf'              // Broadcast professional
+    ];
+
+    const validImageExtensions = [
+      '.heic', '.HEIC',   // iPhone High Efficiency
+      '.heif', '.HEIF',   // iPhone High Efficiency
+      '.jpg', '.JPG', '.jpeg', '.JPEG',  // Universal
+      '.png', '.PNG',     // Transparencia
+      '.webp', '.WEBP',   // Moderno
+      '.gif', '.GIF',     // Animado
+      '.dng', '.DNG',     // ProRAW iPhone, Adobe
+      '.cr2', '.CR2',     // Canon RAW
+      '.nef', '.NEF',     // Nikon RAW
+      '.arw', '.ARW',     // Sony RAW
+      '.tif', '.tiff'     // Profesional
+    ];
+
+    const hasValidVideoExtension = validVideoExtensions.some(ext => fileName.endsWith(ext.toLowerCase()));
+    const hasValidImageExtension = validImageExtensions.some(ext => fileName.endsWith(ext.toLowerCase()));
+    const hasValidExtension = hasValidVideoExtension || hasValidImageExtension;
+
+    // Si el MIME type no está en la lista pero la extensión es válida, permitirlo
     if (!allowedTypes[type].includes(file.type)) {
+      if (!file.type || file.type === 'application/octet-stream' || file.type === '') {
+        // Si no tiene MIME type, verificar por extensión
+        if (hasValidExtension) {
+          console.log(`[MediaUploadService] ✅ Archivo profesional aceptado por extensión: ${file.name}`);
+          return { valid: true };
+        }
+      }
+
+      // Casos especiales: archivos con MIME type parcial
+      if (file.type.includes('video') && hasValidVideoExtension) {
+        console.log(`[MediaUploadService] ✅ Video aceptado (MIME parcial): ${file.name}`);
+        return { valid: true };
+      }
+
+      if (file.type.includes('image') && hasValidImageExtension) {
+        console.log(`[MediaUploadService] ✅ Imagen aceptada (MIME parcial): ${file.name}`);
+        return { valid: true };
+      }
+
       return {
         valid: false,
-        error: `Tipo de archivo no permitido para ${type}`
+        error: `Formato no soportado. Soportamos videos profesionales (MOV, MP4, MXF) y fotos RAW (DNG, CR2, NEF).`
       };
     }
 

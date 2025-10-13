@@ -46,6 +46,8 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'images';
     const productId = formData.get('productId') as string;
+    const contentType = formData.get('contentType') as string || 'product'; // 'product' | 'moment'
+    const momentId = formData.get('momentId') as string; // Para contenido social
 
     if (!file) {
       return NextResponse.json(
@@ -96,22 +98,42 @@ export async function POST(request: NextRequest) {
     }
 
     // 5. Generar path S3 según estructura definida en prompt-2
-    // Estructura: /products/{product_id}/main-image.jpg o /products/{product_id}/gallery/
-    const targetId = productId || user.sub || user.userId;
     const fileExtension = file.name.split('.').pop();
-    
-    // Generar nombre según tipo y estructura definida en prompt-2
+    const username = user.username || user.sub;
+
+    // Generar nombre según contentType y estructura definida en prompt-2
     let s3Key: string;
-    if (folder === 'covers') {
-      // Para covers: /products/{product_id}/main-image.jpg
-      s3Key = `public/products/${targetId}/main-image.${fileExtension}`;
-    } else {
-      // Para gallery y videos: /products/{product_id}/gallery/
-      // Determinar tipo por contenido del archivo, no solo por folder
+
+    if (contentType === 'moment') {
+      // Estructura para contenido social (Moments):
+      // public/users/{username}/social-content/{post_id}/image_1.jpg
+      // public/users/{username}/social-content/{post_id}/video_1.mp4
+      if (!momentId) {
+        return NextResponse.json(
+          { error: 'momentId es requerido para contenido social' },
+          { status: 400 }
+        );
+      }
+
       const isVideo = file.type.startsWith('video/');
       const prefix = isVideo ? 'video' : 'image';
       const uniqueFileName = `${prefix}_${Date.now()}_${uuidv4().slice(0, 8)}.${fileExtension}`;
-      s3Key = `public/products/${targetId}/gallery/${uniqueFileName}`;
+      s3Key = `public/users/${username}/social-content/${momentId}/${uniqueFileName}`;
+    } else {
+      // Estructura para productos del marketplace:
+      // public/products/{product_id}/main-image.jpg o public/products/{product_id}/gallery/
+      const targetId = productId || user.sub || user.userId;
+
+      if (folder === 'covers') {
+        // Para covers: /products/{product_id}/main-image.jpg
+        s3Key = `public/products/${targetId}/main-image.${fileExtension}`;
+      } else {
+        // Para gallery y videos: /products/{product_id}/gallery/
+        const isVideo = file.type.startsWith('video/');
+        const prefix = isVideo ? 'video' : 'image';
+        const uniqueFileName = `${prefix}_${Date.now()}_${uuidv4().slice(0, 8)}.${fileExtension}`;
+        s3Key = `public/products/${targetId}/gallery/${uniqueFileName}`;
+      }
     }
 
     console.log('📍 [AWS Route Handler] Subiendo a:', s3Key);
@@ -147,10 +169,13 @@ export async function POST(request: NextRequest) {
       ContentType: file.type,
       Metadata: {
         'uploaded-by': user.sub || user.userId,
-        'product-id': productId || 'temp',
+        'username': username,
+        'content-category': contentType, // 'product' | 'moment'
+        'product-id': productId || 'n/a',
+        'moment-id': momentId || 'n/a',
         'original-filename': file.name,
         'upload-timestamp': new Date().toISOString(),
-        'content-type': folder,
+        'folder-type': folder,
         'file-size': file.size.toString()
       }
     });

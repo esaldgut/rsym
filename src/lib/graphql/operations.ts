@@ -787,3 +787,422 @@ export const getProductsByType = /* GraphQL */ `
     }
   }
 `;
+
+// ==================== FRIENDSHIP QUERIES ====================
+
+export const getMyConnections = /* GraphQL */ `
+  query GetMyConnections($status: FriendshipStatus, $limit: Int, $nextToken: String) {
+    getMyConnections(status: $status, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        userId
+        friendId
+        status
+        initiatedBy
+        createdAt
+        updatedAt
+        user {
+          sub
+          username
+          name
+          email
+          user_type
+          avatar_url
+          bio
+        }
+        friend {
+          sub
+          username
+          name
+          email
+          user_type
+          avatar_url
+          bio
+        }
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getPendingConnectionRequests = /* GraphQL */ `
+  query GetPendingConnectionRequests($limit: Int, $nextToken: String) {
+    getPendingConnectionRequests(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        userId
+        friendId
+        status
+        initiatedBy
+        createdAt
+        user {
+          sub
+          username
+          name
+          avatar_url
+          user_type
+        }
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getSentConnectionRequests = /* GraphQL */ `
+  query GetSentConnectionRequests($limit: Int, $nextToken: String) {
+    getSentConnectionRequests(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        userId
+        friendId
+        status
+        initiatedBy
+        createdAt
+        friend {
+          sub
+          username
+          name
+          avatar_url
+          user_type
+        }
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getMyFollowers = /* GraphQL */ `
+  query GetMyFollowers($limit: Int, $nextToken: String) {
+    getMyFollowers(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        followerId
+        followingId
+        status
+        createdAt
+        notificationEnabled
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getMyFollowing = /* GraphQL */ `
+  query GetMyFollowing($limit: Int, $nextToken: String) {
+    getMyFollowing(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        followerId
+        followingId
+        status
+        createdAt
+        notificationEnabled
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+export const getRelationshipStatus = /* GraphQL */ `
+  query GetRelationshipStatus($targetUserId: ID!) {
+    getRelationshipStatus(targetUserId: $targetUserId) {
+      type
+      isConnected
+      isFollowing
+      isFollower
+      connectionStatus
+      canSendRequest
+      canFollow
+    }
+  }
+`;
+
+export const getMyStats = /* GraphQL */ `
+  query GetMyStats {
+    getMyStats {
+      userId
+      connectionsCount
+      pendingRequestsReceived
+      pendingRequestsSent
+      followersCount
+      followingCount
+      blockedUsersCount
+    }
+  }
+`;
+
+export const getUserStats = /* GraphQL */ `
+  query GetUserStats($userId: ID!) {
+    getUserStats(userId: $userId) {
+      userId
+      connectionsCount
+      followersCount
+      followingCount
+      blockedUsersCount
+    }
+  }
+`;
+
+export const getBlockedUsers = /* GraphQL */ `
+  query GetBlockedUsers($limit: Int, $nextToken: String) {
+    getBlockedUsers(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        userId
+        friendId
+        status
+        initiatedBy
+        updatedAt
+        friend {
+          sub
+          username
+          name
+          avatar_url
+        }
+      }
+      nextToken
+      total
+    }
+  }
+`;
+
+// ==================== FRIENDSHIP MUTATIONS ====================
+
+export const sendConnectionRequest = /* GraphQL */ `
+  mutation SendConnectionRequest($targetUserId: ID!) {
+    sendConnectionRequest(targetUserId: $targetUserId) {
+      id
+      userId
+      friendId
+      status
+      initiatedBy
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const acceptConnectionRequest = /* GraphQL */ `
+  mutation AcceptConnectionRequest($requestId: ID!) {
+    acceptConnectionRequest(requestId: $requestId) {
+      id
+      userId
+      friendId
+      status
+      initiatedBy
+      updatedAt
+    }
+  }
+`;
+
+export const rejectConnectionRequest = /* GraphQL */ `
+  mutation RejectConnectionRequest($requestId: ID!) {
+    rejectConnectionRequest(requestId: $requestId) {
+      id
+      userId
+      friendId
+      status
+      updatedAt
+    }
+  }
+`;
+
+export const cancelConnectionRequest = /* GraphQL */ `
+  mutation CancelConnectionRequest($requestId: ID!) {
+    cancelConnectionRequest(requestId: $requestId) {
+      id
+      userId
+      friendId
+      status
+      updatedAt
+    }
+  }
+`;
+
+export const removeConnection = /* GraphQL */ `
+  mutation RemoveConnection($connectionId: ID!) {
+    removeConnection(connectionId: $connectionId)
+  }
+`;
+
+export const followUser = /* GraphQL */ `
+  mutation FollowUser($targetUserId: ID!) {
+    followUser(targetUserId: $targetUserId) {
+      id
+      followerId
+      followingId
+      status
+      createdAt
+      notificationEnabled
+    }
+  }
+`;
+
+export const unfollowUser = /* GraphQL */ `
+  mutation UnfollowUser($targetUserId: ID!) {
+    unfollowUser(targetUserId: $targetUserId)
+  }
+`;
+
+export const blockUser = /* GraphQL */ `
+  mutation BlockUser($targetUserId: ID!) {
+    blockUser(targetUserId: $targetUserId)
+  }
+`;
+
+export const unblockUser = /* GraphQL */ `
+  mutation UnblockUser($targetUserId: ID!) {
+    unblockUser(targetUserId: $targetUserId)
+  }
+`;
+
+// ==================== CHAT QUERIES ====================
+
+export const listMyConversations = /* GraphQL */ `
+  query ListMyConversations($limit: Int, $nextToken: String) {
+    listMyConversations(limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        participantIds
+        participantUsernames
+        participantTypes {
+          userId
+          userType
+        }
+        lastMessage {
+          content
+          senderId
+          timestamp
+        }
+        unreadCount {
+          userId
+          count
+        }
+        createdAt
+        updatedAt
+      }
+      nextToken
+    }
+  }
+`;
+
+export const getConversationMessages = /* GraphQL */ `
+  query GetConversationMessages($conversationId: ID!, $limit: Int, $nextToken: String) {
+    getConversationMessages(conversationId: $conversationId, limit: $limit, nextToken: $nextToken) {
+      items {
+        id
+        conversationId
+        senderId
+        senderUsername
+        content
+        type
+        metadata {
+          imageUrl
+          location {
+            lat
+            lng
+          }
+        }
+        status
+        timestamp
+        createdAt
+      }
+      nextToken
+    }
+  }
+`;
+
+export const getOrCreateConversation = /* GraphQL */ `
+  query GetOrCreateConversation($participantId: ID!) {
+    getOrCreateConversation(participantId: $participantId) {
+      id
+      participantIds
+      participantUsernames
+      participantTypes {
+        userId
+        userType
+      }
+      lastMessage {
+        content
+        senderId
+        timestamp
+      }
+      unreadCount {
+        userId
+        count
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+export const getConversationById = /* GraphQL */ `
+  query GetConversationById($conversationId: ID!) {
+    getConversationById(conversationId: $conversationId) {
+      id
+      participantIds
+      participantUsernames
+      participantTypes {
+        userId
+        userType
+      }
+      lastMessage {
+        content
+        senderId
+        timestamp
+      }
+      unreadCount {
+        userId
+        count
+      }
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// ==================== CHAT MUTATIONS ====================
+
+export const sendMessage = /* GraphQL */ `
+  mutation SendMessage($input: SendMessageInput!) {
+    sendMessage(input: $input) {
+      id
+      conversationId
+      senderId
+      senderUsername
+      content
+      type
+      metadata {
+        imageUrl
+        location {
+          lat
+          lng
+        }
+      }
+      status
+      timestamp
+      createdAt
+    }
+  }
+`;
+
+export const markMessagesAsRead = /* GraphQL */ `
+  mutation MarkMessagesAsRead($conversationId: ID!) {
+    markMessagesAsRead(conversationId: $conversationId)
+  }
+`;
+
+export const markMessageAsDelivered = /* GraphQL */ `
+  mutation MarkMessageAsDelivered($messageId: ID!) {
+    markMessageAsDelivered(messageId: $messageId) {
+      id
+      status
+    }
+  }
+`;

@@ -567,3 +567,167 @@ export interface PaymentResponse {
   payment_method: string;
   created_at: AWSDateTime;
 }
+
+// ==================== FRIENDSHIP TYPES ====================
+// Tipos basados en toggle-friendship Lambda (MongoDB collections)
+
+// Estado de conexión (Friendship)
+export type ConnectionStatus = 'PENDING' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED' | 'BLOCKED';
+
+// Estado de seguimiento (Follow)
+export type FollowStatus = 'ACTIVE' | 'BLOCKED';
+
+// Relación de amistad/conexión entre usuarios
+export interface Friendship {
+  id: string;
+  user1_id: string;
+  user1_type: string;
+  user2_id: string;
+  user2_type: string;
+  status: ConnectionStatus;
+  initiated_by: string;
+  created_at: AWSDateTime;
+  updated_at: AWSDateTime;
+  // User data enriquecida desde backend
+  user1_data?: User;
+  user2_data?: User;
+}
+
+// Relación de seguimiento
+export interface Follow {
+  id: string;
+  follower_id: string;
+  follower_type: string;
+  following_id: string;
+  following_type: string;
+  status: FollowStatus;
+  created_at: AWSDateTime;
+  // User data enriquecida desde backend
+  follower_data?: User;
+  following_data?: User;
+}
+
+// Estadísticas de usuario
+export interface UserStats {
+  userId: string;
+  connectionsCount: number;
+  followersCount: number;
+  followingCount: number;
+  blockedUsersCount: number;
+  pendingRequestsReceived: number;
+  pendingRequestsSent: number;
+}
+
+// Estado combinado de relación entre dos usuarios
+export interface RelationshipStatus {
+  user_id: string;
+  target_user_id: string;
+  connection_status: ConnectionStatus | null;
+  connection_id: string | null;
+  initiated_by: string | null;
+  is_following: boolean;
+  is_followed_by: boolean;
+  is_blocked: boolean;
+  is_blocked_by: boolean;
+}
+
+// Respuesta paginada para conexiones
+export interface ConnectionsResponse {
+  items: Friendship[];
+  next_token?: string;
+  total_count?: number;
+}
+
+// Respuesta paginada para follows
+export interface FollowsResponse {
+  items: Follow[];
+  next_token?: string;
+  total_count?: number;
+}
+
+// ==================== CHAT TYPES ====================
+// Tipos basados en mongodb-atlas-chat Lambda (MongoDB collections)
+
+// Estado de mensaje
+export type MessageStatus = 'sent' | 'delivered' | 'read';
+
+// Permiso de chat (validación de backend)
+export interface ChatPermission {
+  allowed: boolean;
+  reason?: string;
+}
+
+// Mensaje individual
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender_type: string;
+  content: string;
+  status: MessageStatus;
+  created_at: AWSDateTime;
+  updated_at: AWSDateTime;
+  // User data enriquecida desde backend
+  sender_data?: User;
+}
+
+// Conversación (chat entre dos usuarios)
+export interface Conversation {
+  id: string;
+  participant1_id: string;
+  participant1_type: string;
+  participant2_id: string;
+  participant2_type: string;
+  last_message?: string;
+  last_message_at?: AWSDateTime;
+  created_at: AWSDateTime;
+  updated_at: AWSDateTime;
+  // Contadores de mensajes no leídos
+  participant1_unread_count: number;
+  participant2_unread_count: number;
+  // User data enriquecida desde backend
+  participant1_data?: User;
+  participant2_data?: User;
+  // Último mensaje completo
+  last_message_data?: Message;
+}
+
+// Respuesta paginada para conversaciones
+export interface ConversationsResponse {
+  items: Conversation[];
+  next_token?: string;
+  total_count?: number;
+}
+
+// Respuesta paginada para mensajes
+export interface MessagesResponse {
+  items: Message[];
+  next_token?: string;
+  total_count?: number;
+}
+
+// Input para crear/obtener conversación
+export interface ConversationInput {
+  participant1_id: string;
+  participant1_type: string;
+  participant2_id: string;
+  participant2_type: string;
+}
+
+// Input para enviar mensaje
+export interface SendMessageInput {
+  conversation_id: string;
+  content: string;
+}
+
+// Input para marcar mensajes como leídos
+export interface MarkAsReadInput {
+  conversation_id: string;
+  message_ids: string[];
+}
+
+// Input para marcar mensaje como entregado
+export interface MarkAsDeliveredInput {
+  conversation_id: string;
+  message_id: string;
+}

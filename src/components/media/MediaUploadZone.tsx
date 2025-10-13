@@ -58,16 +58,17 @@ export function MediaUploadZone({
   maxFiles = 10,
   className,
   disabled = false
-}: MediaUploadZoneV2Props) {
+}: MediaUploadZoneProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const [uploadingCount, setUploadingCount] = useState(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Memoized values to prevent unnecessary re-renders
+  // Incluir extensiones explícitas para influencers y creadores profesionales
   const acceptedTypes = useMemo(() => ({
-    image: 'image/*',
-    video: 'video/*',
-    all: 'image/*,video/*'
+    image: 'image/*,.heic,.HEIC,.heif,.HEIF,.dng,.DNG,.cr2,.CR2,.nef,.NEF,.arw,.ARW',
+    video: 'video/*,.mov,.MOV,.mp4,.MP4,.m4v,.M4V,.webm,.avi,.mkv,.mts,.m2ts,.mxf',
+    all: 'image/*,video/*,.mov,.MOV,.mp4,.MP4,.m4v,.M4V,.heic,.HEIC,.heif,.HEIF,.dng,.DNG,.cr2,.CR2,.nef,.NEF,.arw,.ARW,.webm,.avi,.mkv,.mts,.m2ts,.mxf'
   }), []);
 
   const canAddMore = useMemo(() => 
@@ -115,18 +116,44 @@ export function MediaUploadZone({
         continue;
       }
 
-      // Validar tipo según accept
-      const isValidImage = accept !== 'video' && file.type.startsWith('image/');
-      const isValidVideo = accept !== 'image' && file.type.startsWith('video/');
-      
+      // Validar tipo según accept - Detección mejorada para influencers profesionales
+      const fileName = file.name.toLowerCase();
+
+      // Extensiones de video profesionales
+      const videoExtensions = ['.mov', '.mp4', '.m4v', '.webm', '.avi', '.mkv', '.mts', '.m2ts', '.mxf'];
+      const isVideoByExtension = videoExtensions.some(ext => fileName.endsWith(ext));
+
+      // Extensiones de imagen profesionales
+      const imageExtensions = ['.heic', '.heif', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.dng', '.cr2', '.nef', '.arw', '.tif', '.tiff'];
+      const isImageByExtension = imageExtensions.some(ext => fileName.endsWith(ext));
+
+      // Casos donde el MIME type puede fallar o ser genérico
+      const hasNoMimeType = !file.type || file.type === 'application/octet-stream' || file.type === '';
+      const hasMimeType = !!file.type && file.type !== 'application/octet-stream';
+
+      const isValidImage = accept !== 'video' && (
+        (hasMimeType && file.type.startsWith('image/')) ||
+        (hasNoMimeType && isImageByExtension) ||
+        isImageByExtension  // Confiar en extensión siempre
+      );
+
+      const isValidVideo = accept !== 'image' && (
+        (hasMimeType && (file.type.startsWith('video/') || file.type === 'video/quicktime' || file.type.includes('video'))) ||
+        (hasNoMimeType && isVideoByExtension) ||
+        isVideoByExtension  // Confiar en extensión siempre
+      );
+
       if (!isValidImage && !isValidVideo) {
+        console.log(`[MediaUploadZone] ❌ Archivo rechazado: ${file.name}, MIME: "${file.type || 'sin MIME'}", Extensión detectada: video=${isVideoByExtension}, image=${isImageByExtension}`);
         toastManager.show(
-          `${file.name} no es un tipo de archivo permitido`,
+          `${file.name} no es un formato soportado. Acepta: MOV, MP4, HEIC, ProRAW y más formatos profesionales`,
           'error',
-          3000
+          4000
         );
         continue;
       }
+
+      console.log(`[MediaUploadZone] ✅ Archivo aceptado: ${file.name}, MIME: "${file.type || 'detectado por extensión'}", Es video: ${isValidVideo}, Es imagen: ${isValidImage}`);
 
       validFiles.push(file);
     }
@@ -135,7 +162,15 @@ export function MediaUploadZone({
 
     // Crear MediaFile objects con preview optimizados
     const mediaFiles: MediaFile[] = validFiles.map(file => {
-      const preview = file.type.startsWith('image/') || file.type.startsWith('video/')
+      // Detectar tipo por extensión si el MIME no es claro
+      const fileName = file.name.toLowerCase();
+      const isVideo = file.type.startsWith('video/') ||
+        fileName.endsWith('.mov') || fileName.endsWith('.m4v') || fileName.endsWith('.mp4');
+      const isImage = file.type.startsWith('image/') ||
+        fileName.endsWith('.heic') || fileName.endsWith('.heif') ||
+        fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') || fileName.endsWith('.png');
+
+      const preview = (isImage || isVideo)
         ? URL.createObjectURL(file)
         : undefined;
       

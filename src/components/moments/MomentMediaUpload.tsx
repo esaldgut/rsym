@@ -32,12 +32,48 @@ export function MomentMediaUpload({
 }: MomentMediaUploadProps) {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
 
-  // Configuración específica para Moments
+  // Configuración para INFLUENCERS PROFESIONALES - iPhone + Cámaras Profesionales
   const momentsConfig = useMemo(() => ({
-    maxImageSize: 25 * 1024 * 1024,  // 25MB para imágenes en momentos
-    maxVideoSize: 100 * 1024 * 1024, // 100MB para videos en momentos
-    allowedImageTypes: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-    allowedVideoTypes: ['video/mp4', 'video/webm', 'video/quicktime'],
+    // Límites aumentados para contenido profesional
+    maxImageSize: 100 * 1024 * 1024,  // 100MB para ProRAW, DNG, fotos profesionales
+    maxVideoSize: 1 * 1024 * 1024 * 1024, // 1GB para videos profesionales (ProRes, 4K)
+
+    // Formatos de imagen para influencers profesionales
+    allowedImageTypes: [
+      // iPhone
+      'image/jpeg', 'image/jpg',        // JPEG estándar
+      'image/heic', 'image/heif',       // HEIC/HEIF del iPhone (High Efficiency)
+      'image/heic-sequence',             // Live Photos
+      'image/x-adobe-dng',               // ProRAW del iPhone (DNG)
+
+      // Formatos profesionales y web
+      'image/png',                       // PNG con transparencia
+      'image/webp',                      // WebP moderno
+      'image/gif',                       // GIFs animados
+
+      // Formatos RAW de cámaras profesionales
+      'image/x-canon-cr2',               // Canon RAW
+      'image/x-nikon-nef',               // Nikon RAW
+      'image/x-sony-arw',                // Sony RAW
+      'image/tiff',                      // TIFF profesional
+    ],
+
+    // Formatos de video para influencers profesionales
+    allowedVideoTypes: [
+      // iPhone
+      'video/quicktime',                 // MOV del iPhone (H.264/HEVC/ProRes)
+      'video/x-m4v',                     // M4V de Apple
+
+      // Formatos universales
+      'video/mp4',                       // MP4 H.264 - máxima compatibilidad
+      'video/webm',                      // WebM para web
+
+      // Formatos profesionales
+      'video/x-msvideo',                 // AVI
+      'video/x-matroska',                // MKV alta calidad
+      'application/mxf',                 // MXF broadcast
+      'video/mp2t',                      // MPEG-TS de cámaras profesionales
+    ],
   }), []);
 
   // Handler optimizado para cambios de archivos
@@ -51,28 +87,50 @@ export function MomentMediaUpload({
     // Validar tamaño según tipo
     if (file.type.startsWith('image/')) {
       if (file.size > momentsConfig.maxImageSize) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        const maxMB = Math.round(momentsConfig.maxImageSize / (1024 * 1024));
         return {
           valid: false,
-          error: `Imagen muy grande. Máximo ${Math.round(momentsConfig.maxImageSize / (1024 * 1024))}MB para momentos`
+          error: `📸 Foto muy grande (${sizeMB}MB). Límite: ${maxMB}MB para influencers profesionales`
         };
       }
-      if (!momentsConfig.allowedImageTypes.includes(file.type)) {
+
+      // Validar por extensión (más confiable que MIME type)
+      const fileName = file.name.toLowerCase();
+      const isRAW = fileName.endsWith('.dng') || fileName.endsWith('.cr2') ||
+                    fileName.endsWith('.nef') || fileName.endsWith('.arw');
+      const isHEIC = fileName.endsWith('.heic') || fileName.endsWith('.heif');
+      const isCommon = fileName.endsWith('.jpg') || fileName.endsWith('.jpeg') ||
+                       fileName.endsWith('.png') || fileName.endsWith('.webp') ||
+                       fileName.endsWith('.gif');
+
+      if (!momentsConfig.allowedImageTypes.includes(file.type) && !isRAW && !isHEIC && !isCommon) {
         return {
           valid: false,
-          error: 'Tipo de imagen no permitido. Solo JPG, PNG, WebP, GIF'
+          error: `📷 Formato de foto no soportado. Acepta: JPG, PNG, HEIC, ProRAW (DNG), CR2, NEF, ARW`
         };
       }
-    } else if (file.type.startsWith('video/')) {
+    } else if (file.type.startsWith('video/') || file.type === 'video/quicktime' || file.name.toLowerCase().endsWith('.mov')) {
       if (file.size > momentsConfig.maxVideoSize) {
+        const sizeGB = (file.size / (1024 * 1024 * 1024)).toFixed(2);
+        const maxGB = Math.round(momentsConfig.maxVideoSize / (1024 * 1024 * 1024));
         return {
           valid: false,
-          error: `Video muy grande. Máximo ${Math.round(momentsConfig.maxVideoSize / (1024 * 1024))}MB para momentos`
+          error: `🎬 Video muy grande (${sizeGB}GB). Límite: ${maxGB}GB para contenido profesional`
         };
       }
-      if (!momentsConfig.allowedVideoTypes.includes(file.type)) {
+
+      // Validar por extensión (más confiable)
+      const fileName = file.name.toLowerCase();
+      const isProFormat = fileName.endsWith('.mov') || fileName.endsWith('.m4v') ||
+                          fileName.endsWith('.mxf') || fileName.endsWith('.mts') || fileName.endsWith('.m2ts');
+      const isCommonVideo = fileName.endsWith('.mp4') || fileName.endsWith('.webm') ||
+                            fileName.endsWith('.avi') || fileName.endsWith('.mkv');
+
+      if (!momentsConfig.allowedVideoTypes.includes(file.type) && !isProFormat && !isCommonVideo) {
         return {
           valid: false,
-          error: 'Tipo de video no permitido. Solo MP4, WebM, MOV'
+          error: `🎥 Formato de video no soportado. Acepta: MOV, MP4, ProRes, MXF, AVI, MKV`
         };
       }
     } else {
@@ -163,14 +221,31 @@ export function MomentMediaUpload({
         />
       </div>
 
-      {/* Helper Text */}
-      <div className="text-center text-xs text-gray-500 space-y-1">
-        <p>{placeholder}</p>
-        <div className="flex justify-center space-x-4">
-          <span>🖼️ Imágenes hasta 25MB</span>
-          <span>🎥 Videos hasta 100MB</span>
-          <span>📱 Formato optimizado para móvil</span>
+      {/* Helper Text - Actualizado para influencers profesionales */}
+      <div className="text-center text-xs text-gray-500 space-y-2">
+        <p className="font-medium text-gray-700">{placeholder}</p>
+
+        <div className="flex justify-center flex-wrap gap-3">
+          <span className="bg-purple-50 px-2 py-1 rounded">📷 Fotos hasta 100MB</span>
+          <span className="bg-pink-50 px-2 py-1 rounded">🎬 Videos hasta 1GB</span>
+          <span className="bg-blue-50 px-2 py-1 rounded">📱 iPhone ProRes/ProRAW</span>
         </div>
+
+        <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 mt-2">
+          <p className="font-semibold text-gray-800 mb-1">✨ Formatos Profesionales Soportados</p>
+          <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600">
+            <div>
+              <span className="font-medium">iPhone:</span> MOV, HEIC, ProRAW (DNG)
+            </div>
+            <div>
+              <span className="font-medium">Cámaras:</span> CR2, NEF, ARW, MXF
+            </div>
+          </div>
+        </div>
+
+        <p className="text-[10px] text-gray-400 italic">
+          💡 Optimizado para influencers: Soportamos ProRes 4K, Live Photos y formatos RAW de cámaras profesionales
+        </p>
       </div>
 
       {/* Quick Actions para Moments */}
