@@ -1132,9 +1132,9 @@
     "@cdklabs/tskb" "^0.0.3"
 
 "@aws-cdk/cloud-assembly-schema@>=44.4.0", "@aws-cdk/cloud-assembly-schema@>=44.5.0":
-  version "48.14.0"
-  resolved "https://registry.npmjs.org/@aws-cdk/cloud-assembly-schema/-/cloud-assembly-schema-48.14.0.tgz#ba1a00961451966a79e505a3964f03b7774c95ce"
-  integrity sha512-mo1MaPKsNVh3QSuosREcwIh8TrVZ9deHVLAjzbjkQuTxb/7LGqkf1E5HHxlAt6Z0+z+DZt7dTPIJ92NcR0tjDQ==
+  version "48.15.0"
+  resolved "https://registry.npmjs.org/@aws-cdk/cloud-assembly-schema/-/cloud-assembly-schema-48.15.0.tgz#80a146dbd39dc2092c7512ea0ef25ece47f9cfeb"
+  integrity sha512-hHs3Z5Nh0tUxHjk6myEv5mHqLuHnDcZlM19c01g1W75O24oBOiZjssRGIz/T0QOpxcY0Zu6mFrFCdwDWbZrc6A==
   dependencies:
     jsonschema "~1.4.1"
     semver "^7.7.2"
@@ -9401,9 +9401,9 @@ eastasianwidth@^0.2.0:
   integrity sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==
 
 electron-to-chromium@^1.5.227:
-  version "1.5.236"
-  resolved "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.236.tgz#b29868ddec830193ff15f01db30998e4226e9dda"
-  integrity sha512-Yi43booTJp2VteesVja4xdcDrAcVFItkD6RrxhMSuGx1kShh+raMwnKyIGNOTl68reqSxPPls6bB8LgIcrK9Gg==
+  version "1.5.237"
+  resolved "https://registry.npmjs.org/electron-to-chromium/-/electron-to-chromium-1.5.237.tgz#eacf61cef3f6345d0069ab427585c5a04d7084f0"
+  integrity sha512-icUt1NvfhGLar5lSWH3tHNzablaA5js3HVHacQimfP8ViEBOQv+L7DKEuHdbTZ0SKCO1ogTJTIL1Gwk9S6Qvcg==
 
 emoji-regex@^10.3.0:
   version "10.6.0"

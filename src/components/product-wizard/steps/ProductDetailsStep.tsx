@@ -7,6 +7,7 @@ import { tourDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
 import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
+import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
 import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput } from '@/lib/graphql/types';
@@ -25,7 +26,7 @@ interface ProductDetailsFormData {
   planned_hotels_or_similar: string; // Textarea provides string, converted to array on submit
 }
 
-export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid }: StepProps) {
+export default function ProductDetailsStep({ userId, onNext, onPrevious, onCancelClick, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   const [activeTab, setActiveTab] = useState('destination');
 
@@ -375,18 +376,30 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, isValid
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between pt-6 border-t border-gray-200 mt-8">
-          <button
-            type="button"
-            onClick={onPrevious}
-            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-          >
-            ← Anterior
-          </button>
-          
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-gray-200 mt-8">
+          <div className="flex gap-3 order-2 sm:order-1">
+            <button
+              type="button"
+              onClick={onPrevious}
+              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            >
+              ← Anterior
+            </button>
+            <SaveDraftButton variant="outline" />
+            {onCancelClick && (
+              <button
+                type="button"
+                onClick={onCancelClick}
+                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors"
+                title="Cancelar creación del producto"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
           <button
             type="submit"
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow"
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow order-1 sm:order-2 w-full sm:w-auto"
           >
             Continuar →
           </button>

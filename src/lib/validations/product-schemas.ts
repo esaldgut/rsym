@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
 // Validaciones comunes
 const locationInputSchema = z.object({
@@ -146,7 +146,6 @@ export const packageDetailsSchema = productDetailsSchema.refine((data) => data.d
 // Esquema para políticas de pago
 export const policiesSchema = z.object({
   payment_policy: z.object({
-    product_id: z.string().min(1, 'ID de producto requerido'),
     options: z.array(z.object({
       type: z.enum(['CONTADO', 'PLAZOS']),
       description: z.string().min(1, 'Descripción requerida'),
@@ -173,14 +172,19 @@ export const policiesSchema = z.object({
       }),
       requirements: z.object({
         deadline_days_to_pay: z.number().int().positive()
-      })
+      }),
+      benefits_or_legal: z.array(
+        z.object({
+          stated: z.string().optional()
+        })
+      ).optional()
     })).min(1, 'Configura al menos una opción de pago'),
     general_policies: z.object({
       change_policy: z.object({
-        allows_date_chage: z.boolean(),
+        allows_date_change: z.boolean(),
         deadline_days_to_make_change: z.number().int().nonnegative()
       }).optional()
-    })
+    }).optional()
   })
 });
 

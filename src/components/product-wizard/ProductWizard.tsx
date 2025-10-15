@@ -41,9 +41,15 @@ export default function ProductWizard({
   useEffect(() => {
     // Si es edit mode con initialProduct, no buscar recovery
     if (editMode && initialProduct) {
-      console.log('🎯 Edit mode con initialProduct - no recovery check');
+      console.log('🎯 Edit mode con initialProduct - sincronizando localStorage');
       setProductId(initialProduct.id);
       setProductName(initialProduct.name || '');
+
+      // CRÍTICO: Sincronizar con localStorage para useProductCreation
+      localStorage.setItem('yaan-current-product-id', initialProduct.id);
+      localStorage.setItem('yaan-current-product-type', productType);
+      localStorage.setItem('yaan-current-product-name', initialProduct.name || '');
+
       setShowModal(false);
       return;
     }
@@ -436,6 +442,7 @@ function WizardContent({
     userId,
     onNext: handleNext,
     onPrevious: handlePrevious,
+    onCancelClick: onCancelClick,
     isValid: true // TODO: Implementar validación en tiempo real
   };
 
@@ -559,15 +566,7 @@ function WizardProgressBar({
               Paso {currentStepIndex + 1} de {steps.length}
             </p>
           </div>
-          <div className="text-right flex items-center gap-3">
-            {/* Botón Cancelar */}
-            <button
-              onClick={onCancelClick}
-              className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 border border-red-300 hover:border-red-400"
-              title="Cancelar creación del producto"
-            >
-              Cancelar
-            </button>
+          <div className="text-right">
             {/* Progress Badge */}
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1.5 rounded-full text-xs font-medium">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

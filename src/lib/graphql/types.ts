@@ -6,27 +6,17 @@
 
 // Re-export backend types for consistency
 export type {
-  Product,
-  ProductConnection,
-  ProductFilterInput,
-  ProductSeason,
-  ProductSeasonInput,
-  ProductPrice,
-  ProductPriceInput,
-  Location,
-  LocationInput,
-  Point,
-  PointInput,
-  GuaranteedDepartures,
-  GuaranteedDeparturesInput,
-  PaymentPolicy,
-  PaymentPolicyInput,
-  User,
-  PaginationInput,
   CreateProductOfTypeCircuitInput,
-  CreateProductOfTypePackageInput,
-  UpdateProductInput
-} from '/Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql';
+  CreateProductOfTypePackageInput, GuaranteedDepartures,
+  GuaranteedDeparturesInput, Location,
+  LocationInput, PaginationInput, PaymentPolicy,
+  PaymentPolicyInput, Point,
+  PointInput, Product,
+  ProductConnection,
+  ProductFilterInput, ProductPrice,
+  ProductPriceInput, ProductSeason,
+  ProductSeasonInput, UpdateProductInput, User
+} from '/Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql'
 
 // Tipos escalares de AWS
 export type AWSDateTime = string;
@@ -511,7 +501,7 @@ export interface PaymentPolicyInput {
   options: PaymentOption[];
   general_policies?: {
     change_policy?: {
-      allows_date_chage?: boolean;
+      allows_date_change?: boolean;
       deadline_days_to_make_change?: number;
     };
   };
@@ -528,7 +518,7 @@ export interface PaymentPolicy {
   options?: PaymentOption[];
   general_policies?: {
     change_policy?: {
-      allows_date_chage?: boolean;
+      allows_date_change?: boolean;
       deadline_days_to_make_change?: number;
     };
   };

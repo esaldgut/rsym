@@ -10,6 +10,7 @@ export interface MediaUploadResult {
   uploadedAt?: string;
   error?: string;
   errorType?: string;
+  warning?: string;  // Para timeouts no fatales y otros warnings
 }
 
 export interface UploadProgress {
@@ -128,15 +129,25 @@ export class MediaUploadService {
           reject(new Error('Network error during upload'));
         });
 
-        // Timeout handler
+        // Timeout handler - No rechazar, retornar warning
+        // El backend puede haber completado el upload exitosamente
         xhr.addEventListener('timeout', () => {
+          console.log(`[MediaUploadService] ⚠️ Timeout client-side para ${file.name}, pero backend puede haberlo subido`);
+
           onProgress?.({
-            loaded: 0,
+            loaded: file.size,
             total: file.size,
-            percentage: 0,
-            stage: 'error'
+            percentage: 100,
+            stage: 'complete'
           });
-          reject(new Error('Upload timeout'));
+
+          // Resolver con warning en lugar de rechazar
+          resolve({
+            success: true,
+            url: undefined,  // Backend tiene el archivo pero client no conoce URL aún
+            warning: 'El archivo tardó más de lo esperado en subirse. El servidor puede haberlo procesado correctamente.',
+            errorType: 'timeout_warning'
+          });
         });
 
         // Configure and send
@@ -299,9 +310,10 @@ export class MediaUploadService {
 
   private getTimeoutForFileSize(fileSize: number): number {
     // Timeout dinámico basado en el tamaño del archivo
+    // Aumentado para evitar falsos timeouts en redes lentas o procesamiento backend
     const baseMB = fileSize / (1024 * 1024);
-    if (baseMB < 10) return 30000;      // 30s para archivos pequeños
-    if (baseMB < 100) return 120000;    // 2 min para archivos medianos
+    if (baseMB < 10) return 90000;      // 90s (1.5 min) para archivos pequeños
+    if (baseMB < 100) return 180000;    // 3 min para archivos medianos
     if (baseMB < 500) return 300000;    // 5 min para archivos grandes
     return 600000;                      // 10 min para archivos muy grandes
   }

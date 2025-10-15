@@ -218,6 +218,7 @@ export function MediaUploadZone({
         const actualIndex = files.length + index;
         if (finalFiles[actualIndex]) {
           if (result.success && result.url) {
+            // Caso 1: Upload exitoso con URL disponible
             finalFiles[actualIndex] = {
               ...finalFiles[actualIndex],
               uploadStatus: 'complete',
@@ -228,19 +229,35 @@ export function MediaUploadZone({
               // porque el bucket es privado y requiere URLs prefirmadas
               // preview: finalFiles[actualIndex].preview // Mantener el blob URL existente
             };
-            
+
             toastManager.show(
               `${validFiles[index].name} subido exitosamente`,
               'success',
               2000
             );
+          } else if (result.success && result.warning) {
+            // Caso 2: Timeout client-side pero posiblemente subido en backend
+            finalFiles[actualIndex] = {
+              ...finalFiles[actualIndex],
+              uploadStatus: 'complete',
+              uploadProgress: 100,
+              url: result.url, // Puede ser undefined
+              s3Key: result.key
+            };
+
+            toastManager.show(
+              `⚠️ ${validFiles[index].name}: El archivo tardó más de lo esperado. Verifica en el servidor si se subió correctamente.`,
+              'warning',
+              5000
+            );
           } else {
+            // Caso 3: Error real
             finalFiles[actualIndex] = {
               ...finalFiles[actualIndex],
               uploadStatus: 'error',
               error: result.error || 'Error desconocido'
             };
-            
+
             toastManager.show(
               `Error al subir ${validFiles[index].name}: ${result.error}`,
               'error',

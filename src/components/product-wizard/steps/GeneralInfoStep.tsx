@@ -9,9 +9,10 @@ import { Preferences } from '@/utils/preferences';
 import { toastManager } from '@/components/ui/Toast';
 import MediaPreview, { type MediaFile } from '@/components/media/MediaPreview';
 import MediaUploadZone from '@/components/media/MediaUploadZone';
-import { 
-  generalInfoCircuitSchema, 
-  generalInfoPackageSchema 
+import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton';
+import {
+  generalInfoCircuitSchema,
+  generalInfoPackageSchema
 } from '@/lib/validations/product-schemas';
 import type { StepProps } from '@/types/wizard';
 import type { CircuitLocation } from '@/types/location';
@@ -36,7 +37,7 @@ const LANGUAGES = [
   { id: 'pt', name: 'Portugués' },
 ];
 
-export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) {
+export default function GeneralInfoStep({ userId, onNext, onCancelClick, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   
   // Estados de archivos multimedia separados para evitar loops
@@ -150,8 +151,12 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
   useEffect(() => {
     let mounted = true;
 
-    // Detectar si estamos en modo EDIT verificando si hay datos de edición en localStorage
-    const isEditMode = localStorage.getItem('yaan-edit-product-data') !== null;
+    // Detectar si estamos en modo EDIT verificando si formData tiene productId Y datos de multimedia
+    // EditProductWrapper pasa initialProduct via props (no usa localStorage para evitar race conditions)
+    const isEditMode = !!(formData.productId &&
+      (formData.cover_image_url ||
+       formData.image_url?.length ||
+       formData.video_url?.length));
 
     // En modo CREATE, NO cargar URLs de S3 ya que el bucket es privado
     // Los archivos se mantienen con sus blob URLs locales
@@ -209,7 +214,15 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
     }
 
     return () => { mounted = false; };
-  }, []); // Solo ejecutar una vez al montar
+  }, [
+    formData.productId,
+    formData.cover_image_url,
+    formData.image_url,
+    formData.video_url,
+    coverFiles.length,
+    galleryFiles.length,
+    videoFiles.length
+  ]); // Re-ejecutar cuando formData de multimedia cambie
 
   // Estado de carga para evitar envío mientras se suben archivos
   const isUploading = useMemo(() => 
@@ -395,13 +408,26 @@ export default function GeneralInfoStep({ userId, onNext, isValid }: StepProps) 
         </div>
 
         {/* Navegación */}
-        <div className="flex justify-end pt-6 border-t border-gray-200">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-gray-200">
+          <div className="flex gap-3 order-2 sm:order-1">
+            <SaveDraftButton variant="outline" />
+            {onCancelClick && (
+              <button
+                type="button"
+                onClick={onCancelClick}
+                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors"
+                title="Cancelar creación del producto"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
           <button
             type="submit"
             disabled={isUploading}
-            className="bg-gradient-to-r from-pink-500 to-violet-600 text-white px-8 py-3 rounded-lg font-medium hover:from-pink-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            className="bg-gradient-to-r from-pink-500 to-violet-600 text-white px-8 py-3 rounded-lg font-medium hover:from-pink-600 hover:to-violet-700 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 order-1 sm:order-2 w-full sm:w-auto"
           >
-            {isUploading ? 'Subiendo archivos...' : 'Continuar'}
+            {isUploading ? 'Subiendo archivos...' : 'Continuar →'}
           </button>
         </div>
       </form>

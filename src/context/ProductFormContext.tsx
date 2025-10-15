@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useReducer, useMemo, useEffect } from 'react';
+import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 import type {
   LocationInput,
   ProductCircuitSeasonInput,
@@ -8,11 +9,11 @@ import type {
   PaymentPolicyInput,
   Product
 } from '@/lib/graphql/types';
-import type { 
-  ProductFormData, 
-  ProductFormAction, 
+import type {
+  ProductFormData,
+  ProductFormAction,
   WizardContextType,
-  FormStep 
+  FormStep
 } from '@/types/wizard';
 
 const initialFormData: ProductFormData = {
@@ -32,6 +33,7 @@ const initialFormData: ProductFormData = {
   planned_hotels_or_similar: [],
   payment_policy: null,
   published: false,
+  is_foreign: false,
   productType: 'circuit',
   currentStep: 0,
   isSubmitting: false
@@ -93,10 +95,22 @@ export function ProductFormProvider({
     try {
       // PRIORIDAD 1: Si hay initialProduct prop (edit mode), usarlo directamente
       if (initialProduct) {
-        console.log('🎯 Cargando datos desde initialProduct prop:', initialProduct);
+        console.log('🎯 [ProductFormContext] Cargando datos desde initialProduct prop');
+        console.log('📊 [RAW DATA] initialProduct completo:', JSON.stringify(initialProduct, null, 2));
 
-        const parsed = initialProduct;
+        // Transformar paths S3 relativos a URLs completas para preview
+        const transformedProduct = transformPathsToUrls(initialProduct);
+        console.log('🔄 [URLs] Transformadas para preview:', {
+          cover: transformedProduct.cover_image_url,
+          gallery: transformedProduct.image_url,
+          videos: transformedProduct.video_url
+        });
+
+        const parsed = transformedProduct;
         const departures = parsed.departures || [];
+
+        console.log('🚀 [DEPARTURES] Raw departures del backend:', JSON.stringify(departures, null, 2));
+        console.log('🚀 [DEPARTURES] Cantidad de departures:', departures.length);
 
         // Función auxiliar para convertir coordenadas de GraphQL a formato interno
         const convertCoordinates = (origin: any) => {
@@ -121,10 +135,20 @@ export function ProductFormProvider({
         const mappedDepartures = {
           regular_departures: departures
             .filter((d: any) => d.days && d.days.length > 0)
-            .map((d: any) => ({
-              origin: convertCoordinates(d.origin?.[0]),
-              days: d.days || []
-            })),
+            .flatMap((d: any) => {
+              // Si origin es array, crear una entrada por cada origen
+              if (d.origin && Array.isArray(d.origin)) {
+                return d.origin.map((o: any) => ({
+                  origin: convertCoordinates(o),
+                  days: d.days || []
+                }));
+              }
+              // Si origin no es array, crear una sola entrada
+              return [{
+                origin: convertCoordinates(d.origin),
+                days: d.days || []
+              }];
+            }),
           specific_departures: []
         };
 
@@ -144,6 +168,10 @@ export function ProductFormProvider({
             }
           });
 
+        console.log('✅ [DEPARTURES] Mapped departures:', JSON.stringify(mappedDepartures, null, 2));
+        console.log('✅ [DEPARTURES] Regular departures count:', mappedDepartures.regular_departures.length);
+        console.log('✅ [DEPARTURES] Specific departures count:', mappedDepartures.specific_departures.length);
+
         const mappedDestinations = (parsed.destination || []).map((dest: any) => ({
           place: dest.place || '',
           placeSub: dest.placeSub || '',
@@ -155,15 +183,36 @@ export function ProductFormProvider({
             : undefined
         }));
 
-        return {
+        console.log('💳 [PAYMENT_POLICY] Raw payment_policy:', JSON.stringify(parsed.payment_policy, null, 2));
+
+        // Log específico de benefits_or_legal para debugging mapeo
+        if (parsed.payment_policy?.options) {
+          console.log('💎 [BENEFITS_OR_LEGAL] Raw por opción:',
+            parsed.payment_policy.options.map((opt: any, idx: number) => ({
+              index: idx,
+              type: opt.type,
+              benefitsCount: opt.benefits_or_legal?.length || 0,
+              benefitsFormat: Array.isArray(opt.benefits_or_legal) && opt.benefits_or_legal.length > 0
+                ? typeof opt.benefits_or_legal[0]
+                : 'empty',
+              benefitsFirstItem: opt.benefits_or_legal?.[0],
+              benefitsRaw: opt.benefits_or_legal
+            }))
+          );
+        }
+
+        console.log('📅 [SEASONS] Raw seasons:', JSON.stringify(parsed.seasons, null, 2));
+        console.log('📅 [SEASONS] Cantidad de seasons:', parsed.seasons?.length || 0);
+
+        const finalFormData = {
           productId: parsed.id,
           name: parsed.name || '',
           description: parsed.description || '',
           preferences: parsed.preferences || [],
           languages: parsed.languages || [],
           cover_image_url: parsed.cover_image_url || '',
-          image_url: parsed.image_url ? [parsed.image_url] : [],
-          video_url: parsed.video_url ? [parsed.video_url] : [],
+          image_url: Array.isArray(parsed.image_url) ? parsed.image_url : [],
+          video_url: Array.isArray(parsed.video_url) ? parsed.video_url : [],
           seasons: parsed.seasons || [],
           planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
           destination: mappedDestinations,
@@ -172,18 +221,45 @@ export function ProductFormProvider({
           itinerary: parsed.itinerary || '',
           payment_policy: parsed.payment_policy || null,
           published: parsed.published || false,
+          is_foreign: parsed.is_foreign || false,
           productType,
           currentStep: 0,
           isSubmitting: false
         };
+
+        console.log('🎉 [FINAL] FormData completo para wizard:', JSON.stringify(finalFormData, null, 2));
+
+        // Log específico final de benefits_or_legal después del mapeo
+        if (finalFormData.payment_policy?.options) {
+          console.log('💎 [BENEFITS_OR_LEGAL] Final después de mapeo a formData:',
+            finalFormData.payment_policy.options.map((opt: any, idx: number) => ({
+              index: idx,
+              type: opt.type,
+              hasbenefits: !!opt.benefits_or_legal,
+              benefitsCount: opt.benefits_or_legal?.length || 0
+            }))
+          );
+        }
+
+        return finalFormData;
       }
 
       // PRIORIDAD 2: Verificar si hay datos de edición en localStorage (legacy)
       const editData = localStorage.getItem('yaan-edit-product-data');
       if (editData) {
-        const parsed = JSON.parse(editData);
-        console.log('📝 Cargando datos para edición:', parsed);
-        
+        const parsedData = JSON.parse(editData);
+        console.log('📝 Cargando datos para edición:', parsedData);
+
+        // Transformar paths S3 relativos a URLs completas para preview
+        const transformedProduct = transformPathsToUrls(parsedData);
+        console.log('🔄 URLs transformadas para preview (localStorage):', {
+          cover: transformedProduct.cover_image_url,
+          gallery: transformedProduct.image_url,
+          videos: transformedProduct.video_url
+        });
+
+        const parsed = transformedProduct;
+
         // Mapear datos del producto existente al formato del form
         // Convertir departures del formato GraphQL al formato interno del frontend
         const departures = parsed.departures || [];
@@ -215,10 +291,20 @@ export function ProductFormProvider({
         const mappedDepartures = {
           regular_departures: departures
             .filter((d: any) => d.days && d.days.length > 0)
-            .map((d: any) => ({
-              origin: convertCoordinates(d.origin?.[0]),
-              days: d.days || []
-            })),
+            .flatMap((d: any) => {
+              // Si origin es array, crear una entrada por cada origen
+              if (d.origin && Array.isArray(d.origin)) {
+                return d.origin.map((o: any) => ({
+                  origin: convertCoordinates(o),
+                  days: d.days || []
+                }));
+              }
+              // Si origin no es array, crear una sola entrada
+              return [{
+                origin: convertCoordinates(d.origin),
+                days: d.days || []
+              }];
+            }),
           specific_departures: []
         };
 
@@ -252,6 +338,18 @@ export function ProductFormProvider({
             : undefined
         }));
 
+        // Log específico de benefits_or_legal para localStorage path
+        if (parsed.payment_policy?.options) {
+          console.log('💎 [BENEFITS_OR_LEGAL] localStorage - Raw por opción:',
+            parsed.payment_policy.options.map((opt: any, idx: number) => ({
+              index: idx,
+              type: opt.type,
+              benefitsCount: opt.benefits_or_legal?.length || 0,
+              benefitsRaw: opt.benefits_or_legal
+            }))
+          );
+        }
+
         return {
           productId: parsed.id,
           name: parsed.name || '',
@@ -259,8 +357,8 @@ export function ProductFormProvider({
           preferences: parsed.preferences || [],
           languages: parsed.languages || [],
           cover_image_url: parsed.cover_image_url || '',
-          image_url: parsed.image_url ? [parsed.image_url] : [],
-          video_url: parsed.video_url ? [parsed.video_url] : [],
+          image_url: Array.isArray(parsed.image_url) ? parsed.image_url : [],
+          video_url: Array.isArray(parsed.video_url) ? parsed.video_url : [],
           seasons: parsed.seasons || [],
           planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
           destination: mappedDestinations,
@@ -269,6 +367,7 @@ export function ProductFormProvider({
           itinerary: parsed.itinerary || '',
           payment_policy: parsed.payment_policy || null,
           published: parsed.published || false,
+          is_foreign: parsed.is_foreign || false,
           productType,
           currentStep: 0,
           isSubmitting: false

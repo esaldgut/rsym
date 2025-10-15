@@ -318,6 +318,7 @@ export async function updateProductAction(productId: string, updateData: Record<
 
     // 7. Preparar input filtrando solo campos permitidos por UpdateProductInput
         // Excluir campos que son solo de output como user_id, created_at, updated_at
+        // NOTA: 'is_foreign' NO existe en UpdateProductInput según schema GraphQL
     const allowedFields = [
           'name', 'description', 'preferences', 'languages',
           'cover_image_url', 'image_url', 'video_url',
@@ -442,12 +443,13 @@ export async function updateProductAction(productId: string, updateData: Record<
     }
 
     // 10. Filtrar payment_policy para remover campos de solo lectura
-    // CRÍTICO: AppSync rechaza campos como product_id, provider_id, updated_at en UpdateProductInput
+    // CRÍTICO: AppSync rechaza campos como id, product_id, provider_id, updated_at en PaymentPolicyInput
     if (filteredData.payment_policy) {
       console.log('💳 Original payment_policy:', JSON.stringify(filteredData.payment_policy, null, 2));
 
-      // Solo mantener los campos permitidos en UpdateProductInput
-      const allowedPaymentPolicyFields = ['id', 'options', 'general_policies'];
+      // Solo mantener los campos permitidos en PaymentPolicyInput (según schema GraphQL)
+      // PaymentPolicyInput { general_policies: GeneralPoliciesInput, options: [PaymentOptionInput] }
+      const allowedPaymentPolicyFields = ['options', 'general_policies'];
 
       const cleanPaymentPolicy = Object.keys(filteredData.payment_policy)
         .filter(key => allowedPaymentPolicyFields.includes(key))
@@ -456,16 +458,101 @@ export async function updateProductAction(productId: string, updateData: Record<
           return obj;
         }, {} as Record<string, unknown>);
 
+      // Filtrar campos dentro de cada option individual para preservar solo campos del schema
+      // PaymentOptionInput { type, description, config, requirements, benefits_or_legal }
+      if (cleanPaymentPolicy.options && Array.isArray(cleanPaymentPolicy.options)) {
+        const allowedOptionFields = ['type', 'description', 'config', 'requirements', 'benefits_or_legal'];
+
+        console.log('💳 Opciones antes de filtrar:', cleanPaymentPolicy.options.length);
+
+        cleanPaymentPolicy.options = cleanPaymentPolicy.options.map((option: any) => {
+          const filteredOption = Object.keys(option)
+            .filter(key => allowedOptionFields.includes(key))
+            .reduce((obj, key) => {
+              obj[key] = option[key];
+              return obj;
+            }, {} as Record<string, unknown>);
+
+          // CRÍTICO: Validar requirements.deadline_days_to_pay (NonNull Int! en schema)
+          // Si es null/undefined, establecer valor por defecto según tipo de pago
+          if (filteredOption.requirements && typeof filteredOption.requirements === 'object') {
+            const requirements = filteredOption.requirements as Record<string, unknown>;
+            if (requirements.deadline_days_to_pay === null || requirements.deadline_days_to_pay === undefined) {
+              // Establecer valor por defecto según tipo de pago
+              const defaultDeadline = filteredOption.type === 'CONTADO' ? 1 : 3;
+              requirements.deadline_days_to_pay = defaultDeadline;
+              console.warn('⚠️ deadline_days_to_pay era null, establecido a:', defaultDeadline, 'para tipo:', filteredOption.type);
+            }
+          }
+
+          // Log específico si benefits_or_legal está presente
+          if (filteredOption.benefits_or_legal) {
+            console.log('💳 benefits_or_legal preservado para option:', {
+              type: filteredOption.type,
+              benefitsCount: Array.isArray(filteredOption.benefits_or_legal) ? filteredOption.benefits_or_legal.length : 0
+            });
+          }
+
+          return filteredOption;
+        });
+      }
+
       filteredData.payment_policy = cleanPaymentPolicy;
-      console.log('💳 Cleaned payment_policy:', JSON.stringify(filteredData.payment_policy, null, 2));
+      console.log('💳 Cleaned payment_policy con options filtradas:', JSON.stringify(filteredData.payment_policy, null, 2));
     }
 
     // 11. Transformar URLs a paths antes de enviar a GraphQL
     const transformedData = transformProductUrlsToPaths(filteredData);
 
+    // 12. Transformar coordenadas de arrays [lon, lat] a objetos PointInput {latitude, longitude}
+    // CRÍTICO: El frontend usa arrays para compatibilidad con Mapbox, pero GraphQL espera objetos
+    const transformCoordinatesToPointInput = (data: Record<string, unknown>) => {
+      const result = { ...data };
+
+      // Transformar destination coordinates
+      if (result.destination && Array.isArray(result.destination)) {
+        result.destination = result.destination.map((dest: any) => {
+          if (!dest) return dest;
+
+          return {
+            ...dest,
+            coordinates: dest.coordinates && Array.isArray(dest.coordinates)
+              ? { latitude: dest.coordinates[1], longitude: dest.coordinates[0] }
+              : dest.coordinates
+          };
+        });
+      }
+
+      // Transformar departures.origin coordinates
+      if (result.departures && Array.isArray(result.departures)) {
+        result.departures = result.departures.map((dep: any) => {
+          if (!dep) return dep;
+
+          return {
+            ...dep,
+            origin: dep.origin && Array.isArray(dep.origin)
+              ? dep.origin.map((o: any) => ({
+                  ...o,
+                  coordinates: o.coordinates && Array.isArray(o.coordinates)
+                    ? { latitude: o.coordinates[1], longitude: o.coordinates[0] }
+                    : o.coordinates
+                }))
+              : dep.origin
+          };
+        });
+      }
+
+      console.log('🔄 Coordenadas transformadas a PointInput:', {
+        destinationSample: result.destination?.[0]?.coordinates,
+        departureOriginSample: result.departures?.[0]?.origin?.[0]?.coordinates
+      });
+
+      return result;
+    };
+
     const filteredInput = {
       id: productId,
-      ...transformedData
+      ...transformCoordinatesToPointInput(transformedData)
     };
 
     console.log('📋 Filtered and transformed input for updateProduct:', JSON.stringify(filteredInput, null, 2));

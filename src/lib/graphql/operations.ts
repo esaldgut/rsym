@@ -380,6 +380,7 @@ export const updateProduct = /* GraphQL */ `
           place
           placeSub
         }
+        days
         specific_dates
       }
       description
@@ -404,12 +405,13 @@ export const updateProduct = /* GraphQL */ `
         created_at
         general_policies {
           change_policy {
-            allows_date_chage
+            allows_date_change
             deadline_days_to_make_change
           }
         }
         id
         options {
+          type
           benefits_or_legal {
             stated
           }
@@ -417,12 +419,17 @@ export const updateProduct = /* GraphQL */ `
             cash {
               deadline_days_to_pay
               discount
+              discount_type
+              payment_methods
             }
             installments {
               days_before_must_be_settled
               deadline_days_to_pay
               down_payment_after
               down_payment_before
+              down_payment_type
+              installment_intervals
+              payment_methods
             }
           }
           description
@@ -538,6 +545,7 @@ export const getProductById = /* GraphQL */ `
           place
           placeSub
         }
+        days
         specific_dates
       }
       description
@@ -562,12 +570,13 @@ export const getProductById = /* GraphQL */ `
         created_at
         general_policies {
           change_policy {
-            allows_date_chage
+            allows_date_change
             deadline_days_to_make_change
           }
         }
         id
         options {
+          type
           benefits_or_legal {
             stated
           }
@@ -575,12 +584,17 @@ export const getProductById = /* GraphQL */ `
             cash {
               deadline_days_to_pay
               discount
+              discount_type
+              payment_methods
             }
             installments {
               days_before_must_be_settled
               deadline_days_to_pay
               down_payment_after
               down_payment_before
+              down_payment_type
+              installment_intervals
+              payment_methods
             }
           }
           description
@@ -705,6 +719,7 @@ export const getAllActiveProductsByProvider = /* GraphQL */ `
             place
             placeSub
           }
+          days
           specific_dates
         }
         description
@@ -729,12 +744,13 @@ export const getAllActiveProductsByProvider = /* GraphQL */ `
           created_at
           general_policies {
             change_policy {
-              allows_date_chage
+              allows_date_change
               deadline_days_to_make_change
             }
           }
           id
           options {
+            type
             benefits_or_legal {
               stated
             }
@@ -742,12 +758,17 @@ export const getAllActiveProductsByProvider = /* GraphQL */ `
               cash {
                 deadline_days_to_pay
                 discount
+                discount_type
+                payment_methods
               }
               installments {
                 days_before_must_be_settled
                 deadline_days_to_pay
                 down_payment_after
                 down_payment_before
+                down_payment_type
+                installment_intervals
+                payment_methods
               }
             }
             description

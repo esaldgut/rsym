@@ -219,7 +219,7 @@ export const GET_PRODUCT_BY_ID = /* GraphQL */ `
         }
         general_policies {
           change_policy {
-            allows_date_chage
+            allows_date_change
             deadline_days_to_make_change
           }
         }

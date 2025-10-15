@@ -24,7 +24,7 @@ type CashConfig {
 }
 
 type ChangePolicy {
-  allows_date_chage: Boolean!
+  allows_date_change: Boolean!
   deadline_days_to_make_change: Int!
 }
 
@@ -93,7 +93,7 @@ type Conversation @aws_cognito_user_pools {
   participantIds: [ID!]!
   participantTypes: [ParticipantType!]!
   participantUsernames: [String!]!
-  unreadCount: UnreadCount!
+  unreadCount: [UnreadCount]
   updatedAt: AWSDateTime!
 }
 
@@ -349,7 +349,7 @@ type PaymentPolicy {
 }
 
 type PaymentRequirements {
-  deadline_days_to_pay: Int!
+  deadline_days_to_pay: Int
 }
 
 type PaymentResponse {
@@ -511,8 +511,8 @@ type Subscription {
 }
 
 type UnreadCount @aws_cognito_user_pools {
-  count: Int!
-  userId: ID!
+  count: Int
+  userId: ID
 }
 
 type User {
@@ -635,7 +635,7 @@ input CashConfigInput {
 }
 
 input ChangePolicyInput {
-  allows_date_chage: Boolean!
+  allows_date_change: Boolean!
   deadline_days_to_make_change: Int!
 }
 

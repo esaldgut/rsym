@@ -23,6 +23,7 @@ export interface StepProps {
   userId: string;
   onNext: () => void;
   onPrevious: () => void;
+  onCancelClick?: () => void;
   isValid: boolean;
 }
 
@@ -53,6 +54,10 @@ export interface ProductFormData {
 
   // Política de pago
   payment_policy?: PaymentPolicyInput;
+
+  // Estado de publicación y metadatos
+  published?: boolean;
+  is_foreign?: boolean;
 
   // Metadatos del wizard
   productType: 'circuit' | 'package';

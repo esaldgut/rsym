@@ -1,11 +1,12 @@
 'use client';
 
-import { useForm, useFieldArray, type UseFormRegister, type Control } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useProductForm } from '@/context/ProductFormContext';
-import { policiesSchema } from '@/lib/validations/product-schemas';
-import type { StepProps } from '@/types/wizard';
-import type { PaymentPolicyInput } from '@/lib/graphql/types';
+import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton'
+import { useProductForm } from '@/context/ProductFormContext'
+import type { PaymentPolicyInput } from '@/lib/graphql/types'
+import { policiesSchema } from '@/lib/validations/product-schemas'
+import type { StepProps } from '@/types/wizard'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useFieldArray, useForm, type Control, type UseFormRegister } from 'react-hook-form'
 
 interface PoliciesFormData {
   payment_policy: PaymentPolicyInput;
@@ -17,18 +18,17 @@ type DiscountType = 'PERCENTAGE' | 'AMOUNT';
 type DownPaymentType = 'PERCENTAGE' | 'AMOUNT';
 type InstallmentIntervals = 'MENSUAL' | 'QUINCENAL';
 
-export default function PoliciesStep({ onNext, onPrevious }: StepProps) {
+export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   
   const { register, handleSubmit, control, formState: { errors }, watch } = useForm<PoliciesFormData>({
     resolver: zodResolver(policiesSchema),
     defaultValues: {
       payment_policy: formData.payment_policy || {
-        product_id: formData.productId || '',
         options: [],
         general_policies: {
           change_policy: {
-            allows_date_chage: true,
+            allows_date_change: true,
             deadline_days_to_make_change: 15
           }
         }
@@ -169,7 +169,7 @@ export default function PoliciesStep({ onNext, onPrevious }: StepProps) {
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
-                {...register('payment_policy.general_policies.change_policy.allows_date_chage')}
+                {...register('payment_policy.general_policies.change_policy.allows_date_change')}
                 className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
               />
               <div className="flex-1">
@@ -180,7 +180,7 @@ export default function PoliciesStep({ onNext, onPrevious }: StepProps) {
                   Los viajeros podrán cambiar las fechas de su reserva bajo ciertas condiciones
                 </p>
                 
-                {watch('payment_policy.general_policies.change_policy.allows_date_chage') && (
+                {watch('payment_policy.general_policies.change_policy.allows_date_change') && (
                   <div className="mt-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Días límite para cambios
@@ -202,18 +202,30 @@ export default function PoliciesStep({ onNext, onPrevious }: StepProps) {
         </div>
 
         {/* Navegación */}
-        <div className="flex justify-between pt-6 border-t border-gray-200">
-          <button
-            type="button"
-            onClick={onPrevious}
-            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
-          >
-            ← Anterior
-          </button>
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-gray-200">
+          <div className="flex gap-3 order-2 sm:order-1">
+            <button
+              type="button"
+              onClick={onPrevious}
+              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            >
+              ← Anterior
+            </button>
+            <SaveDraftButton variant="outline" />
+            {onCancelClick && (
+              <button
+                type="button"
+                onClick={onCancelClick}
+                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
           <button
             type="submit"
             disabled={optionFields.length === 0}
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
+            className="order-1 sm:order-2 w-full sm:w-auto px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Continuar →
           </button>
