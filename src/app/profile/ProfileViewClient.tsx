@@ -15,6 +15,7 @@ interface ProfileData {
   givenName: string;
   familyName: string;
   profilePhotoPath?: string;
+  profilePhotoUrl?: string; // URL pre-firmada generada server-side
   preferredUsername?: string;
   details?: string;
   website?: string;
@@ -87,6 +88,7 @@ export default function ProfileViewClient({ initialData }: ProfileViewClientProp
           <div className="flex flex-col items-center gap-3">
             <div className="w-32 h-32 rounded-full bg-white/20 backdrop-blur-xl p-1 border border-white/30 shadow-2xl">
               <ProfileImage
+                signedUrl={initialData.profilePhotoUrl}
                 path={initialData.profilePhotoPath}
                 alt={`${initialData.givenName} ${initialData.familyName}`}
                 fallbackText={`${initialData.givenName.charAt(0)}${initialData.familyName.charAt(0)}`}

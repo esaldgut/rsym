@@ -10,6 +10,8 @@ import { MainContentWrapper } from '@/components/layout/MainContentWrapper';
 import { OAuthHandler } from '../components/auth/OAuthHandler';
 import { ToastContainer } from '@/components/ui/Toast';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { UnifiedAuthSystem } from '@/lib/auth/unified-auth-system';
+import type { InitialAuthData, AmplifyAuthUser } from '@/hooks/useAmplifyAuth';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -26,19 +28,60 @@ export const metadata: Metadata = {
   description: "YAAN Web Application",
 };
 
-export default function RootLayout({
+/**
+ * Root Layout - Async Server Component
+ * Obtiene sesión inicial para hidratación sin flash de contenido
+ * Patrón: SSR + Client Components con interleaving pattern
+ */
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Obtener sesión inicial desde servidor (SSR)
+  // Este código SOLO se ejecuta en el servidor
+  let initialAuth: InitialAuthData | undefined;
+
+  try {
+    const validation = await UnifiedAuthSystem.getValidatedSession();
+
+    if (validation.isAuthenticated && validation.user) {
+      // Construir AmplifyAuthUser desde la validación del servidor
+      const amplifyUser: AmplifyAuthUser = {
+        userId: validation.user.id,
+        username: validation.user.username,
+        email: validation.user.email,
+        userType: validation.user.userType,
+        signInDetails: {}, // No disponible en server-side
+        securityValidation: {
+          isValid: true,
+          userType: validation.user.userType,
+          userId: validation.user.id,
+          errors: [],
+          warnings: []
+        }
+      };
+
+      initialAuth = {
+        user: amplifyUser,
+        isAuthenticated: true
+      };
+    }
+  } catch (error) {
+    // Usuario no autenticado o error - initialAuth quedará undefined
+    // El cliente manejará el estado no autenticado
+    console.log('[Server] Layout SSR: Usuario no autenticado o error en validación');
+    console.error('[Server] Error detalle:', error instanceof Error ? error.message : 'Error desconocido');
+  }
+
   return (
     <html lang="es" className="scroll-smooth">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white text-gray-900`}>
         <ConfigureAmplifyClientSide />
         <OAuthHandler />
-        <AuthProvider>
+        <AuthProvider initialAuth={initialAuth}>
           <QueryProvider>
-            <NavbarImproved />
+            <NavbarImproved initialUserType={initialAuth?.user.userType} />
             <MainContentWrapper>
               {children}
             </MainContentWrapper>

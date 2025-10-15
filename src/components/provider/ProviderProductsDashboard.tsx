@@ -6,34 +6,11 @@ import { toastManager } from '@/components/ui/Toast';
 import { analytics } from '@/lib/services/analytics-service';
 import { InfiniteScroll } from '@/components/provider/InfiniteScroll';
 import { ProductCard } from '@/components/provider/ProductCard';
+import type { Product, ProductFilterInput } from '@/generated/graphql';
 
 export type ProductFilter = 'all' | 'circuit' | 'package' | 'draft' | 'published';
 
-interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  product_type: string;
-  status: string;
-  published: boolean;
-  cover_image_url?: string;
-  created_at: string;
-  updated_at: string;
-  seasons?: Array<{
-    id: string;
-    start_date: string;
-    end_date: string;
-    category: string;
-    allotment: number;
-    allotment_remain: number;
-  }>;
-  destination?: Array<{
-    place: string;
-    placeSub: string;
-  }>;
-  min_product_price?: number;
-}
-
+// Tipos derivados de la respuesta del Server Action (más estrictos que GraphQL generados)
 interface ProductConnection {
   items: Product[];
   nextToken?: string;
@@ -83,7 +60,7 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
     
     try {
       // Build filter for server action
-      const graphqlFilter: any = {};
+      const graphqlFilter: ProductFilterInput = {};
       switch (currentFilter) {
         case 'circuit':
           graphqlFilter.product_type = 'circuit';
@@ -148,7 +125,7 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
     });
     
     try {
-      const graphqlFilter: any = {};
+      const graphqlFilter: ProductFilterInput = {};
       switch (filter) {
         case 'circuit':
           graphqlFilter.product_type = 'circuit';

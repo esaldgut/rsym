@@ -6,9 +6,37 @@ import { HeroSection } from '@/components/ui/HeroSection';
 import { useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import type { Product, Reservation, Policy } from '@/generated/graphql';
 
-export default function ProviderPageClient() {
-  const { isAuthenticated, isLoading, user, signOut, userType } = useAuth();
+// Tipos derivados de Server Actions
+interface ProductConnection {
+  items: Product[];
+  nextToken?: string;
+  total: number;
+}
+
+interface ProductMetrics {
+  total: number;
+  published: number;
+  drafts: number;
+  circuits: number;
+  packages: number;
+  totalViews: number;
+}
+
+interface ProviderPageClientProps {
+  initialProducts: ProductConnection | null;
+  metrics: ProductMetrics | null;
+  reservations: Reservation[] | null;
+  policies: Policy[] | null;
+}
+
+export default function ProviderPageClient({
+  initialProducts,
+  metrics,
+  reservations
+}: ProviderPageClientProps) {
+  const { isLoading, user, signOut } = useAuth();
   const searchParams = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
 
@@ -127,11 +155,158 @@ export default function ProviderPageClient() {
                   Bienvenido al Panel de Proveedor
                 </h2>
                 <p className="text-gray-600 mb-8 max-w-2xl mx-auto text-lg">
-                  Como proveedor verificado de YAAN, tienes acceso a herramientas exclusivas para gestionar tus servicios, 
+                  Como proveedor verificado de YAAN, tienes acceso a herramientas exclusivas para gestionar tus servicios,
                   crear circuitos y paquetes turísticos, y administrar tus reservaciones.
                 </p>
               </div>
             </div>
+
+            {/* Métricas del Dashboard */}
+            {metrics && (
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-pink-100 rounded-lg p-3">
+                      <svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    <div className="ml-5">
+                      <p className="text-sm font-medium text-gray-500">Total Productos</p>
+                      <p className="text-2xl font-bold text-gray-900">{metrics.total}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-green-100 rounded-lg p-3">
+                      <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="ml-5">
+                      <p className="text-sm font-medium text-gray-500">Publicados</p>
+                      <p className="text-2xl font-bold text-gray-900">{metrics.published}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-amber-100 rounded-lg p-3">
+                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="ml-5">
+                      <p className="text-sm font-medium text-gray-500">Borradores</p>
+                      <p className="text-2xl font-bold text-gray-900">{metrics.drafts}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0 bg-blue-100 rounded-lg p-3">
+                      <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                      </svg>
+                    </div>
+                    <div className="ml-5">
+                      <p className="text-sm font-medium text-gray-500">Reservaciones</p>
+                      <p className="text-2xl font-bold text-gray-900">{reservations?.length || 0}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Productos Recientes */}
+            {initialProducts && initialProducts.items.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">Productos Recientes</h3>
+                  <Link
+                    href="/provider/products"
+                    className="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center gap-1"
+                  >
+                    Ver todos
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </Link>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  {initialProducts.items.slice(0, 3).map((product) => (
+                    <Link
+                      key={product.id}
+                      href={`/provider/products/${product.id}/edit`}
+                      className="group border border-gray-200 rounded-xl p-4 hover:shadow-lg hover:border-purple-300 transition-all duration-200"
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="font-semibold text-gray-900 group-hover:text-purple-600 line-clamp-2">
+                          {product.name}
+                        </h4>
+                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                          product.published ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                        }`}>
+                          {product.published ? '✓' : '✏️'}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-500 mb-2">
+                        {product.product_type === 'circuit' ? '🗺️ Circuito' : '📦 Paquete'}
+                      </p>
+                      {product.min_product_price && (
+                        <p className="text-sm font-semibold text-gray-700">
+                          Desde ${product.min_product_price.toLocaleString()} MXN
+                        </p>
+                      )}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reservaciones Recientes */}
+            {reservations && reservations.length > 0 && (
+              <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-6 mb-8">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">Reservaciones Recientes</h3>
+                  <span className="text-green-600 font-semibold">{reservations.length} activas</span>
+                </div>
+                <div className="space-y-4">
+                  {reservations.slice(0, 3).map((reservation) => (
+                    <div
+                      key={reservation.id}
+                      className="border border-gray-200 rounded-xl p-4 hover:border-green-300 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-gray-900">
+                            {reservation.adults} adultos
+                            {reservation.kids ? `, ${reservation.kids} niños` : ''}
+                          </p>
+                          <p className="text-sm text-gray-500">
+                            {new Date(reservation.reservationDate).toLocaleDateString('es-MX')}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            ${reservation.total_price?.toLocaleString()} MXN
+                          </p>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            reservation.status === 'confirmed' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                          }`}>
+                            {reservation.status}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Grid de acciones principales */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">

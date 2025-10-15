@@ -3,147 +3,27 @@
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { getAllActiveProductsByProvider, getProductById } from '@/lib/graphql/operations';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
+import type {
+  Product,
+  GetAllActiveProductsByProviderQuery,
+  GetAllActiveProductsByProviderQueryVariables,
+  GetProductByIdQuery
+} from '@/generated/graphql';
 
 // SIGUIENDO EXACTAMENTE EL PATTERN DE product-creation-actions.ts
+// EXTENDED: Soporte para errores parciales de GraphQL
 interface ServerActionResponse<T = any> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
-}
-
-interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  product_type: string;
-  status: string;
-  published: boolean;
-  cover_image_url?: string;
-  image_url?: string[];
-  video_url?: string[];
-  created_at: string;
-  updated_at: string;
-  provider_id: string;
-  preferences?: string[];
-  languages?: string[];
-  seasons?: Array<{
-    id: string;
-    start_date: string;
-    end_date: string;
-    category: string;
-    allotment: number;
-    allotment_remain: number;
-    schedules?: string;
-    number_of_nights?: string;
-    aditional_services?: string;
-    prices?: Array<{
-      id: string;
-      currency: string;
-      price: number;
-      room_name: string;
-      max_adult: number;
-      max_minor: number;
-      children: Array<{
-        name: string;
-        min_minor_age: number;
-        max_minor_age: number;
-        child_price: number;
-      }>;
-    }>;
-    extra_prices?: Array<{
-      id: string;
-      currency: string;
-      price: number;
-      room_name: string;
-      max_adult: number;
-      max_minor: number;
-      children: Array<{
-        name: string;
-        min_minor_age: number;
-        max_minor_age: number;
-        child_price: number;
-      }>;
-    }>;
+  // Warnings para errores parciales de GraphQL (data exists pero con errores)
+  warnings?: Array<{
+    message: string;
+    path?: readonly (string | number)[];
+    extensions?: Record<string, unknown>;
   }>;
-  destination?: Array<{
-    id?: string;
-    place: string;
-    placeSub: string;
-    complementary_description?: string;
-    coordinates?: {
-      latitude: number;
-      longitude: number;
-    };
-  }>;
-  departures?: Array<{
-    specific_dates?: string[];
-    days?: string[];
-    origin?: Array<{
-      id?: string;
-      place: string;
-      placeSub: string;
-      complementary_description?: string;
-      coordinates?: {
-        latitude: number;
-        longitude: number;
-      };
-    }>;
-  }>;
-  itinerary?: string;
-  planned_hotels_or_similar?: string[];
-  payment_policy?: {
-    id: string;
-    product_id: string;
-    provider_id: string;
-    status: string;
-    version: number;
-    created_at: string;
-    updated_at: string;
-    options: Array<{
-      type: string;
-      description: string;
-      config: {
-        cash?: {
-          discount: number;
-          discount_type: string;
-          deadline_days_to_pay: number;
-          payment_methods: string[];
-        };
-        installments?: {
-          down_payment_before: number;
-          down_payment_type: string;
-          down_payment_after: number;
-          installment_intervals: string;
-          days_before_must_be_settled: number;
-          deadline_days_to_pay: number;
-          payment_methods: string[];
-        };
-      };
-      requirements: {
-        deadline_days_to_pay: number;
-      };
-      benefits_or_legal?: Array<{
-        stated: string;
-      }>;
-    }>;
-    general_policies: {
-      change_policy: {
-        allows_date_chage: boolean;
-        deadline_days_to_make_change: number;
-      };
-    };
-  };
-  min_product_price?: number;
-  is_foreign?: boolean;
-  user_data?: {
-    sub: string;
-    username: string;
-    name: string;
-    avatar_url?: string;
-    email: string;
-    user_type: string;
-  };
+  hasPartialData?: boolean;
 }
 
 interface ProductConnection {
@@ -213,7 +93,7 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
     const client = await getGraphQLClientWithIdToken();
 
     // 4. Preparar variables para GraphQL
-    const variables: any = {};
+    const variables: GetAllActiveProductsByProviderQueryVariables = {};
 
     if (params.pagination) {
       variables.pagination = {
@@ -237,16 +117,45 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
       variables
     });
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL:', result.errors);
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    // GraphQL puede retornar data + errors simultáneamente (datos parciales)
+    // El backend es nuestra fuente de verdad - NUNCA descartamos datos disponibles
+    const productConnection = result.data?.getAllActiveProductsByProvider;
+
+    if (result.errors && result.errors.length > 0) {
+      // Log detallado de errores para debugging
+      console.warn('⚠️ [Server Action] GraphQL retornó errores parciales:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path,
+          extensions: e.extensions
+        }))
+      );
+
+      // Si tenemos datos parciales, retornarlos con warnings
+      if (productConnection && productConnection.items && productConnection.items.length > 0) {
+        console.log('✅ [Server Action] Productos obtenidos con warnings:', productConnection.items.length);
+        return {
+          success: true,
+          data: productConnection,
+          hasPartialData: true,
+          warnings: result.errors.map(e => ({
+            message: e.message,
+            path: e.path,
+            extensions: e.extensions
+          }))
+        };
+      }
+
+      // Si NO hay datos, entonces sí es un error completo
+      console.error('❌ [Server Action] Error en GraphQL sin datos:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al ejecutar la operación GraphQL'
       };
     }
 
-    const productConnection = result.data?.getAllActiveProductsByProvider;
-
+    // Caso normal: datos sin errores
     if (productConnection) {
       console.log('✅ [Server Action] Productos obtenidos:', productConnection.items?.length || 0);
       return {
@@ -260,11 +169,11 @@ export async function getProviderProductsAction(params: GetProductsParams = {}):
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error obteniendo productos:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -305,11 +214,11 @@ export async function getProviderMetricsAction(): Promise<ServerActionResponse<P
       data: metrics
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error obteniendo métricas:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -357,16 +266,42 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
       variables: { id: productId }
     });
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL get product:', result.errors);
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    const product = result.data?.getProductById;
+
+    if (result.errors && result.errors.length > 0) {
+      console.warn('⚠️ [Server Action] GraphQL retornó errores parciales al obtener producto:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path,
+          extensions: e.extensions
+        }))
+      );
+
+      // Si tenemos datos parciales del producto, retornarlos con warnings
+      if (product && product.id) {
+        console.log('✅ [Server Action] Producto obtenido con warnings:', product.id);
+        return {
+          success: true,
+          data: product,
+          hasPartialData: true,
+          warnings: result.errors.map(e => ({
+            message: e.message,
+            path: e.path,
+            extensions: e.extensions
+          }))
+        };
+      }
+
+      // Si NO hay datos, entonces sí es un error completo
+      console.error('❌ [Server Action] Error en GraphQL get product sin datos:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al obtener el producto'
       };
     }
 
-    const product = result.data?.getProductById;
-
+    // Caso normal: datos sin errores
     if (product) {
       console.log('✅ [Server Action] Producto obtenido:', product.id);
       return {
@@ -380,11 +315,11 @@ export async function getProviderProductByIdAction(productId: string): Promise<S
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error obteniendo producto:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -439,14 +374,40 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
       variables: { id: productId }
     });
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL delete:', result.errors);
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    // Para mutaciones, si hay errores, logueamos pero verificamos si la operación se completó
+    if (result.errors && result.errors.length > 0) {
+      console.warn('⚠️ [Server Action] GraphQL retornó errores en delete:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path
+        }))
+      );
+
+      // Si la mutación se completó (deleteProduct retorna true), es éxito con warnings
+      if (result.data?.deleteProduct) {
+        console.log('✅ [Server Action] Producto eliminado con warnings:', productId);
+        return {
+          success: true,
+          data: { productId },
+          hasPartialData: true,
+          warnings: result.errors.map(e => ({
+            message: e.message,
+            path: e.path,
+            extensions: e.extensions
+          }))
+        };
+      }
+
+      // Si la mutación NO se completó, es un error real
+      console.error('❌ [Server Action] Error en GraphQL delete sin confirmación:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al eliminar el producto'
       };
     }
 
+    // Caso normal: mutación sin errores
     if (result.data?.deleteProduct) {
       console.log('✅ [Server Action] Producto eliminado:', productId);
       return {
@@ -460,11 +421,11 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error eliminando producto:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }

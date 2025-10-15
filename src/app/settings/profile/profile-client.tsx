@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -49,6 +49,12 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   const [isUploading, setIsUploading] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   
+  // Guardar URL pre-firmada (si existe) en state separado del form
+  // Esta URL NO se guarda en Cognito, solo se usa para renderizado
+  const [profilePhotoUrl] = useState<string | undefined>(
+    initialAttributes['custom:profilePhotoUrl'] || undefined
+  );
+
   // Inicializar formData con los datos del servidor
   const [formData, setFormData] = useState<ProfileFormData>(() => {
     const data: ProfileFormData = {
@@ -279,20 +285,15 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
           console.log('📝 Atributos enviados:', result.attributesToUpdate);
           console.log('🔄 UserType actualizado:', userType);
 
-          // Llamar Server Action para revalidar páginas y refresh token
+          // Llamar Server Action para revalidar páginas
           await revalidateProfilePages(userType);
-
-          // Refrescar el usuario en el contexto de autenticación
-          // Esto actualizará el Navbar y todos los componentes que usen el hook
-          console.log('🔄 Refrescando usuario en el contexto...');
-          await refreshUser();
-          console.log('✅ Usuario refrescado, Navbar debería actualizarse');
 
           // Resetear el estado de cambios no guardados
           resetInitialData();
 
-          // Pequeño delay para asegurar que los tokens se actualicen
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          // MEJORA DE TIMING: Navegar primero, refresh después
+          // Esto previene race conditions con uploads que pueden estar en progreso
+          // El refresh se hace en background sin bloquear la navegación
 
           // Redirigir según el contexto de origen
           const returnUrl = sessionStorage.getItem('profileCompleteReturnUrl');
@@ -305,6 +306,29 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
           } else {
             router.push('/profile');
           }
+
+          // REFRESH EN BACKGROUND: Ejecutar después de navegar
+          // Esto permite que cualquier upload en progreso complete correctamente
+          // y evita el error "Credentials should not be empty"
+          setTimeout(() => {
+            console.log('🔄 Refrescando tokens en background para actualizar claims...');
+            refreshUser(true).then(() => {
+              console.log('✅ Tokens refrescados con nuevos claims - Navbar actualizada');
+
+              // WARMUP DE CREDENCIALES: Pre-calentar Identity Pool después del refresh
+              // Esto regenera credenciales mientras el usuario ve su perfil
+              // Previene delays en operaciones futuras (uploads, etc.)
+              import('@/utils/credential-manager').then(({ warmupCredentials }) => {
+                console.log('🔥 Iniciando warmup de credenciales post-refresh...');
+                warmupCredentials().then(() => {
+                  console.log('✅ Warmup completado - listo para uploads');
+                });
+              });
+            }).catch(error => {
+              console.error('⚠️ Error refrescando tokens en background:', error);
+              // No es crítico, el usuario ya navegó exitosamente
+            });
+          }, 1000); // Esperar 1s después de navegar
         } catch (clientError) {
           console.error('❌ Error actualizando atributos desde el cliente:', clientError);
           setErrors({ general: 'Error al guardar el perfil. Por favor intenta de nuevo.' });
@@ -553,6 +577,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
             <div className="text-center">
               <div className="relative inline-block">
                 <ProfileImage
+                  signedUrl={profilePhotoUrl}
                   path={formData.profilePhotoPath}
                   alt="Foto de perfil del usuario"
                   className="w-32 h-32"

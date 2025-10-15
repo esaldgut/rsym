@@ -1,12 +1,11 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
-import { AuthForm } from '../../components/auth/AuthForm';
-import { AuthErrorBoundary } from '../../components/auth/AuthErrorBoundary';
-import { HeroSection } from '../../components/ui/HeroSection';
-import { useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { useEffect } from 'react'
+import { AuthErrorBoundary } from '../../components/auth/AuthErrorBoundary'
+import { AuthForm } from '../../components/auth/AuthForm'
+import { HeroSection } from '../../components/ui/HeroSection'
 
 export default function AuthPage() {
   const router = useRouter();
@@ -15,7 +14,7 @@ export default function AuthPage() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/moments');
+      router.push('/marketplace');
     }
   }, [isAuthenticated, router]);
 

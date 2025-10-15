@@ -1,10 +1,10 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { uploadData, remove } from 'aws-amplify/storage';
-import { getCurrentUser } from 'aws-amplify/auth';
+import { remove } from 'aws-amplify/storage';
 import { DocumentPath } from '@/lib/auth/user-attributes';
-import { sanitizeFileName, sanitizeMetadata } from '@/utils/storage-upload-sanitizer';
+import { sanitizeFileName } from '@/utils/storage-upload-sanitizer';
+import { generateDocumentUploadUrl } from '@/lib/server/document-upload-actions';
 
 interface DocumentUploaderProps {
   label: string;
@@ -69,83 +69,120 @@ export function DocumentUploader({
     setUploadProgress(0);
 
     try {
-      // Validar que el usuario esté autenticado usando getCurrentUser de Amplify
-      const currentUser = await getCurrentUser();
-
-      // Sanitizar nombre del archivo para evitar error ByteString
+      // PASO 1: Sanitizar nombre del archivo
       const sanitizedFileName = sanitizeFileName(file.name);
-
-      // Generar path siguiendo la estructura S3 establecida
-      const timestamp = Date.now();
       const documentFolder = getDocumentFolder(label);
-      const fileExtension = sanitizedFileName.split('.').pop()?.toLowerCase() || 'pdf';
 
-      // Estructura: protected/users/{username}/legal-documents/{document-folder}/{timestamp}.{ext}
-      const fileName = `protected/users/${currentUser.username}/legal-documents/${documentFolder}/${timestamp}.${fileExtension}`;
-
-      // Preparar metadata sanitizada
-      const rawMetadata = {
+      console.log('📤 [DocumentUploader] Solicitando presigned URL para upload:', {
         documentType: documentFolder,
-        originalName: file.name,
-        username: currentUser.username,
-        uploadedAt: new Date().toISOString(),
-        documentCategory: 'legal-documents'
-      };
+        fileName: sanitizedFileName
+      });
 
-      const sanitizedMetadata = sanitizeMetadata(rawMetadata);
+      // PASO 2: Solicitar presigned URL al servidor
+      // El servidor autentica al usuario, genera path seguro, y crea presigned URL
+      // NO requiere credenciales del Identity Pool en el cliente
+      const { url, path, expiresIn } = await generateDocumentUploadUrl({
+        documentType: documentFolder,
+        fileName: sanitizedFileName,
+        contentType: file.type || 'application/octet-stream'
+      });
 
-      // Subir archivo a S3
-      const result = await uploadData({
-        path: fileName,
-        data: file,
-        options: {
-          accessLevel: 'private', // Documentos sensibles solo accesibles por el dueño
-          contentType: file.type || 'application/octet-stream',
-          metadata: sanitizedMetadata,
-          onProgress: ({ transferredBytes, totalBytes }) => {
-            if (totalBytes) {
-              const progress = Math.round((transferredBytes / totalBytes) * 100);
-              setUploadProgress(progress);
-            }
+      console.log('✅ [DocumentUploader] Presigned URL obtenida, iniciando upload directo a S3:', {
+        path,
+        expiresIn,
+        strategy: 'presigned-put-url'
+      });
+
+      // PASO 3: Upload directo a S3 usando HTTP PUT
+      // Esto NO requiere AWS credentials, solo la presigned URL
+      // Usar XMLHttpRequest para tracking de progreso
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        // Configurar tracking de progreso
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const progress = Math.round((e.loaded / e.total) * 100);
+            setUploadProgress(progress);
           }
-        }
-      }).result;
+        });
 
-      // Actualizar estado con la información del documento
+        // Configurar handler de éxito
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            console.log('✅ [DocumentUploader] Upload completado exitosamente:', path);
+            resolve();
+          } else {
+            console.error('❌ [DocumentUploader] Upload falló con status:', xhr.status);
+            reject(new Error(`Upload failed with status ${xhr.status}`));
+          }
+        });
+
+        // Configurar handler de error
+        xhr.addEventListener('error', () => {
+          console.error('❌ [DocumentUploader] Error de red durante upload');
+          reject(new Error('Network error during upload'));
+        });
+
+        // Configurar handler de timeout
+        xhr.addEventListener('timeout', () => {
+          console.error('❌ [DocumentUploader] Upload timeout');
+          reject(new Error('Upload timeout'));
+        });
+
+        // Abrir conexión y enviar archivo
+        xhr.open('PUT', url);
+        xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+        xhr.timeout = 60000; // 60 segundos timeout
+        xhr.send(file);
+      });
+
+      // PASO 4: Actualizar estado con la información del documento
       onChange({
-        uri: result.path,
+        uri: path,
         name: file.name
       });
 
-      console.log('Documento subido exitosamente:', result.path);
+      console.log('🎉 [DocumentUploader] Documento subido exitosamente:', path);
 
-      // Refrescar tokens después de subir documentos críticos
+      // PASO 5: Refrescar tokens después de subir documentos críticos
       // Los documentos legales son considerados cambios críticos que requieren refresh
       if (typeof window !== 'undefined') {
-        // Importar dinámicamente para evitar problemas en SSR
         const { TokenInterceptor } = await import('@/lib/auth/token-interceptor');
-        
+
         // Determinar si es un documento crítico (todos los documentos legales lo son)
-        const isCriticalDocument = documentFolder.includes('proof-of-tax-status') || 
-                                  documentFolder.includes('sectur-registry') || 
+        const isCriticalDocument = documentFolder.includes('proof-of-tax-status') ||
+                                  documentFolder.includes('sectur-registry') ||
                                   documentFolder.includes('compliance-opinion');
-        
+
         if (isCriticalDocument) {
           console.log('🔄 Documento crítico subido, refrescando tokens silenciosamente...');
-          // Usar refresh silencioso para documentos críticos sin recargar página
           setTimeout(() => {
             TokenInterceptor.performSilentRefresh();
           }, 500);
         } else {
-          // Para otros documentos, refresh normal después de 2 segundos
           setTimeout(() => {
             TokenInterceptor.performSilentRefresh();
           }, 2000);
         }
       }
     } catch (error) {
-      console.error('Error subiendo documento:', error);
-      setError('Error al subir el archivo. Por favor intenta de nuevo.');
+      console.error('❌ [DocumentUploader] Error subiendo documento:', error);
+
+      // Mensaje de error específico según el tipo de error
+      if (error instanceof Error) {
+        if (error.message.includes('authenticate') || error.message.includes('auth')) {
+          setError('Error de autenticación. Por favor recarga la página e intenta de nuevo.');
+        } else if (error.message.includes('timeout')) {
+          setError('El upload tardó demasiado. Por favor verifica tu conexión e intenta de nuevo.');
+        } else if (error.message.includes('Network')) {
+          setError('Error de conexión. Por favor verifica tu red e intenta de nuevo.');
+        } else {
+          setError(`Error al subir el archivo: ${error.message}`);
+        }
+      } else {
+        setError('Error al subir el archivo. Por favor intenta de nuevo.');
+      }
     } finally {
       setIsUploading(false);
       setUploadProgress(0);
@@ -156,17 +193,14 @@ export function DocumentUploader({
     if (!value) return;
 
     try {
-      // Eliminar archivo de S3
+      // Eliminar archivo de S3 usando Amplify Storage client-side
       await remove({
-        path: value.uri,
-        options: {
-          accessLevel: 'private'
-        }
+        path: value.uri
       });
 
       // Actualizar estado
       onChange(undefined);
-      
+
       // Limpiar input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';

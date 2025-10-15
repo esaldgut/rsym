@@ -10,60 +10,105 @@ import { HeroSection } from '@/components/ui/HeroSection';
 import { useRouter } from 'next/navigation';
 import { toastManager } from '@/components/ui/Toast';
 import ProductNameModal from './ProductNameModal';
+import { RecoveryModal } from './RecoveryModal';
+import { CancelProductModal } from './CancelProductModal';
 import type { StepProps } from '@/types/wizard';
+import type { Product } from '@/lib/graphql/types';
+import type { ProductFormDataWithRecovery } from '@/types/wizard';
 
 interface ProductWizardProps {
   userId: string;
   productType: 'circuit' | 'package';
+  editMode?: boolean;
+  initialProduct?: Product;
 }
 
-export default function ProductWizard({ userId, productType }: ProductWizardProps) {
+export default function ProductWizard({
+  userId,
+  productType,
+  editMode = false,
+  initialProduct
+}: ProductWizardProps) {
   const steps = getStepsForProductType(productType);
-  const [productId, setProductId] = useState<string | null>(null);
-  const [productName, setProductName] = useState<string>('');
+  const [productId, setProductId] = useState<string | null>(initialProduct?.id || null);
+  const [productName, setProductName] = useState<string>(initialProduct?.name || '');
   const [showModal, setShowModal] = useState<boolean | null>(null); // null = loading state
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [showRecoveryModal, setShowRecoveryModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [recoveryData, setRecoveryData] = useState<ProductFormDataWithRecovery | null>(null);
 
-  // Verificar si existe un producto en localStorage al montar
+  // Detectar datos pendientes de recuperación al montar
   useEffect(() => {
-    const savedProductId = localStorage.getItem('yaan-current-product-id');
-    const savedProductType = localStorage.getItem('yaan-current-product-type');
-    const savedProductName = localStorage.getItem('yaan-current-product-name');
-    const editData = localStorage.getItem('yaan-edit-product-data');
-    
-    // Verificar si es modo edición (priority over creation mode)
-    if (editData && savedProductId && savedProductName) {
-      const parsed = JSON.parse(editData);
-      setProductId(savedProductId);
-      setProductName(savedProductName);
-      setShowModal(false); // No mostrar modal en modo edición
-      setIsEditMode(true); // Activar modo edición
-      
-      console.log('📝 Modo edición detectado - producto cargado:', { 
-        id: savedProductId, 
-        name: savedProductName, 
-        type: savedProductType,
-        isEdit: true
-      });
-    } else if (savedProductId && savedProductType === productType && savedProductName) {
-      // Recuperar producto existente - NO mostrar modal
-      setProductId(savedProductId);
-      setProductName(savedProductName);
-      setShowModal(false); // Importante: no mostrar modal si hay producto existente
-      
-      console.log('📦 Producto existente recuperado de localStorage:', { 
-        id: savedProductId, 
-        name: savedProductName, 
-        type: savedProductType 
-      });
-    } else {
-      // No hay producto o es de diferente tipo - mostrar modal para crear nuevo
-      if (savedProductId && savedProductType !== productType) {
-        console.log('🔄 Producto existente es de diferente tipo, creando nuevo');
+    // Si es edit mode con initialProduct, no buscar recovery
+    if (editMode && initialProduct) {
+      console.log('🎯 Edit mode con initialProduct - no recovery check');
+      setProductId(initialProduct.id);
+      setProductName(initialProduct.name || '');
+      setShowModal(false);
+      return;
+    }
+
+    // Buscar datos de recovery en localStorage
+    const checkForRecovery = () => {
+      if (typeof window === 'undefined') return false;
+
+      try {
+        // Limpiar datos expirados (>7 días)
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const keysToCheck = [`yaan-wizard-${productType}`, 'yaan-product-form-data'];
+
+        for (const key of keysToCheck) {
+          const data = localStorage.getItem(key);
+          if (data) {
+            const parsed = JSON.parse(data);
+            if (parsed._savedAt) {
+              const savedTime = new Date(parsed._savedAt).getTime();
+              if (savedTime < sevenDaysAgo) {
+                console.log(`🗑️ Limpiando datos expirados (>7 días): ${key}`);
+                localStorage.removeItem(key);
+              }
+            }
+          }
+        }
+
+        // Buscar datos recientes para recovery (últimas 24 horas)
+        const savedData = localStorage.getItem(`yaan-wizard-${productType}`);
+        if (savedData) {
+          const parsed = JSON.parse(savedData) as ProductFormDataWithRecovery;
+
+          // Verificar que tenga metadata de recovery
+          if (parsed._savedAt && parsed.productType === productType) {
+            const savedTime = new Date(parsed._savedAt).getTime();
+            const twentyFourHoursAgo = Date.now() - (24 * 60 * 60 * 1000);
+
+            // Si es reciente (últimas 24h), ofrecer recovery
+            if (savedTime > twentyFourHoursAgo) {
+              console.log('📦 Datos de recovery detectados:', {
+                savedAt: parsed._savedAt,
+                productName: parsed.name,
+                productType: parsed.productType
+              });
+              setRecoveryData(parsed);
+              setShowRecoveryModal(true);
+              setShowModal(false);
+              return true;
+            }
+          }
+        }
+      } catch (error) {
+        console.warn('Error checking for recovery data:', error);
       }
+
+      return false;
+    };
+
+    const hasRecovery = checkForRecovery();
+
+    // Si no hay recovery y no es edit mode, mostrar modal de creación
+    if (!hasRecovery) {
       setShowModal(true);
     }
-  }, [productType]);
+  }, [productType, editMode, initialProduct]);
 
   const handleProductCreated = (newProductId: string, name: string) => {
     setProductId(newProductId);
@@ -87,8 +132,58 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
     // El error ya se muestra en el toast desde el modal
   };
 
+  // Handler para recuperar datos guardados
+  const handleRecovery = () => {
+    if (recoveryData) {
+      console.log('✅ Recuperando datos guardados:', recoveryData);
+      setProductId(recoveryData.productId);
+      setProductName(recoveryData.name || '');
+      setShowRecoveryModal(false);
+      setShowModal(false);
+
+      // Guardar en localStorage actual
+      if (recoveryData.productId) {
+        localStorage.setItem('yaan-current-product-id', recoveryData.productId);
+        localStorage.setItem('yaan-current-product-type', productType);
+        localStorage.setItem('yaan-current-product-name', recoveryData.name || '');
+      }
+
+      toastManager.show('✨ Datos recuperados exitosamente', 'success', 3000);
+    }
+  };
+
+  // Handler para descartar datos de recovery
+  const handleDiscardRecovery = () => {
+    console.log('🗑️ Descartando datos de recovery');
+    localStorage.removeItem(`yaan-wizard-${productType}`);
+    localStorage.removeItem('yaan-product-form-data');
+    setRecoveryData(null);
+    setShowRecoveryModal(false);
+    setShowModal(true);
+    toastManager.show('Datos descartados', 'info', 2000);
+  };
+
+  // Handler para cancelar creación/edición
+  const handleCancelProduct = () => {
+    console.log('❌ Cancelando producto - limpiando datos');
+
+    // Limpiar todo el localStorage relacionado
+    localStorage.removeItem(`yaan-wizard-${productType}`);
+    localStorage.removeItem('yaan-product-form-data');
+    localStorage.removeItem('yaan-current-product-id');
+    localStorage.removeItem('yaan-current-product-type');
+    localStorage.removeItem('yaan-current-product-name');
+    localStorage.removeItem('yaan-edit-product-data');
+
+    setShowCancelModal(false);
+    toastManager.show('Producto cancelado', 'info', 2000);
+
+    // Redirigir al listado de productos
+    window.location.href = '/provider/products';
+  };
+
   return (
-    <ProductFormProvider steps={steps} productType={productType}>
+    <ProductFormProvider steps={steps} productType={productType} initialProduct={initialProduct}>
       <div className="bg-gray-50 pb-8">
         {/* Modal de captura de nombre - solo mostrar cuando showModal es true */}
         {showModal === true && (
@@ -100,12 +195,29 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
           />
         )}
 
+        {/* Modal de recuperación de datos */}
+        <RecoveryModal
+          isOpen={showRecoveryModal}
+          recoveryData={recoveryData}
+          onRecover={handleRecovery}
+          onDiscard={handleDiscardRecovery}
+        />
+
+        {/* Modal de cancelación */}
+        <CancelProductModal
+          isOpen={showCancelModal}
+          onClose={() => setShowCancelModal(false)}
+          onConfirm={handleCancelProduct}
+          productName={productName}
+          productType={productType}
+        />
+
         {/* Contenido principal del wizard */}
         <div className={showModal === true ? 'blur-sm pointer-events-none' : ''}>
         {/* Hero Section estandarizado */}
         <HeroSection
-          title={`${isEditMode ? 'Editar' : 'Crear'} ${productType === 'circuit' ? 'Circuito' : 'Paquete'} Turístico`}
-          subtitle={isEditMode ? 'Actualiza los detalles de tu experiencia turística' : 'Comparte tu experiencia turística única con viajeros de todo el mundo'}
+          title={`${editMode ? 'Editar' : 'Crear'} ${productType === 'circuit' ? 'Circuito' : 'Paquete'} Turístico`}
+          subtitle={editMode ? 'Actualiza los detalles de tu experiencia turística' : 'Comparte tu experiencia turística única con viajeros de todo el mundo'}
           size="sm"
           showShapes={true}
         />
@@ -114,11 +226,12 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
         {showModal !== null && (
           <div className="relative -mt-8 z-10">
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-              <WizardContent 
-                userId={userId} 
+              <WizardContent
+                userId={userId}
                 productId={productId}
                 productName={productName}
                 productType={productType}
+                onCancelClick={() => setShowCancelModal(true)}
               />
             </div>
           </div>
@@ -141,16 +254,18 @@ export default function ProductWizard({ userId, productType }: ProductWizardProp
   );
 }
 
-function WizardContent({ 
-  userId, 
-  productId, 
+function WizardContent({
+  userId,
+  productId,
   productName,
-  productType
-}: { 
+  productType,
+  onCancelClick
+}: {
   userId: string;
   productId: string | null;
   productName: string;
   productType: 'circuit' | 'package';
+  onCancelClick: () => void;
 }) {
   const router = useRouter();
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
@@ -342,6 +457,7 @@ function WizardContent({
           steps={steps}
           currentStepIndex={currentStepIndex}
           productType={formData.productType}
+          onCancelClick={onCancelClick}
         />
       </div>
 
@@ -417,23 +533,25 @@ function WizardContent({
 }
 
 // Componente para la barra de progreso
-function WizardProgressBar({ 
-  steps, 
-  currentStepIndex, 
-  productType 
-}: { 
-  steps: any[];
+function WizardProgressBar({
+  steps,
+  currentStepIndex,
+  productType,
+  onCancelClick
+}: {
+  steps: Array<{ id: string; title: string; component: React.ComponentType<StepProps> }>;
   currentStepIndex: number;
   productType: 'circuit' | 'package';
+  onCancelClick: () => void;
 }) {
   const { navigateToStep } = useProductForm();
-  
+
   return (
     <div className="border-b border-gray-200 pb-6">
       {/* Header simplificado */}
       <div className="px-6 sm:px-8 pt-6">
         <div className="flex items-center justify-between mb-6">
-          <div>
+          <div className="flex-1">
             <h2 className="text-xl font-semibold text-gray-900">
               {steps[currentStepIndex]?.title || 'Información General'}
             </h2>
@@ -441,7 +559,16 @@ function WizardProgressBar({
               Paso {currentStepIndex + 1} de {steps.length}
             </p>
           </div>
-          <div className="text-right">
+          <div className="text-right flex items-center gap-3">
+            {/* Botón Cancelar */}
+            <button
+              onClick={onCancelClick}
+              className="px-3 py-1.5 text-xs font-medium text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors duration-200 border border-red-300 hover:border-red-400"
+              title="Cancelar creación del producto"
+            >
+              Cancelar
+            </button>
+            {/* Progress Badge */}
             <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white px-3 py-1.5 rounded-full text-xs font-medium">
               <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />

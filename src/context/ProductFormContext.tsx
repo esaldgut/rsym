@@ -1,11 +1,12 @@
 'use client';
 
 import { createContext, useContext, useReducer, useMemo, useEffect } from 'react';
-import type { 
+import type {
   LocationInput,
   ProductCircuitSeasonInput,
   ProductPackageSeasonInput,
-  PaymentPolicyInput
+  PaymentPolicyInput,
+  Product
 } from '@/lib/graphql/types';
 import type { 
   ProductFormData, 
@@ -74,21 +75,110 @@ interface ProductFormProviderProps {
   children: React.ReactNode;
   steps: FormStep[];
   productType: 'circuit' | 'package';
+  initialProduct?: Product;
 }
 
-export function ProductFormProvider({ 
-  children, 
-  steps, 
-  productType 
+export function ProductFormProvider({
+  children,
+  steps,
+  productType,
+  initialProduct
 }: ProductFormProviderProps) {
   // Load saved form data from localStorage
   const loadSavedFormData = (): ProductFormData => {
     if (typeof window === 'undefined') {
       return { ...initialFormData, productType };
     }
-    
+
     try {
-      // Verificar si hay datos de edición (modo edición)
+      // PRIORIDAD 1: Si hay initialProduct prop (edit mode), usarlo directamente
+      if (initialProduct) {
+        console.log('🎯 Cargando datos desde initialProduct prop:', initialProduct);
+
+        const parsed = initialProduct;
+        const departures = parsed.departures || [];
+
+        // Función auxiliar para convertir coordenadas de GraphQL a formato interno
+        const convertCoordinates = (origin: any) => {
+          if (!origin) return { place: '', placeSub: '', coordinates: undefined };
+
+          let coordinates = undefined;
+          if (origin.coordinates) {
+            if (typeof origin.coordinates === 'object' && 'latitude' in origin.coordinates && 'longitude' in origin.coordinates) {
+              coordinates = [origin.coordinates.longitude, origin.coordinates.latitude];
+            } else if (Array.isArray(origin.coordinates)) {
+              coordinates = origin.coordinates;
+            }
+          }
+
+          return {
+            place: origin.place || '',
+            placeSub: origin.placeSub || '',
+            coordinates: coordinates
+          };
+        };
+
+        const mappedDepartures = {
+          regular_departures: departures
+            .filter((d: any) => d.days && d.days.length > 0)
+            .map((d: any) => ({
+              origin: convertCoordinates(d.origin?.[0]),
+              days: d.days || []
+            })),
+          specific_departures: []
+        };
+
+        departures
+          .filter((d: any) => d.specific_dates && d.specific_dates.length > 0)
+          .forEach((d: any) => {
+            if (d.origin && Array.isArray(d.origin)) {
+              d.origin.forEach((origin: any) => {
+                mappedDepartures.specific_departures.push({
+                  origin: convertCoordinates(origin),
+                  date_ranges: d.specific_dates?.map((date: string) => ({
+                    start_datetime: date,
+                    end_datetime: date
+                  })) || []
+                });
+              });
+            }
+          });
+
+        const mappedDestinations = (parsed.destination || []).map((dest: any) => ({
+          place: dest.place || '',
+          placeSub: dest.placeSub || '',
+          complementary_description: dest.complementary_description || '',
+          coordinates: dest.coordinates
+            ? (typeof dest.coordinates === 'object' && 'latitude' in dest.coordinates && 'longitude' in dest.coordinates
+              ? [dest.coordinates.longitude, dest.coordinates.latitude]
+              : dest.coordinates)
+            : undefined
+        }));
+
+        return {
+          productId: parsed.id,
+          name: parsed.name || '',
+          description: parsed.description || '',
+          preferences: parsed.preferences || [],
+          languages: parsed.languages || [],
+          cover_image_url: parsed.cover_image_url || '',
+          image_url: parsed.image_url ? [parsed.image_url] : [],
+          video_url: parsed.video_url ? [parsed.video_url] : [],
+          seasons: parsed.seasons || [],
+          planned_hotels_or_similar: parsed.planned_hotels_or_similar || [],
+          destination: mappedDestinations,
+          departures: mappedDepartures,
+          origin: parsed.origin || [],
+          itinerary: parsed.itinerary || '',
+          payment_policy: parsed.payment_policy || null,
+          published: parsed.published || false,
+          productType,
+          currentStep: 0,
+          isSubmitting: false
+        };
+      }
+
+      // PRIORIDAD 2: Verificar si hay datos de edición en localStorage (legacy)
       const editData = localStorage.getItem('yaan-edit-product-data');
       if (editData) {
         const parsed = JSON.parse(editData);
@@ -216,21 +306,36 @@ export function ProductFormProvider({
     dispatch({ type: 'UPDATE_FORM_DATA', payload: data });
   };
 
-  // Auto-save form data to localStorage whenever it changes
+  // Auto-save form data to localStorage with debounce (reduces write frequency)
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        // Guardar con la clave antigua para compatibilidad
-        localStorage.setItem(`yaan-wizard-${productType}`, JSON.stringify(formData));
-        
-        // Guardar también con la nueva clave unificada
-        if (formData.productId) {
-          localStorage.setItem('yaan-product-form-data', JSON.stringify(formData));
+    // Debounce: esperar 500ms después del último cambio antes de guardar
+    const timer = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          // Agregar metadata de recovery
+          const saveData = {
+            ...formData,
+            _savedAt: new Date().toISOString(),
+            _savedBy: 'auto-save' as const
+          };
+
+          // Guardar con la clave antigua para compatibilidad
+          localStorage.setItem(`yaan-wizard-${productType}`, JSON.stringify(saveData));
+
+          // Guardar también con la nueva clave unificada
+          if (formData.productId) {
+            localStorage.setItem('yaan-product-form-data', JSON.stringify(saveData));
+          }
+
+          console.log('💾 Auto-saved at:', saveData._savedAt);
+        } catch (error) {
+          console.warn('Error saving wizard data:', error);
         }
-      } catch (error) {
-        console.warn('Error saving wizard data:', error);
       }
-    }
+    }, 500); // 500ms debounce
+
+    // Cleanup: cancelar timer si el componente se desmonta o formData cambia antes
+    return () => clearTimeout(timer);
   }, [formData, productType]);
 
   const navigateToStep = (step: number) => {

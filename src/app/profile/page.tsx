@@ -5,12 +5,18 @@ import { fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { getProfileStats } from '@/lib/server/profile-actions';
+import { getProfileImageUrlServer } from '@/lib/server/storage-server-actions';
 
 /**
  * Server Component para la página de perfil
  * Obtiene todos los datos del usuario en el servidor
  * Implementa SSR con el patrón establecido en /settings/profile
+ *
+ * REVALIDACIÓN: Las URLs pre-firmadas expiran después de 2 horas (7200s)
+ * Por lo tanto, revalidamos cada hora (3600s) para mantener URLs frescas
  */
+export const revalidate = 3600; // 1 hora en segundos
+
 export default async function ProfilePage() {
   // Proteger ruta requiriendo autenticación
   const authResult = await UnifiedAuthSystem.requireAuthentication('/profile');
@@ -50,13 +56,28 @@ export default async function ProfilePage() {
   // Obtener estadísticas reales del usuario desde GraphQL
   const profileStats = await getProfileStats(authResult.user.id);
 
+  // Generar URL pre-firmada server-side para la imagen de perfil
+  // Esto previene el error "Credentials should not be empty" que ocurría
+  // cuando el Client Component intentaba usar APIs client-side durante SSR
+  const profilePhotoPath = userAttributes['custom:profilePhotoPath'];
+  const profilePhotoUrl = profilePhotoPath
+    ? await getProfileImageUrlServer(profilePhotoPath)
+    : null;
+
+  console.log('🖼️ [Profile Page] URL de imagen generada server-side:', {
+    hasPath: !!profilePhotoPath,
+    hasUrl: !!profilePhotoUrl,
+    path: profilePhotoPath
+  });
+
   // Preparar datos para el cliente
   const profileData = {
     username: authResult.user.username || '',
     email: userAttributes.email || '',
     givenName: userAttributes.given_name || '',
     familyName: userAttributes.family_name || '',
-    profilePhotoPath: userAttributes['custom:profilePhotoPath'] || undefined,
+    profilePhotoPath: profilePhotoPath || undefined,
+    profilePhotoUrl: profilePhotoUrl || undefined, // Nueva URL pre-firmada
     preferredUsername: userAttributes.preferred_username || authResult.user.username,
     details: userAttributes['custom:details'] || undefined,
     website: userAttributes.website || undefined,

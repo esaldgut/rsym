@@ -5,6 +5,7 @@ import { getCurrentUser, fetchAuthSession, signOut, fetchUserAttributes } from '
 import { Hub } from 'aws-amplify/utils';
 import { logger } from '../utils/logger';
 import { SecurityValidator, type SecurityValidationResult } from '../lib/security-validator';
+import { refreshUserSession } from '../lib/server/auth-server-actions';
 
 export type UserType = 'provider' | 'influencer' | 'traveler' | 'admin';
 
@@ -17,13 +18,18 @@ export interface AmplifyAuthUser {
   securityValidation: SecurityValidationResult;
 }
 
+export interface InitialAuthData {
+  user: AmplifyAuthUser;
+  isAuthenticated: boolean;
+}
+
 export interface UseAmplifyAuthReturn {
   user: AmplifyAuthUser | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   userType: UserType | null;
   signOut: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: (forceRefresh?: boolean) => Promise<void>;
   hasPermission: (operation: string, resource: string) => boolean;
 }
 
@@ -31,38 +37,63 @@ export interface UseAmplifyAuthReturn {
  * Hook que usa las APIs nativas de Amplify v6 para gestión completa de autenticación
  * Elimina toda gestión manual de tokens y cookies - Amplify maneja TODO el ciclo
  * Basado en: https://docs.amplify.aws/react/build-a-backend/auth/connect-your-frontend/manage-user-sessions/
+ *
+ * @param initialAuth - Datos iniciales de SSR para hidratación sin flash de contenido
  */
-export function useAmplifyAuth(): UseAmplifyAuthReturn {
-  const [user, setUser] = useState<AmplifyAuthUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+export function useAmplifyAuth(initialAuth?: InitialAuthData): UseAmplifyAuthReturn {
+  const [user, setUser] = useState<AmplifyAuthUser | null>(initialAuth?.user || null);
+  const [isLoading, setIsLoading] = useState(!initialAuth); // No loading si hay datos SSR
 
-  const refreshUser = async () => {
+  const refreshUser = async (forceRefresh = false) => {
     try {
       setIsLoading(true);
-      
+
+      // Si forceRefresh=true, usar Server Action para acceso a cookies HTTP-Only
+      // Esto es CRÍTICO después de actualizar atributos en Cognito (custom:user_type, etc.)
+      if (forceRefresh) {
+        console.log('🔄 [Client] Force refresh usando Server Action...');
+
+        const result = await refreshUserSession(true);
+
+        if (!result.success || !result.user) {
+          logger.error('Server refresh failed', { error: result.error });
+          throw new Error(result.error || 'Error al refrescar sesión');
+        }
+
+        console.log('✅ [Client] Token refresh FORZADO completado via Server Action:', {
+          userType: result.user.userType,
+          timestamp: new Date().toISOString()
+        });
+
+        setUser(result.user);
+        logger.auth('Usuario configurado exitosamente via Server Action', 'refreshUser');
+        return;
+      }
+
+      // Si forceRefresh=false, usar client-side APIs normalmente (más rápido para refresh automático)
       // 1. Verificar si hay usuario autenticado usando getCurrentUser
       const currentUser = await getCurrentUser();
       logger.auth('Usuario encontrado', 'getCurrentUser');
-      
+
       // 2. Obtener atributos del usuario (incluye email y custom attributes)
       const userAttributes = await fetchUserAttributes();
       logger.auth('Atributos obtenidos', 'fetchUserAttributes');
-      
-      // 3. Obtener sesión (incluye tokens) - Amplify maneja refresh automáticamente
-      const session = await fetchAuthSession();
+
+      // 3. Obtener sesión (incluye tokens) sin forceRefresh
+      const session = await fetchAuthSession({ forceRefresh: false });
       logger.auth('Sesión obtenida', 'fetchAuthSession');
-      
+
       // 4. Validar ID Token y extraer claims de forma segura
       const securityValidation = SecurityValidator.validateIdToken(session.tokens?.idToken);
-      
+
       if (!securityValidation.isValid) {
-        logger.error('Token validation failed', { 
+        logger.error('Token validation failed', {
           errors: securityValidation.errors,
-          warnings: securityValidation.warnings 
+          warnings: securityValidation.warnings
         });
         throw new Error(`Token inválido: ${securityValidation.errors.join(', ')}`);
       }
-      
+
       // 5. Construir objeto de usuario con validaciones de seguridad
       const amplifyUser: AmplifyAuthUser = {
         userId: securityValidation.userId,
@@ -81,7 +112,7 @@ export function useAmplifyAuth(): UseAmplifyAuthReturn {
 
       setUser(amplifyUser);
       logger.auth('Usuario configurado exitosamente', 'refreshUser');
-      
+
     } catch {
       logger.auth('Usuario no autenticado', 'refreshUser');
       setUser(null);

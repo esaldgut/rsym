@@ -5,14 +5,28 @@ import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct }
 import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 import type { Schema } from '@/amplify/data/resource';
+import type {
+  CreateProductOfTypeCircuitMutation,
+  CreateProductOfTypePackageMutation,
+  UpdateProductMutation,
+  UpdateProductInput
+} from '@/generated/graphql';
 
 // COPIANDO EXACTAMENTE EL PATTERN DE package-actions.ts QUE FUNCIONA
-interface ServerActionResponse<T = any> {
+// EXTENDED: Soporte para errores parciales de GraphQL
+interface ServerActionResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
   message?: string;
   validationErrors?: Record<string, string>;
+  // Warnings para errores parciales de GraphQL (data exists pero con errores)
+  warnings?: Array<{
+    message: string;
+    path?: readonly (string | number)[];
+    extensions?: Record<string, unknown>;
+  }>;
+  hasPartialData?: boolean;
 }
 
 interface CreateProductResult {
@@ -73,17 +87,37 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
       }
     });
 
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    const newProduct = result.data?.createProductOfTypeCircuit;
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL:', result.errors);
+    if (result.errors && result.errors.length > 0) {
+      console.warn('⚠️ [Server Action] GraphQL retornó errores al crear circuito:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path,
+          extensions: e.extensions
+        }))
+      );
+
+      // Si el producto se creó (tenemos ID), es éxito con warnings
+      if (newProduct?.id) {
+        console.log('✅ [Server Action] Circuito creado con warnings:', newProduct.id);
+        return {
+          success: true,
+          productId: newProduct.id,
+          productName: newProduct.name
+        };
+      }
+
+      // Si NO se creó el producto, es un error completo
+      console.error('❌ [Server Action] Error en GraphQL sin producto creado:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al ejecutar la operación GraphQL'
       };
     }
 
-    const newProduct = result.data?.createProductOfTypeCircuit;
-
+    // Caso normal: producto creado sin errores
     if (newProduct?.id) {
       console.log('✅ [Server Action] Circuito creado:', newProduct.id);
       return {
@@ -99,11 +133,11 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error creando circuito:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -159,16 +193,37 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
       }
     });
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL:', result.errors);
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    const newProduct = result.data?.createProductOfTypePackage;
+
+    if (result.errors && result.errors.length > 0) {
+      console.warn('⚠️ [Server Action] GraphQL retornó errores al crear paquete:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path,
+          extensions: e.extensions
+        }))
+      );
+
+      // Si el producto se creó (tenemos ID), es éxito con warnings
+      if (newProduct?.id) {
+        console.log('✅ [Server Action] Paquete creado con warnings:', newProduct.id);
+        return {
+          success: true,
+          productId: newProduct.id,
+          productName: newProduct.name
+        };
+      }
+
+      // Si NO se creó el producto, es un error completo
+      console.error('❌ [Server Action] Error en GraphQL sin producto creado:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al ejecutar la operación GraphQL'
       };
     }
 
-    const newProduct = result.data?.createProductOfTypePackage;
-
+    // Caso normal: producto creado sin errores
     if (newProduct?.id) {
       console.log('✅ [Server Action] Paquete creado:', newProduct.id);
       return {
@@ -184,11 +239,11 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error creando paquete:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -197,7 +252,7 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
  * Server Action para actualizar un producto existente
  * COPIANDO EXACTAMENTE EL PATRÓN QUE FUNCIONA
  */
-export async function updateProductAction(productId: string, updateData: any): Promise<CreateProductResult> {
+export async function updateProductAction(productId: string, updateData: Record<string, unknown>): Promise<CreateProductResult> {
   try {
     // 1. Validar autenticación
     const user = await getAuthenticatedUser();
@@ -251,7 +306,7 @@ export async function updateProductAction(productId: string, updateData: any): P
     };
 
     // 6. Función para normalizar seasons recursivamente
-    const normalizeSeasons = (seasons: any[]): any[] => {
+    const normalizeSeasons = (seasons: unknown[]): unknown[] => {
           if (!seasons || !Array.isArray(seasons)) return seasons;
           
           return seasons.map(season => ({
@@ -275,7 +330,7 @@ export async function updateProductAction(productId: string, updateData: any): P
           .reduce((obj, key) => {
             obj[key] = updateData[key];
             return obj;
-        }, {} as any);
+        }, {} as Record<string, unknown>);
 
     // 8. Normalizar fechas en seasons y filtrar campos no permitidos en input
     if (filteredData.seasons) {
@@ -290,24 +345,24 @@ export async function updateProductAction(productId: string, updateData: any): P
             'prices', 'aditional_services', 'number_of_nights', 'extra_prices'
       ];
 
-      filteredData.seasons = normalizeSeasons(filteredData.seasons).map((season: any) => {
+      filteredData.seasons = normalizeSeasons(filteredData.seasons).map((season: unknown) => {
         const filteredSeason = Object.keys(season)
               .filter(key => seasonsAllowedFields.includes(key))
               .reduce((obj, key) => {
                 obj[key] = season[key];
                 return obj;
-            }, {} as any);
+            }, {} as Record<string, unknown>);
 
         // Filtrar campos de solo lectura en prices y extra_prices
         if (filteredSeason.prices) {
-          filteredSeason.prices = filteredSeason.prices.map((price: any) => {
+          filteredSeason.prices = filteredSeason.prices.map((price: unknown) => {
                 const { id, ...priceWithoutId } = price;
                 return priceWithoutId;
           });
         }
 
         if (filteredSeason.extra_prices) {
-          filteredSeason.extra_prices = filteredSeason.extra_prices.map((price: any) => {
+          filteredSeason.extra_prices = filteredSeason.extra_prices.map((price: unknown) => {
                 const { id, ...priceWithoutId } = price;
                 return priceWithoutId;
           });
@@ -327,11 +382,11 @@ export async function updateProductAction(productId: string, updateData: any): P
     if (filteredData.departures) {
       console.log('🚀 Original departures (internal format):', JSON.stringify(filteredData.departures, null, 2));
 
-      const graphqlDepartures: any[] = [];
+      const graphqlDepartures: unknown[] = [];
 
       // Mapear salidas regulares - conservar la estructura actual que funciona
       if (filteredData.departures.regular_departures) {
-        filteredData.departures.regular_departures.forEach((regular: any) => {
+        filteredData.departures.regular_departures.forEach((regular: unknown) => {
           if (regular.origin && regular.origin.place) {
             graphqlDepartures.push({
                   origin: [regular.origin],
@@ -346,15 +401,15 @@ export async function updateProductAction(productId: string, updateData: any): P
       if (filteredData.departures.specific_departures) {
         // Extraer todas las fechas específicas y orígenes
         const allSpecificDates: string[] = [];
-        const allOrigins: any[] = [];
+        const allOrigins: unknown[] = [];
 
-        filteredData.departures.specific_departures.forEach((specific: any) => {
+        filteredData.departures.specific_departures.forEach((specific: unknown) => {
           if (specific.origin && specific.origin.place) {
             allOrigins.push(specific.origin);
 
             // Extraer fechas de los rangos
             if (specific.date_ranges) {
-              specific.date_ranges.forEach((range: any) => {
+              specific.date_ranges.forEach((range: unknown) => {
                 if (range.start_datetime) {
                   // Convertir a formato AWSDateTime completo si es solo fecha
                   const startDate = range.start_datetime.includes('T')
@@ -399,7 +454,7 @@ export async function updateProductAction(productId: string, updateData: any): P
         .reduce((obj, key) => {
           obj[key] = filteredData.payment_policy[key];
           return obj;
-        }, {} as any);
+        }, {} as Record<string, unknown>);
 
       filteredData.payment_policy = cleanPaymentPolicy;
       console.log('💳 Cleaned payment_policy:', JSON.stringify(filteredData.payment_policy, null, 2));
@@ -423,16 +478,37 @@ export async function updateProductAction(productId: string, updateData: any): P
       }
     });
 
-    if (result.errors) {
-      console.error('❌ [Server Action] Error en GraphQL update:', result.errors);
+    // ⚡ MANEJO ROBUSTO DE ERRORES PARCIALES DE GRAPHQL
+    const updatedProduct = result.data?.updateProduct;
+
+    if (result.errors && result.errors.length > 0) {
+      console.warn('⚠️ [Server Action] GraphQL retornó errores al actualizar producto:',
+        result.errors.map(e => ({
+          message: e.message,
+          path: e.path,
+          extensions: e.extensions
+        }))
+      );
+
+      // Si el producto se actualizó (tenemos ID), es éxito con warnings
+      if (updatedProduct?.id) {
+        console.log('✅ [Server Action] Producto actualizado con warnings:', updatedProduct.id);
+        return {
+          success: true,
+          productId: updatedProduct.id,
+          productName: updatedProduct.name
+        };
+      }
+
+      // Si NO se actualizó el producto, es un error completo
+      console.error('❌ [Server Action] Error en GraphQL update sin confirmación:', result.errors);
       return {
         success: false,
         error: result.errors[0]?.message || 'Error al ejecutar la operación GraphQL'
       };
     }
 
-    const updatedProduct = result.data?.updateProduct;
-
+    // Caso normal: producto actualizado sin errores
     if (updatedProduct?.id) {
       console.log('✅ [Server Action] Producto actualizado:', updatedProduct.id);
       return {
@@ -448,11 +524,11 @@ export async function updateProductAction(productId: string, updateData: any): P
       };
     }
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('❌ [Server Action] Error actualizando producto:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }

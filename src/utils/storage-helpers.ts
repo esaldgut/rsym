@@ -1,11 +1,18 @@
 import { getUrl, uploadData, remove } from 'aws-amplify/storage';
-import { getCurrentUser, fetchAuthSession } from 'aws-amplify/auth';
+import { getCurrentUser } from 'aws-amplify/auth';
+import { withCredentialCheck } from './credential-manager';
 
 /**
  * Utilidades para manejo de archivos usando AWS Amplify Storage
- * Implementa estrategia dual:
- * - Amplify uploadData: Archivos < 10MB (avatares, thumbnails)
- * - Multipart/Streaming: Archivos > 10MB (videos, paquetes grandes)
+ * Usa APIs client-side nativas de Amplify Gen 2 con CookieStorage
+ *
+ * IMPORTANTE: Con CookieStorage nativo (NO HTTP-Only), estas APIs funcionan correctamente
+ * porque el client puede acceder a tokens e Identity Pool credentials.
+ *
+ * Patrón: Client Components → Amplify Storage APIs → Identity Pool → S3
+ *
+ * ACTUALIZACIÓN: Ahora incluye verificación automática de credenciales para prevenir
+ * el error "Credentials should not be empty" que ocurre durante token refresh.
  */
 
 export interface StorageImageOptions {
@@ -15,7 +22,13 @@ export interface StorageImageOptions {
 }
 
 /**
- * Obtiene una URL firmada de S3 usando Amplify Storage
+ * Obtiene una URL firmada de S3 usando Amplify Storage client-side
+ * Funciona con CookieStorage nativo y credenciales de Identity Pool
+ *
+ * NOTA: Esta función es principalmente un FALLBACK para componentes que
+ * no reciben URLs pre-firmadas del servidor. El patrón óptimo es usar
+ * getSignedUrlServer() en Server Components y pasar URLs a Client Components.
+ *
  * @param path - Path del archivo en S3 (key)
  * @param options - Opciones de configuración
  * @returns URL firmada con acceso temporal o null si falla
@@ -32,49 +45,37 @@ export async function getSignedImageUrl(
       return path;
     }
 
-    // CRÍTICO: Para accessLevel 'protected' o 'private', verificar sesión válida primero
-    const accessLevel = options.accessLevel || 'protected';
-    if (accessLevel === 'protected' || accessLevel === 'private') {
-      try {
-        // Verificar que tenemos una sesión válida con identity ID
-        const session = await fetchAuthSession();
+    console.log('🔐 [storage-helpers] Obteniendo URL firmada client-side (fallback):', path);
 
-        if (!session.identityId) {
-          console.warn('⚠️ No hay identity ID, intentando refresh de sesión...');
-          // Intentar refresh forzado una sola vez
-          const refreshedSession = await fetchAuthSession({ forceRefresh: true });
-
-          if (!refreshedSession.identityId) {
-            console.error('❌ No se pudo obtener identity ID después del refresh');
-            return null;
-          }
-        }
-      } catch (authError) {
-        console.error('❌ Error verificando sesión para Storage:', authError);
-        return null;
-      }
-    }
-
-    // Obtener URL firmada usando Amplify Storage
+    // Obtener URL firmada usando Amplify Storage client-side
+    // Sin withCredentialCheck porque:
+    // 1. Es usado como fallback, no en el flujo principal
+    // 2. El componente ProfileImage maneja errores gracefully
+    // 3. El warmup inicial debería tener credenciales disponibles
     const result = await getUrl({
       path: path,
       options: {
-        accessLevel,
         expiresIn: options.expiresIn || 3600, // 1 hora por defecto
-        validateObjectExistence: options.validateObjectExistence ?? false // No validar para evitar errores
+        validateObjectExistence: options.validateObjectExistence ?? false
       }
     });
 
+    console.log('✅ [storage-helpers] URL firmada obtenida exitosamente');
     return result.url.toString();
+
   } catch (error) {
-    console.error('Error obteniendo URL de imagen:', error);
+    console.error('❌ [storage-helpers] Error obteniendo URL de imagen:', error);
     return null;
   }
 }
 
 /**
- * Sube una imagen de perfil a S3 siguiendo la estructura establecida
- * Estructura: public/users/{username}/profile-images/{timestamp}.{ext}
+ * Sube una imagen de perfil a S3 usando Amplify Storage client-side
+ * Funciona con CookieStorage nativo y getCurrentUser() client-side
+ *
+ * ACTUALIZACIÓN: Ahora verifica credenciales antes de intentar subir
+ * para prevenir errores "Credentials should not be empty"
+ *
  * @param file - Archivo a subir
  * @param options - Opciones de configuración
  * @returns Path del archivo subido o null si falla
@@ -86,67 +87,85 @@ export async function uploadProfileImage(
     onProgress?: (progress: { transferredBytes: number; totalBytes?: number }) => void;
   } = {}
 ): Promise<string | null> {
-  try {
-    // Obtener el usuario actual para usar su username
-    const currentUser = await getCurrentUser();
-    
-    const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
-    const timestamp = Date.now();
-    
-    // Estructura según prompt-2: public/users/{username}/profile-images/{timestamp}.{ext}
-    const path = `public/users/${currentUser.username}/profile-images/${timestamp}.${fileExtension}`;
+  console.log('📤 [storage-helpers] Iniciando upload de imagen de perfil...');
 
-    const result = await uploadData({
-      path,
-      data: file,
-      options: {
-        accessLevel: options.accessLevel || 'protected',
-        contentType: file.type,
-        onProgress: options.onProgress
+  // Usar withCredentialCheck para asegurar que las credenciales estén disponibles
+  const result = await withCredentialCheck(
+    async () => {
+      // Obtener usuario actual (funciona con CookieStorage nativo)
+      const currentUser = await getCurrentUser();
+
+      const fileExtension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+      const timestamp = Date.now();
+
+      // Estructura: public/users/{username}/profile-images/{timestamp}.{ext}
+      const path = `public/users/${currentUser.username}/profile-images/${timestamp}.${fileExtension}`;
+
+      console.log(`📁 [storage-helpers] Subiendo a: ${path}`);
+
+      // Subir archivo usando Amplify Storage client-side
+      const uploadResult = await uploadData({
+        path,
+        data: file,
+        options: {
+          contentType: file.type,
+          onProgress: options.onProgress
+        }
+      }).result;
+
+      console.log('✅ [storage-helpers] Upload completado:', uploadResult.path);
+
+      // IMPORTANTE: Refrescar tokens DESPUÉS del upload, NO durante
+      // Esto previene race conditions con credenciales
+      if (typeof window !== 'undefined') {
+        import('@/lib/auth/token-interceptor').then(({ TokenInterceptor }) => {
+          console.log('🔄 Imagen de perfil actualizada, refrescando tokens silenciosamente...');
+          setTimeout(() => {
+            TokenInterceptor.performSilentRefresh();
+          }, 500);
+        });
       }
-    }).result;
 
-    // Refrescar tokens después de actualizar la imagen de perfil
-    // La imagen de perfil es considerada un cambio importante que requiere refresh
-    if (typeof window !== 'undefined') {
-      // Importar dinámicamente para evitar problemas en SSR
-      import('@/lib/auth/token-interceptor').then(({ TokenInterceptor }) => {
-        console.log('🔄 Imagen de perfil actualizada, refrescando tokens silenciosamente...');
-        // Usar refresh silencioso sin recargar la página
-        setTimeout(() => {
-          TokenInterceptor.performSilentRefresh();
-        }, 500);
-      });
-    }
+      return uploadResult.path;
+    },
+    'uploadProfileImage'
+  );
 
-    return result.path;
-  } catch (error) {
-    console.error('Error subiendo imagen:', error);
-    return null;
-  }
+  return result;
 }
 
 /**
- * Elimina una imagen de S3
+ * Elimina una imagen de S3 usando Amplify Storage client-side
+ * Funciona con CookieStorage nativo y credenciales de Identity Pool
+ *
+ * ACTUALIZACIÓN: Ahora verifica credenciales antes de intentar eliminar
+ * para prevenir errores "Credentials should not be empty"
+ *
  * @param path - Path del archivo a eliminar
+ * @param accessLevel - Nivel de acceso (no usado actualmente)
  * @returns true si se eliminó correctamente
  */
 export async function deleteProfileImage(
   path: string,
   accessLevel: 'guest' | 'private' | 'protected' = 'protected'
 ): Promise<boolean> {
-  try {
-    await remove({
-      path,
-      options: {
-        accessLevel
-      }
-    });
-    return true;
-  } catch (error) {
-    console.error('Error eliminando imagen:', error);
-    return false;
-  }
+  console.log(`🗑️ [storage-helpers] Eliminando imagen: ${path}`);
+
+  // Usar withCredentialCheck para asegurar que las credenciales estén disponibles
+  const result = await withCredentialCheck(
+    async () => {
+      // Eliminar archivo usando Amplify Storage client-side
+      await remove({
+        path
+      });
+
+      console.log('✅ [storage-helpers] Imagen eliminada exitosamente');
+      return true;
+    },
+    `deleteProfileImage(${path})`
+  );
+
+  return result !== null;
 }
 
 /**

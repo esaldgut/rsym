@@ -5,8 +5,9 @@ import Image from 'next/image';
 import { getSignedImageUrl } from '@/utils/storage-helpers';
 
 interface ProfileImageProps {
-  path?: string | null; // Path en S3 (prioridad)
-  src?: string | null;  // URL directa (fallback)
+  signedUrl?: string | null; // URL pre-firmada del servidor (PRIORIDAD MÁXIMA)
+  path?: string | null; // Path en S3 (fallback para retrocompatibilidad)
+  src?: string | null;  // URL directa (fallback adicional)
   alt: string;
   fallbackText: string;
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
@@ -23,11 +24,12 @@ const sizeClasses = {
   '2xl': 'w-60 h-60 text-6xl'
 };
 
-export function ProfileImage({ 
+export function ProfileImage({
+  signedUrl,
   path,
-  src, 
-  alt, 
-  fallbackText, 
+  src,
+  alt,
+  fallbackText,
   size = 'lg',
   className = '',
   accessLevel = 'protected'
@@ -41,29 +43,39 @@ export function ProfileImage({
       setIsLoading(true);
       setImageError(false);
 
-      // Si hay un path de S3, obtener URL firmada
+      // PRIORIDAD 1: URL pre-firmada del servidor (patrón óptimo)
+      if (signedUrl) {
+        console.log('🖼️ [ProfileImage] Usando URL pre-firmada del servidor');
+        setImageUrl(signedUrl);
+        setIsLoading(false);
+        return;
+      }
+
+      // PRIORIDAD 2: Path de S3, obtener URL firmada client-side (fallback)
       if (path) {
+        console.log('🖼️ [ProfileImage] Generando URL firmada client-side para path:', path);
         try {
-          const signedUrl = await getSignedImageUrl(path, {
+          const clientSignedUrl = await getSignedImageUrl(path, {
             accessLevel,
             expiresIn: 7200 // 2 horas para evitar expiraciones frecuentes
           });
-          
-          if (signedUrl) {
-            setImageUrl(signedUrl);
+
+          if (clientSignedUrl) {
+            setImageUrl(clientSignedUrl);
           } else {
             setImageError(true);
           }
         } catch (error) {
-          console.error('Error cargando imagen desde S3:', error);
+          console.error('❌ [ProfileImage] Error cargando imagen desde S3:', error);
           setImageError(true);
         }
-      } 
-      // Si no hay path pero hay src, usar src directamente
+      }
+      // PRIORIDAD 3: URL directa (src)
       else if (src) {
+        console.log('🖼️ [ProfileImage] Usando URL directa (src)');
         setImageUrl(src);
-      } 
-      // Si no hay ninguno, marcar error
+      }
+      // Sin imagen disponible
       else {
         setImageError(true);
       }
@@ -72,7 +84,7 @@ export function ProfileImage({
     };
 
     loadImage();
-  }, [path, src, accessLevel]);
+  }, [signedUrl, path, src, accessLevel]);
 
   // Mostrar fallback mientras carga o si hay error
   if (isLoading || imageError || !imageUrl) {
@@ -95,11 +107,13 @@ export function ProfileImage({
         fill
         className="rounded-full object-cover border-4 border-gray-100"
         onError={async () => {
-          console.warn('Error cargando imagen, intentando regenerar URL...');
+          console.warn('⚠️ [ProfileImage] Error cargando imagen desde URL');
           setImageError(true);
-          
-          // Intentar regenerar la URL firmada una vez
-          if (path) {
+
+          // Solo intentar regenerar si tenemos un path (no hay signedUrl del servidor)
+          // Si tenemos signedUrl del servidor, el error es de la URL misma, no de credenciales
+          if (!signedUrl && path) {
+            console.log('🔄 [ProfileImage] Intentando regenerar URL firmada...');
             try {
               const newUrl = await getSignedImageUrl(path, {
                 accessLevel,
@@ -108,9 +122,10 @@ export function ProfileImage({
               if (newUrl && newUrl !== imageUrl) {
                 setImageUrl(newUrl);
                 setImageError(false);
+                console.log('✅ [ProfileImage] URL regenerada exitosamente');
               }
             } catch (error) {
-              console.error('No se pudo regenerar la URL de imagen:', error);
+              console.error('❌ [ProfileImage] No se pudo regenerar la URL:', error);
             }
           }
         }}

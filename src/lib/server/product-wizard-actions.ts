@@ -84,11 +84,11 @@ export async function createCircuitProductAction(
       redirectTo: `/provider/products/${result.data.createProductOfTypeCircuit.id}`
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating circuit product:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -151,11 +151,11 @@ export async function createPackageProductAction(
       redirectTo: `/provider/products/${result.data.createProductOfTypePackage.id}`
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error creating package product:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -222,11 +222,11 @@ export async function updateProductAction(
       data: result.data.updateProduct
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error updating product:', error);
     return {
       success: false,
-      error: error.message || 'Error interno del servidor'
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
     };
   }
 }
@@ -234,7 +234,7 @@ export async function updateProductAction(
 // Crear borrador temporal del producto (autosave)
 export async function saveDraftProductAction(
   productType: 'circuit' | 'package',
-  formData: any
+  formData: Record<string, unknown>
 ): Promise<ProductActionResponse> {
   try {
     // 1. Autenticación
@@ -255,7 +255,7 @@ export async function saveDraftProductAction(
       data: undefined
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error saving draft:', error);
     return {
       success: false,
@@ -267,7 +267,7 @@ export async function saveDraftProductAction(
 // Validar datos del paso actual
 export async function validateStepDataAction(
   stepId: string,
-  data: any,
+  data: Record<string, unknown>,
   productType: 'circuit' | 'package'
 ): Promise<{
   success: boolean;
@@ -329,7 +329,7 @@ export async function validateStepDataAction(
       errors: Object.keys(validationErrors).length > 0 ? validationErrors : undefined
     };
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error validating step data:', error);
     return {
       success: false,

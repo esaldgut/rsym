@@ -1,12 +1,14 @@
 // src/types/wizard.ts - Tipos centralizados del wizard
 import { z } from 'zod';
-import type { 
+import type {
   CreateProductOfTypeCircuitInput,
   CreateProductOfTypePackageInput,
   LocationInput,
   ProductCircuitSeasonInput,
   ProductPackageSeasonInput,
-  PaymentPolicyInput
+  PaymentPolicyInput,
+  GuaranteedDeparturesInput,
+  Product
 } from '@/lib/graphql/types';
 
 export interface FormStep {
@@ -27,7 +29,7 @@ export interface StepProps {
 export interface ProductFormData {
   // ID del producto (obtenido al crear el esqueleto)
   productId: string | null;
-  
+
   // Campos comunes
   name: string;
   preferences?: string[];
@@ -36,26 +38,31 @@ export interface ProductFormData {
   cover_image_url?: string;
   image_url?: string[];
   video_url?: string[];
-  
+
   // Campos específicos de circuitos
   itinerary?: string;
   destination?: LocationInput[];
-  
+  departures?: GuaranteedDeparturesInput[];
+
   // Temporadas (dinámicas según tipo)
   seasons?: Array<ProductCircuitSeasonInput | ProductPackageSeasonInput>;
   planned_hotels_or_similar?: string[];
-  
+
   // Campos específicos de paquetes
   origin?: LocationInput[];
-  
+
   // Política de pago
   payment_policy?: PaymentPolicyInput;
-  
+
   // Metadatos del wizard
   productType: 'circuit' | 'package';
   productId?: string;
   currentStep: number;
   isSubmitting: boolean;
+
+  // Metadata para recovery system
+  _savedAt?: string; // ISO timestamp del último save
+  _savedBy?: 'auto-save' | 'manual' | 'recovery'; // Origen del save
 }
 
 export type ProductFormAction = 
@@ -108,4 +115,18 @@ export interface WizardContextType {
   isFirstStep: boolean;
   canProceed: boolean;
   initialFormData: ProductFormData;
+}
+
+// Datos de recovery con metadata
+export interface ProductFormDataWithRecovery extends ProductFormData {
+  _savedAt: string;
+  _savedBy: 'auto-save' | 'manual' | 'recovery';
+}
+
+// Props para ProductWizard con soporte de edición
+export interface ProductWizardProps {
+  userId: string;
+  productType: 'circuit' | 'package';
+  editMode?: boolean;
+  initialProduct?: Product;
 }

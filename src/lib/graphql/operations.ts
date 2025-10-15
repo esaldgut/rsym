@@ -131,125 +131,11 @@ export const getAllActiveAndPublishedProducts = /* GraphQL */ `
   }
 `;
 
-// DEPRECATED: Use getProductById instead
-export const getPackageByID = /* GraphQL */ `
-  query GetPackageByID($id: ID!) {
-    getPackageByID(id: $id) {
-      id
-      name
-      description
-      cover_image_url
-      image_url
-      video_url
-      provider_id
-      destination {
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      origin {
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      startDate
-      endDate
-      included_services
-      aditional_services
-      prices {
-        currency
-        price
-        roomName
-      }
-      extraPrices {
-        currency
-        price
-        roomName
-      }
-      capacity
-      numberOfNights
-      preferences
-      categories
-      published
-      status
-      created_at
-    }
-  }
-`;
+// DEPRECATED: Removed getPackageByID - use getProductById instead
 
-export const getAllActivePackagesByProvider = /* GraphQL */ `
-  query GetAllActivePackagesByProvider($provider_id: ID!) {
-    getAllActivePackagesByProvider(provider_id: $provider_id) {
-      id
-      name
-      description
-      cover_image_url
-      image_url
-      video_url
-      provider_id
-      destination {
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      origin {
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      startDate
-      endDate
-      included_services
-      aditional_services
-      prices {
-        currency
-        price
-        roomName
-      }
-      extraPrices {
-        currency
-        price
-        roomName
-      }
-      capacity
-      numberOfNights
-      preferences
-      categories
-      published
-      status
-      created_at
-    }
-  }
-`;
+// DEPRECATED: Removed getAllActivePackagesByProvider - use getAllActiveProductsByProvider instead
 
-// DEPRECATED: Use getProductById instead
-export const getCircuitByID = /* GraphQL */ `
-  query GetCircuitByID($id: ID!) {
-    getCircuitByID(id: $id) {
-      id
-      name
-      description
-      cover_image_url
-      image_url
-      video_url
-      provider_id
-      destination {
-        place
-        placeSub
-        coordinates
-      }
-      startDate
-      endDate
-      included_services
-      language
-      preferences
-    }
-  }
-`;
+// DEPRECATED: Removed getCircuitByID - use getProductById instead
 
 export const getUserByUsername = /* GraphQL */ `
   query GetUserByUsername($username: String!) {
@@ -478,33 +364,133 @@ export const deletePackage = /* GraphQL */ `
 
 
 export const updateProduct = /* GraphQL */ `
-  mutation UpdateProduct($input: UpdateProductInput!) {
+  mutation updateProduct($input: UpdateProductInput!) {
     updateProduct(input: $input) {
-      id
-      name
-      provider_id
-      product_type
-      preferences
-      languages
-      description
       cover_image_url
-      image_url
-      video_url
-      seasons {
+      created_at
+      departures {
         id
-        category
-        start_date
-        end_date
+        origin {
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
+          id
+          place
+          placeSub
+        }
+        specific_dates
+      }
+      description
+      destination {
+        complementary_description
+        coordinates {
+          latitude
+          longitude
+        }
+        id
+        place
+        placeSub
+      }
+      id
+      image_url
+      is_foreign
+      itinerary
+      languages
+      min_product_price
+      name
+      payment_policy {
+        created_at
+        general_policies {
+          change_policy {
+            allows_date_chage
+            deadline_days_to_make_change
+          }
+        }
+        id
+        options {
+          benefits_or_legal {
+            stated
+          }
+          config {
+            cash {
+              deadline_days_to_pay
+              discount
+            }
+            installments {
+              days_before_must_be_settled
+              deadline_days_to_pay
+              down_payment_after
+              down_payment_before
+            }
+          }
+          description
+          requirements {
+            deadline_days_to_pay
+          }
+        }
+        product_id
+        provider_id
+        updated_at
+        version
+      }
+      planned_hotels_or_similar
+      preferences
+      product_type
+      provider_id
+      published
+      seasons {
+        aditional_services
         allotment
         allotment_remain
-      }
-      payment_policy {
+        category
+        end_date
+        extra_prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
         id
-        status
+        number_of_nights
+        prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
+        schedules
+        start_date
       }
       status
-      published
       updated_at
+      user_data {
+        avatar_url
+        bio
+        email
+        name
+        sub
+        user_type
+        username
+      }
+      video_url
     }
   }
 `;
@@ -538,135 +524,131 @@ export const createProductOfTypePackage = /* GraphQL */ `
 export const getProductById = /* GraphQL */ `
   query GetProductById($id: ID!) {
     getProductById(id: $id) {
-      id
-      name
-      description
-      product_type
-      status
-      published
       cover_image_url
-      image_url
-      video_url
-      preferences
-      languages
       created_at
-      updated_at
-      provider_id
-      destination {
-        place
-        placeSub
-        complementary_description
-        coordinates {
-          latitude
-          longitude
-        }
-      }
       departures {
+        id
         origin {
-          place
-          placeSub
           complementary_description
           coordinates {
             latitude
             longitude
           }
+          id
+          place
+          placeSub
         }
-        days
         specific_dates
       }
-      itinerary
-      seasons {
+      description
+      destination {
+        complementary_description
+        coordinates {
+          latitude
+          longitude
+        }
         id
-        start_date
-        end_date
-        category
-        allotment
-        allotment_remain
-        number_of_nights
-        schedules
-        aditional_services
-        prices {
-          id
-          price
-          currency
-          room_name
-          max_adult
-          max_minor
-          children {
-            name
-            min_minor_age
-            max_minor_age
-            child_price
-          }
-        }
-        extra_prices {
-          id
-          price
-          currency
-          room_name
-          max_adult
-          max_minor
-          children {
-            name
-            min_minor_age
-            max_minor_age
-            child_price
-          }
-        }
+        place
+        placeSub
       }
-      planned_hotels_or_similar
+      id
+      image_url
+      is_foreign
+      itinerary
+      languages
+      min_product_price
+      name
       payment_policy {
-        id
-        product_id
-        provider_id
-        status
-        version
         created_at
-        updated_at
-        options {
-          type
-          description
-          config {
-            cash {
-              discount
-              discount_type
-              deadline_days_to_pay
-              payment_methods
-            }
-            installments {
-              down_payment_before
-              down_payment_type
-              down_payment_after
-              installment_intervals
-              days_before_must_be_settled
-              deadline_days_to_pay
-              payment_methods
-            }
-          }
-          requirements {
-            deadline_days_to_pay
-          }
-          benefits_or_legal {
-            stated
-          }
-        }
         general_policies {
           change_policy {
             allows_date_chage
             deadline_days_to_make_change
           }
         }
+        id
+        options {
+          benefits_or_legal {
+            stated
+          }
+          config {
+            cash {
+              deadline_days_to_pay
+              discount
+            }
+            installments {
+              days_before_must_be_settled
+              deadline_days_to_pay
+              down_payment_after
+              down_payment_before
+            }
+          }
+          description
+          requirements {
+            deadline_days_to_pay
+          }
+        }
+        product_id
+        provider_id
+        updated_at
+        version
       }
-      min_product_price
-      is_foreign
+      planned_hotels_or_similar
+      preferences
+      product_type
+      provider_id
+      published
+      seasons {
+        aditional_services
+        allotment
+        allotment_remain
+        category
+        end_date
+        extra_prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
+        id
+        number_of_nights
+        prices {
+          children {
+            child_price
+            max_minor_age
+            min_minor_age
+            name
+          }
+          currency
+          id
+          max_adult
+          max_minor
+          price
+          room_name
+        }
+        schedules
+        start_date
+      }
+      status
+      updated_at
       user_data {
-        sub
-        username
-        name
         avatar_url
+        bio
         email
+        name
+        sub
         user_type
+        username
       }
+      video_url
     }
   }
 `;
@@ -709,28 +691,131 @@ export const getAllActiveProductsByProvider = /* GraphQL */ `
   query GetAllActiveProductsByProvider($pagination: PaginationInput, $filter: ProductFilterInput) {
     getAllActiveProductsByProvider(pagination: $pagination, filter: $filter) {
       items {
-        id
-        name
-        description
-        product_type
-        status
-        published
         cover_image_url
         created_at
-        updated_at
-        seasons {
+        departures {
           id
-          start_date
-          end_date
-          category
-          allotment
-          allotment_remain
+          origin {
+            complementary_description
+            coordinates {
+              latitude
+              longitude
+            }
+            id
+            place
+            placeSub
+          }
+          specific_dates
         }
+        description
         destination {
+          complementary_description
+          coordinates {
+            latitude
+            longitude
+          }
+          id
           place
           placeSub
         }
+        id
+        image_url
+        is_foreign
+        itinerary
+        languages
         min_product_price
+        name
+        payment_policy {
+          created_at
+          general_policies {
+            change_policy {
+              allows_date_chage
+              deadline_days_to_make_change
+            }
+          }
+          id
+          options {
+            benefits_or_legal {
+              stated
+            }
+            config {
+              cash {
+                deadline_days_to_pay
+                discount
+              }
+              installments {
+                days_before_must_be_settled
+                deadline_days_to_pay
+                down_payment_after
+                down_payment_before
+              }
+            }
+            description
+            requirements {
+              deadline_days_to_pay
+            }
+          }
+          product_id
+          provider_id
+          updated_at
+          version
+        }
+        planned_hotels_or_similar
+        preferences
+        product_type
+        provider_id
+        published
+        seasons {
+          aditional_services
+          allotment
+          allotment_remain
+          category
+          end_date
+          extra_prices {
+            children {
+              child_price
+              max_minor_age
+              min_minor_age
+              name
+            }
+            currency
+            id
+            max_adult
+            max_minor
+            price
+            room_name
+          }
+          id
+          number_of_nights
+          prices {
+            children {
+              child_price
+              max_minor_age
+              min_minor_age
+              name
+            }
+            currency
+            id
+            max_adult
+            max_minor
+            price
+            room_name
+          }
+          schedules
+          start_date
+        }
+        status
+        updated_at
+        user_data {
+          avatar_url
+          bio
+          email
+          name
+          sub
+          user_type
+          username
+        }
+        video_url
       }
       nextToken
       total
@@ -1203,6 +1288,117 @@ export const markMessageAsDelivered = /* GraphQL */ `
     markMessageAsDelivered(messageId: $messageId) {
       id
       status
+    }
+  }
+`;
+
+// ==================== PROVIDER DASHBOARD QUERIES ====================
+
+export const getReservationsBySUB = /* GraphQL */ `
+  query GetReservationsBySUB {
+    getReservationsBySUB {
+      id
+      adults
+      babys
+      kids
+      companions {
+        name
+        family_name
+        birthday
+        country
+        gender
+        passport_number
+      }
+      experience_id
+      experience_type
+      payment_method
+      price_per_kid
+      price_per_person
+      reservationDate
+      status
+      total_price
+      type
+    }
+  }
+`;
+
+export const getProvidersPoliciesBySub = /* GraphQL */ `
+  query GetProvidersPoliciesBySub {
+    getProvidersPoliciesBySub {
+      policy
+      title
+    }
+  }
+`;
+
+export const getPaymentPlan = /* GraphQL */ `
+  query GetPaymentPlan($id: ID!) {
+    getPaymentPlan(id: $id) {
+      id
+      product_id
+      reservation_id
+      status
+      payment_type_selected
+      currency
+      total_cost
+      travel_date
+      reservation_date
+      created_at
+      updated_at
+      allows_date_change
+      change_deadline_days
+      benefits_statements
+      cash_discount_amount
+      cash_discount_percentage
+      cash_final_amount
+      cash_payment_deadline
+      cash_payment_methods
+      installment_down_payment_amount
+      installment_down_payment_percentage
+      installment_amount_per_payment
+      installment_number_of_payments
+      installment_frequency_days
+      installment_total_amount
+      installment_first_payment_deadline
+      installment_payment_deadline
+      installment_payment_methods
+      installment_available_days
+    }
+  }
+`;
+
+export const getPaymentPlanByReservation = /* GraphQL */ `
+  query GetPaymentPlanByReservation($reservation_id: ID!) {
+    getPaymentPlanByReservation(reservation_id: $reservation_id) {
+      id
+      product_id
+      reservation_id
+      status
+      payment_type_selected
+      currency
+      total_cost
+      travel_date
+      reservation_date
+      created_at
+      updated_at
+      allows_date_change
+      change_deadline_days
+      benefits_statements
+      cash_discount_amount
+      cash_discount_percentage
+      cash_final_amount
+      cash_payment_deadline
+      cash_payment_methods
+      installment_down_payment_amount
+      installment_down_payment_percentage
+      installment_amount_per_payment
+      installment_number_of_payments
+      installment_frequency_days
+      installment_total_amount
+      installment_first_payment_deadline
+      installment_payment_deadline
+      installment_payment_methods
+      installment_available_days
     }
   }
 `;

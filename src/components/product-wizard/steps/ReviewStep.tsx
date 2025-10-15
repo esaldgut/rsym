@@ -382,6 +382,91 @@ export default function ReviewStep({ userId, onPrevious }: StepProps) {
         </div>
       )}
 
+      {/* Políticas de Pago */}
+      {formData.payment_policy && formData.payment_policy.options && formData.payment_policy.options.length > 0 && (
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+          <h3 className="font-semibold text-lg text-gray-900 mb-4 flex items-center gap-2">
+            <span className="text-purple-600">💳</span> Políticas de Pago
+          </h3>
+          <div className="space-y-4">
+            {/* Opciones de Pago */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {formData.payment_policy.options.map((option: any, index: number) => (
+                <div
+                  key={index}
+                  className={`border-2 rounded-lg p-4 ${
+                    option.type === 'CONTADO'
+                      ? 'border-green-200 bg-green-50'
+                      : 'border-blue-200 bg-blue-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className={`w-3 h-3 rounded-full ${
+                      option.type === 'CONTADO' ? 'bg-green-500' : 'bg-blue-500'
+                    }`}></div>
+                    <h4 className="font-medium text-gray-900">
+                      {option.type === 'CONTADO' ? 'Pago de Contado' : 'Pago en Plazos'}
+                    </h4>
+                  </div>
+                  <p className="text-sm text-gray-600 mb-3">{option.description}</p>
+                  {option.type === 'CONTADO' && option.config?.cash && (
+                    <div className="space-y-1 text-xs">
+                      {option.config.cash.discount > 0 && (
+                        <p className="text-green-700">
+                          <span className="font-semibold">Descuento:</span> {option.config.cash.discount}%
+                        </p>
+                      )}
+                      <p className="text-gray-700">
+                        <span className="font-semibold">Plazo para pagar:</span> {option.config.cash.deadline_days_to_pay} día(s)
+                      </p>
+                    </div>
+                  )}
+                  {option.type === 'PLAZOS' && option.config?.installments && (
+                    <div className="space-y-1 text-xs">
+                      <p className="text-blue-700">
+                        <span className="font-semibold">Enganche:</span> {option.config.installments.down_payment_before}%
+                      </p>
+                      <p className="text-blue-700">
+                        <span className="font-semibold">Saldo antes del viaje:</span> {option.config.installments.down_payment_after}%
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Políticas Generales */}
+            {formData.payment_policy.general_policies?.change_policy && (
+              <div className="border-t pt-4 mt-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-2">Políticas Generales</h4>
+                <div className="flex items-start gap-2 text-sm text-gray-700">
+                  {formData.payment_policy.general_policies.change_policy.allows_date_chage ? (
+                    <>
+                      <svg className="w-5 h-5 text-green-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      <div>
+                        <p className="font-medium">Permite cambios de fecha</p>
+                        <p className="text-xs text-gray-600">
+                          Hasta {formData.payment_policy.general_policies.change_policy.deadline_days_to_make_change} días antes del viaje
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-5 h-5 text-red-600 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                      </svg>
+                      <p className="font-medium">No permite cambios de fecha</p>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Estado de Validación y Botones de Acción */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
         {hasWarnings && publicationValidation && (

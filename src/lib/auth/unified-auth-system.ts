@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
-import { getServerSession, runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
+import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
-import type { JWT } from 'aws-amplify/auth';
+import { SecurityValidator } from '@/lib/security-validator';
 
 /**
  * Tipos de usuario soportados por YAAN
@@ -36,6 +36,7 @@ export interface AuthValidationResult {
   };
   permissions?: UserPermissions;
   errors: string[];
+  warnings?: string[];
   needsRefresh?: boolean;
 }
 
@@ -53,10 +54,10 @@ export class UnifiedAuthSystem {
         nextServerContext: { cookies },
         operation: async (contextSpec) => {
           try {
-            // Obtener sesión con opción de refresh
+            // 1. Obtener sesión con opción de refresh
             const authSession = await fetchAuthSession(contextSpec, { forceRefresh });
-            const userAttributes = await fetchUserAttributes(contextSpec);
-            
+
+            // 2. CRÍTICO: Verificar que hay token ANTES de obtener atributos
             if (!authSession.tokens?.idToken) {
               return {
                 isValid: false,
@@ -65,30 +66,35 @@ export class UnifiedAuthSystem {
               };
             }
 
+            // 3. Solo si hay token válido, obtener atributos del usuario
+            const userAttributes = await fetchUserAttributes(contextSpec);
+
             const idToken = authSession.tokens.idToken;
             const payload = idToken.payload;
 
-            // Extraer tipo de usuario
-            const userType = this.extractUserType(payload, userAttributes);
-            if (!userType) {
+            // Usar SecurityValidator para validar token y extraer userType (lógica centralizada)
+            const securityValidation = SecurityValidator.validateIdToken(idToken);
+
+            if (!securityValidation.isValid) {
               return {
                 isValid: false,
                 isAuthenticated: true,
-                errors: ['Tipo de usuario no válido']
+                errors: securityValidation.errors,
+                warnings: securityValidation.warnings
               };
             }
 
-            // Construir resultado
+            // Construir resultado usando datos validados por SecurityValidator
             const result: AuthValidationResult = {
               isValid: true,
               isAuthenticated: true,
               user: {
-                id: payload.sub as string,
-                username: payload['cognito:username'] as string || userAttributes.email,
+                id: securityValidation.userId,
+                username: payload['cognito:username'] as string || userAttributes.email || securityValidation.userId,
                 email: userAttributes.email || '',
-                userType
+                userType: securityValidation.userType
               },
-              permissions: this.buildPermissions(userType, payload, userAttributes),
+              permissions: this.buildPermissions(securityValidation.userType, payload, userAttributes),
               errors: []
             };
 
@@ -129,42 +135,35 @@ export class UnifiedAuthSystem {
 
       return session as AuthValidationResult;
     } catch (error) {
+      console.error('[Server] UnifiedAuthSystem: Error del sistema al validar sesión', error);
       return {
         isValid: false,
         isAuthenticated: false,
-        errors: ['Error del sistema']
+        errors: [error instanceof Error ? error.message : 'Error del sistema']
       };
     }
   }
 
   /**
-   * Extrae el tipo de usuario de los claims del token
+   * DEPRECADO: Usar SecurityValidator.validateIdToken() en su lugar
+   * Lógica movida a SecurityValidator para centralizar validaciones
    */
-  private static extractUserType(payload: any, attributes: any): YAANUserType | null {
-    // Prioridad: custom attribute > grupo > default
-    const customType = attributes['custom:user_type'] || payload['custom:user_type'];
-    
-    if (customType && this.isValidUserType(customType)) {
-      return customType as YAANUserType;
-    }
+  // private static extractUserType(payload: any, attributes: any): YAANUserType | null {
+  //   const customType = attributes['custom:user_type'] || payload['custom:user_type'];
+  //   if (customType && this.isValidUserType(customType)) {
+  //     return customType as YAANUserType;
+  //   }
+  //   const groups = payload['cognito:groups'] || [];
+  //   if (groups.includes('admins')) return 'admin';
+  //   if (groups.includes('providers')) return 'provider';
+  //   if (groups.includes('influencers')) return 'influencer';
+  //   if (groups.includes('travelers')) return 'traveler';
+  //   return 'traveler';
+  // }
 
-    // Verificar por grupos de Cognito
-    const groups = payload['cognito:groups'] || [];
-    if (groups.includes('admins')) return 'admin';
-    if (groups.includes('providers')) return 'provider';
-    if (groups.includes('influencers')) return 'influencer';
-    if (groups.includes('travelers')) return 'traveler';
-
-    // Default para usuarios nuevos
-    return 'traveler';
-  }
-
-  /**
-   * Valida si un tipo de usuario es válido
-   */
-  private static isValidUserType(type: string): boolean {
-    return ['admin', 'provider', 'influencer', 'traveler'].includes(type);
-  }
+  // private static isValidUserType(type: string): boolean {
+  //   return ['admin', 'provider', 'influencer', 'traveler'].includes(type);
+  // }
 
   /**
    * Construye los permisos basados en el tipo de usuario y atributos

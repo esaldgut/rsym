@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { fixDoubleEncodedAttributes } from '@/utils/json-parsing-safe';
 import { cognitoDateToHTML } from '@/utils/date-format-helpers';
+import { getProfileImageUrlServer } from '@/lib/server/storage-server-actions';
 
 /**
  * Server Component que obtiene los datos del usuario antes de renderizar
@@ -45,6 +46,20 @@ export default async function ProfileSettingsPage() {
     redirect('/auth?error=session_corrupted');
   }
 
+  // Generar URL pre-firmada server-side para la imagen de perfil
+  // Esto previene el error "Credentials should not be empty" que ocurre
+  // cuando el Client Component intenta usar APIs client-side
+  const profilePhotoPath = userAttributes['custom:profilePhotoPath'] || '';
+  const profilePhotoUrl = profilePhotoPath
+    ? await getProfileImageUrlServer(profilePhotoPath)
+    : null;
+
+  console.log('🖼️ [Profile Settings Page] URL de imagen generada server-side:', {
+    hasPath: !!profilePhotoPath,
+    hasUrl: !!profilePhotoUrl,
+    path: profilePhotoPath
+  });
+
   // Preparar los datos para el cliente
   // Usar el userType del authResult que ya fue validado por UnifiedAuthSystem
   const initialData = {
@@ -59,7 +74,8 @@ export default async function ProfileSettingsPage() {
     given_name: userAttributes.given_name || '',
     family_name: userAttributes.family_name || '',
     'custom:details': userAttributes['custom:details'] || '',
-    'custom:profilePhotoPath': userAttributes['custom:profilePhotoPath'] || '',
+    'custom:profilePhotoPath': profilePhotoPath,
+    'custom:profilePhotoUrl': profilePhotoUrl || undefined, // Nueva URL pre-firmada
     'custom:have_a_passport': userAttributes['custom:have_a_passport'] || 'false',
     'custom:have_a_Visa': userAttributes['custom:have_a_Visa'] || 'false',
     'custom:uniq_influencer_ID': userAttributes['custom:uniq_influencer_ID'] || '',

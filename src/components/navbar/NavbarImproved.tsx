@@ -37,7 +37,11 @@ const useClickOutside = (
   }, [ref, excludeRef, handler]);
 };
 
-export const NavbarImproved = () => {
+interface NavbarImprovedProps {
+  initialUserType?: 'provider' | 'influencer' | 'traveler' | 'admin';
+}
+
+export const NavbarImproved = ({ initialUserType }: NavbarImprovedProps = {}) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, signOut, user } = useAuth();
@@ -45,6 +49,9 @@ export const NavbarImproved = () => {
   const pathname = usePathname();
   const mobileMenuRef = useRef<HTMLDivElement>(null);
   const hamburgerButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Usar initialUserType para renderizado inicial (SSR), luego user.userType del contexto
+  const effectiveUserType = user?.userType || initialUserType;
 
   // Scroll handler - basado en el Navbar original que funciona
   useEffect(() => {
@@ -98,10 +105,10 @@ export const NavbarImproved = () => {
     }
   };
 
-  // Filtrar links según tipo de usuario
+  // Filtrar links según tipo de usuario (usa effectiveUserType para SSR)
   const getFilteredLinks = (links: typeof navigationConfig.authenticatedLinks) => {
-    if (!user?.userType) return links;
-    return links.filter(link => link.userTypes.includes(user.userType));
+    if (!effectiveUserType) return links;
+    return links.filter(link => link.userTypes.includes(effectiveUserType));
   };
 
   const NavLink = ({

@@ -78,8 +78,8 @@ export default function ProductNameModal({
       } else {
         throw new Error(result.error || 'No se recibió confirmación del servidor');
       }
-    } catch (err: any) {
-      const errorMessage = err.message || 'Error al crear el producto';
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Error al crear el producto';
       console.error('❌ Error creando producto:', err);
       onError(errorMessage);
       toastManager.show(`❌ Error: ${errorMessage}`, 'error', 4000);
