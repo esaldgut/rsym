@@ -60,9 +60,6 @@ mutation createProductOfTypePackage($input: CreateProductOfTypePackageInput!) {
           }
         }
         description
-        requirements {
-          deadline_days_to_pay
-        }
       }
       product_id
       provider_id

@@ -210,9 +210,6 @@ export const GET_PRODUCT_BY_ID = /* GraphQL */ `
               payment_methods
             }
           }
-          requirements {
-            deadline_days_to_pay
-          }
           benefits_or_legal {
             stated
           }

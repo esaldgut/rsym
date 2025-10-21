@@ -51,8 +51,27 @@ export function ProfileImage({
         return;
       }
 
-      // PRIORIDAD 2: Path de S3, obtener URL firmada client-side (fallback)
+      // PRIORIDAD 2: Path de S3
       if (path) {
+        // CASO A: Path público → construir URL directa (NO requiere credenciales)
+        if (path.startsWith('public/')) {
+          console.log('🖼️ [ProfileImage] Path público detectado, construyendo URL directa:', path);
+
+          // Importar configuración dinámicamente para construir URL pública
+          import('../../../amplify/outputs.json').then((config) => {
+            const publicUrl = `https://${config.default.storage.bucket_name}.s3.${config.default.storage.aws_region}.amazonaws.com/${path}`;
+            console.log('✅ [ProfileImage] URL pública construida:', publicUrl);
+            setImageUrl(publicUrl);
+            setIsLoading(false);
+          }).catch((error) => {
+            console.error('❌ [ProfileImage] Error construyendo URL pública:', error);
+            setImageError(true);
+            setIsLoading(false);
+          });
+          return;
+        }
+
+        // CASO B: Path protegido/privado → obtener URL firmada client-side (requiere credenciales)
         console.log('🖼️ [ProfileImage] Generando URL firmada client-side para path:', path);
         try {
           const clientSignedUrl = await getSignedImageUrl(path, {

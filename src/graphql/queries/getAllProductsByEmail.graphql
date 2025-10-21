@@ -61,9 +61,6 @@ query getAllProductsByEmail($pagination: PaginationInput) {
             }
           }
           description
-          requirements {
-            deadline_days_to_pay
-          }
         }
         product_id
         provider_id

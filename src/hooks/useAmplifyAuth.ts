@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { getCurrentUser, fetchAuthSession, signOut, fetchUserAttributes } from 'aws-amplify/auth';
 import { Hub } from 'aws-amplify/utils';
 import { logger } from '../utils/logger';
@@ -43,6 +44,7 @@ export interface UseAmplifyAuthReturn {
 export function useAmplifyAuth(initialAuth?: InitialAuthData): UseAmplifyAuthReturn {
   const [user, setUser] = useState<AmplifyAuthUser | null>(initialAuth?.user || null);
   const [isLoading, setIsLoading] = useState(!initialAuth); // No loading si hay datos SSR
+  const pathname = usePathname();
 
   const refreshUser = async (forceRefresh = false) => {
     try {
@@ -139,35 +141,35 @@ export function useAmplifyAuth(initialAuth?: InitialAuthData): UseAmplifyAuthRet
 
     const unsubscribe = Hub.listen('auth', ({ payload }) => {
       logger.auth(`Auth event received: ${payload.event}`, 'HubListener');
-      
+
       switch (payload.event) {
         case 'signInWithRedirect':
           logger.auth('OAuth sign-in completed', 'signInWithRedirect');
           refreshUser();
           break;
-          
+
         case 'signInWithRedirect_failure':
           logger.error('OAuth sign-in failed', { event: payload.event });
           setUser(null);
           setIsLoading(false);
           break;
-          
+
         case 'signedIn':
           logger.auth('User signed in', 'signedIn');
           refreshUser();
           break;
-          
+
         case 'signedOut':
           logger.auth('User signed out', 'signedOut');
           setUser(null);
           setIsLoading(false);
           break;
-          
+
         case 'tokenRefresh':
           logger.auth('Tokens refreshed by Amplify', 'tokenRefresh');
           refreshUser();
           break;
-          
+
         case 'tokenRefresh_failure':
           logger.warn('Token refresh failed', { event: payload.event });
           break;
@@ -176,6 +178,22 @@ export function useAmplifyAuth(initialAuth?: InitialAuthData): UseAmplifyAuthRet
 
     return () => unsubscribe();
   }, []);
+
+  // Auto-refresh en navegaciones a rutas críticas (fix para datos stale en client-side navigation)
+  useEffect(() => {
+    // Rutas que requieren auth fresco
+    const criticalRoutes = ['/provider/products', '/profile', '/settings'];
+
+    const isCriticalRoute = criticalRoutes.some(route => pathname?.startsWith(route));
+
+    if (isCriticalRoute && user) {
+      console.log('🔄 [useAmplifyAuth] Navegación a ruta crítica detectada, refrescando auth:', pathname);
+
+      // Refresh sin forceRefresh para mantener performance
+      // Solo actualiza el estado local con datos frescos de cookies
+      refreshUser(false);
+    }
+  }, [pathname]);
 
   // Función para validar permisos usando la matriz de permisos
   const hasPermission = (operation: string, resource: string): boolean => {

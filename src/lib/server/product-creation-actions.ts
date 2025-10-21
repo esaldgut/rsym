@@ -459,9 +459,9 @@ export async function updateProductAction(productId: string, updateData: Record<
         }, {} as Record<string, unknown>);
 
       // Filtrar campos dentro de cada option individual para preservar solo campos del schema
-      // PaymentOptionInput { type, description, config, requirements, benefits_or_legal }
+      // PaymentOptionInput { type, description, config, benefits_or_legal }
       if (cleanPaymentPolicy.options && Array.isArray(cleanPaymentPolicy.options)) {
-        const allowedOptionFields = ['type', 'description', 'config', 'requirements', 'benefits_or_legal'];
+        const allowedOptionFields = ['type', 'description', 'config', 'benefits_or_legal'];
 
         console.log('💳 Opciones antes de filtrar:', cleanPaymentPolicy.options.length);
 
@@ -472,18 +472,6 @@ export async function updateProductAction(productId: string, updateData: Record<
               obj[key] = option[key];
               return obj;
             }, {} as Record<string, unknown>);
-
-          // CRÍTICO: Validar requirements.deadline_days_to_pay (NonNull Int! en schema)
-          // Si es null/undefined, establecer valor por defecto según tipo de pago
-          if (filteredOption.requirements && typeof filteredOption.requirements === 'object') {
-            const requirements = filteredOption.requirements as Record<string, unknown>;
-            if (requirements.deadline_days_to_pay === null || requirements.deadline_days_to_pay === undefined) {
-              // Establecer valor por defecto según tipo de pago
-              const defaultDeadline = filteredOption.type === 'CONTADO' ? 1 : 3;
-              requirements.deadline_days_to_pay = defaultDeadline;
-              console.warn('⚠️ deadline_days_to_pay era null, establecido a:', defaultDeadline, 'para tipo:', filteredOption.type);
-            }
-          }
 
           // Log específico si benefits_or_legal está presente
           if (filteredOption.benefits_or_legal) {

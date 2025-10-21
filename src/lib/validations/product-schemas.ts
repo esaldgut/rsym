@@ -1,5 +1,8 @@
 import { z } from 'zod'
 
+// Generamos el tipo desde el schema
+export type PoliciesSchemaType = z.infer<typeof policiesSchema>;
+
 // Validaciones comunes
 const locationInputSchema = z.object({
   place: z.string().min(1, 'Lugar requerido'),
@@ -156,7 +159,7 @@ export const policiesSchema = z.object({
           deadline_days_to_pay: z.number().int().positive('Días límite debe ser mayor a 0'),
           payment_methods: z.array(z.enum([
             'CASH', 'BANK_CARD', 'APPLE_PAY', 'GOOGLE_PAY', 'CODI', 'CLICK_TO_PAY'
-          ]))
+          ])).min(1, 'Selecciona al menos un método de pago')
         }).optional(),
         installments: z.object({
           down_payment_before: z.number().nonnegative(),
@@ -167,17 +170,35 @@ export const policiesSchema = z.object({
           deadline_days_to_pay: z.number().int().positive(),
           payment_methods: z.array(z.enum([
             'CASH', 'BANK_CARD', 'APPLE_PAY', 'GOOGLE_PAY', 'CODI', 'CLICK_TO_PAY'
-          ]))
+          ])).min(1, 'Selecciona al menos un método de pago')
         }).optional()
-      }),
-      requirements: z.object({
-        deadline_days_to_pay: z.number().int().positive()
       }),
       benefits_or_legal: z.array(
         z.object({
           stated: z.string().optional()
         })
       ).optional()
+    }).superRefine((option, ctx) => {
+      // Validación más robusta con superRefine
+      if (option.type === 'CONTADO') {
+        if (!option.config.cash) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Configuración de pago de contado requerida',
+            path: ['config', 'cash']
+          });
+        }
+      }
+
+      if (option.type === 'PLAZOS') {
+        if (!option.config.installments) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Configuración de pago en plazos requerida',
+            path: ['config', 'installments']
+          });
+        }
+      }
     })).min(1, 'Configura al menos una opción de pago'),
     general_policies: z.object({
       change_policy: z.object({
@@ -272,9 +293,9 @@ export function validateForPublication(productData: any, productType: 'circuit' 
     });
     
     // Ordenar por prioridad (campos más importantes primero)
-    friendlyErrors.sort((a, b) => a.priority - b.priority);
-    
-    const essentialFieldsCount = friendlyErrors.filter(e => e.priority <= 2).length;
+    friendlyErrors.sort((a: any, b: any) => a.priority - b.priority);
+
+    const essentialFieldsCount = friendlyErrors.filter((e: any) => e.priority <= 2).length;
     const totalCount = friendlyErrors.length;
     
     return { 

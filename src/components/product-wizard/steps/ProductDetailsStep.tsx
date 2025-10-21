@@ -30,6 +30,36 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
   const { formData, updateFormData } = useProductForm();
   const [activeTab, setActiveTab] = useState('destination');
 
+  // Helper: Determinar el primer tab (siempre 'destination')
+  const getFirstTab = (): string => {
+    return 'destination';
+  };
+
+  // Helper: Determinar el último tab según productType
+  const getLastTab = (productType: 'circuit' | 'package') => {
+    return productType === 'circuit' ? 'hotels' : 'seasons';
+  };
+
+  // Helper: Determinar el siguiente tab en el orden
+  const getNextTab = (currentTab: string, productType: 'circuit' | 'package'): string | null => {
+    const tabOrder = ['destination', 'departures', 'itinerary', 'seasons'];
+    if (productType === 'circuit') {
+      tabOrder.push('hotels');
+    }
+    const currentIndex = tabOrder.indexOf(currentTab);
+    return currentIndex < tabOrder.length - 1 ? tabOrder[currentIndex + 1] : null;
+  };
+
+  // Helper: Determinar el tab anterior en el orden
+  const getPreviousTab = (currentTab: string, productType: 'circuit' | 'package'): string | null => {
+    const tabOrder = ['destination', 'departures', 'itinerary', 'seasons'];
+    if (productType === 'circuit') {
+      tabOrder.push('hotels');
+    }
+    const currentIndex = tabOrder.indexOf(currentTab);
+    return currentIndex > 0 ? tabOrder[currentIndex - 1] : null;
+  };
+
   const {
     register,
     handleSubmit,
@@ -60,6 +90,26 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
   const itineraryWatch = watch('itinerary');
   const seasonsWatch = watch('seasons');
   const hotelsWatch = watch('planned_hotels_or_similar');
+
+  // Helper: Verificar si un tab está completo
+  const checkTabCompletion = (tabId: string): boolean => {
+    switch(tabId) {
+      case 'destination':
+        return destinationWatch && destinationWatch.length > 0;
+      case 'departures':
+        return departuresWatch &&
+          (departuresWatch.regular_departures.length > 0 ||
+           departuresWatch.specific_departures.length > 0);
+      case 'itinerary':
+        return itineraryWatch && itineraryWatch.length >= 20;
+      case 'seasons':
+        return seasonsWatch && seasonsWatch.length > 0;
+      case 'hotels':
+        return hotelsWatch && hotelsWatch.length > 0;
+      default:
+        return false;
+    }
+  };
 
   useEffect(() => {
     if (JSON.stringify(destinationWatch) !== JSON.stringify(formData.destination)) {
@@ -97,6 +147,13 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
   }, [hotelsWatch]);
 
   const onSubmit = (data: ProductDetailsFormData) => {
+    // CRÍTICO: Solo avanzar al siguiente step si estamos en el último tab
+    const lastTab = getLastTab(actualProductType);
+    if (activeTab !== lastTab) {
+      console.warn('⚠️ onSubmit llamado antes del último tab, ignorando');
+      return;
+    }
+
     // Limpiar errores previos
     clearErrors();
 
@@ -230,22 +287,30 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
       {/* Navigation Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
-                ${activeTab === tab.id
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
-            >
-              <span>{tab.icon}</span>
-              {tab.name}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const isCompleted = checkTabCompletion(tab.id);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+                  ${activeTab === tab.id
+                    ? 'border-purple-500 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                <span>{tab.icon}</span>
+                {tab.name}
+                {isCompleted && (
+                  <span className="ml-1 text-green-500" title="Tab completado">
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
@@ -380,10 +445,24 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
           <div className="flex gap-3 order-2 sm:order-1">
             <button
               type="button"
-              onClick={onPrevious}
+              onClick={() => {
+                // Si estamos en el PRIMER tab, regresar al Step anterior
+                if (activeTab === getFirstTab()) {
+                  onPrevious();
+                } else {
+                  // Si estamos en otro tab, ir al tab anterior
+                  const previousTab = getPreviousTab(activeTab, actualProductType);
+                  if (previousTab) {
+                    setActiveTab(previousTab);
+                  }
+                }
+              }}
               className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
             >
-              ← Anterior
+              {activeTab === getFirstTab()
+                ? '← Anterior'
+                : `← Anterior: ${tabs.find(t => t.id === getPreviousTab(activeTab, actualProductType))?.name || 'Anterior'}`
+              }
             </button>
             <SaveDraftButton variant="outline" />
             {onCancelClick && (
@@ -398,10 +477,24 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
             )}
           </div>
           <button
-            type="submit"
+            type={activeTab === getLastTab(actualProductType) ? "submit" : "button"}
+            onClick={activeTab === getLastTab(actualProductType) ? undefined : (e) => {
+              e.preventDefault();
+              const nextTab = getNextTab(activeTab, actualProductType);
+              if (nextTab) {
+                setActiveTab(nextTab);
+                // Mostrar toast opcional si el tab no está completo
+                if (!checkTabCompletion(activeTab)) {
+                  toastManager.show('⚠️ Recomendación: Completa este tab antes de continuar', 'warning', 2000);
+                }
+              }
+            }}
             className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow order-1 sm:order-2 w-full sm:w-auto"
           >
-            Continuar →
+            {activeTab === getLastTab(actualProductType)
+              ? 'Continuar al Siguiente Paso →'
+              : `Siguiente: ${tabs.find(t => t.id === getNextTab(activeTab, actualProductType))?.name || 'Continuar'} →`
+            }
           </button>
         </div>
       </form>

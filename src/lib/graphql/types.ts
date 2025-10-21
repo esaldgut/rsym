@@ -1,22 +1,60 @@
 /**
  * Tipos TypeScript actualizados desde el backend GraphQL real
- * Importados desde /Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql.ts
+ * Importados desde el archivo generado local del proyecto
  * Mantiene compatibilidad con AWS Amplify v6
  */
 
-// Re-export backend types for consistency
+// Import types from GraphQL for use within this file
+import type {
+  Location,
+  LocationInput,
+  Point,
+  PointInput,
+  Product,
+  ProductPrice,
+  ProductPriceInput,
+  ProductSeason,
+  ProductSeasonInput,
+  User,
+  UserStats,
+  WeekDays,
+  ChildRange,
+  ChildRangeInput,
+  GuaranteedDepartures,
+  GuaranteedDeparturesInput,
+  PaymentPolicy as PaymentPolicyGraphQL,
+  PaymentPolicyInput as PaymentPolicyInputGraphQL,
+  InputMaybe
+} from '@/generated/graphql'
+
+// Re-export backend types for consistency from LOCAL project file
 export type {
   CreateProductOfTypeCircuitInput,
-  CreateProductOfTypePackageInput, GuaranteedDepartures,
-  GuaranteedDeparturesInput, Location,
-  LocationInput, PaginationInput, PaymentPolicy,
-  PaymentPolicyInput, Point,
-  PointInput, Product,
+  CreateProductOfTypePackageInput,
+  GuaranteedDepartures,
+  GuaranteedDeparturesInput,
+  Location,
+  LocationInput,
+  PaginationInput,
+  PaymentPolicy as PaymentPolicyGraphQL,
+  PaymentPolicyInput as PaymentPolicyInputGraphQL,
+  Point,
+  PointInput,
+  Product,
   ProductConnection,
-  ProductFilterInput, ProductPrice,
-  ProductPriceInput, ProductSeason,
-  ProductSeasonInput, UpdateProductInput, User
-} from '/Users/esaldgut/dev/src/react/aws-amplify-next/src/generated/graphql'
+  ProductFilterInput,
+  ProductPrice,
+  ProductPriceInput,
+  ProductSeason,
+  ProductSeasonInput,
+  UpdateProductInput,
+  User,
+  UserStats,
+  WeekDays,
+  ChildRange,
+  ChildRangeInput,
+  InputMaybe
+} from '@/generated/graphql'
 
 // Tipos escalares de AWS
 export type AWSDateTime = string;
@@ -33,31 +71,7 @@ export interface CircuitLocation {
   amazon_location_service_response?: string;
 }
 
-// Tipos oficiales del GraphQL schema (líneas 323-331, 189-194)
-export interface Point {
-  longitude?: number;
-  latitude?: number;
-}
-
-export interface PointInput {
-  longitude?: number;
-  latitude?: number;
-}
-
-export interface Location {
-  id?: string;
-  complementary_description?: string;
-  coordinates?: Point;
-  place?: string;
-  placeSub?: string;
-}
-
-export interface LocationInput {
-  complementary_description?: string;
-  coordinates?: PointInput;
-  place?: string;
-  placeSub?: string;
-}
+// Point, PointInput, Location y LocationInput ahora se importan desde @/generated/graphql
 
 export interface Price {
   id?: string;
@@ -81,14 +95,7 @@ export interface Policy {
   policy?: string;
 }
 
-export interface User {
-  sub?: string;
-  username?: string;
-  email?: string;
-  name?: string;
-  bio?: string;
-  avatar_url?: string;
-}
+// User ahora se importa desde @/generated/graphql
 
 export interface CognitoUser {
   id?: string;
@@ -250,7 +257,8 @@ export interface Payment {
 
 // Tipos oficiales de Products del GraphQL schema - REFACTORIZADOS
 
-// Salida regular con origen específico y sus días
+// Interfaces locales para departures (no existen en GraphQL generado)
+// Usan Location y LocationInput importados desde @/generated/graphql
 export interface RegularDepartureInput {
   origin: LocationInput;
   days: WeekDays[];
@@ -273,6 +281,7 @@ export interface DateRange {
 }
 
 // Salida específica con origen específico y sus rangos de fechas
+// Usan Location y LocationInput importados desde @/generated/graphql
 export interface SpecificDepartureInput {
   origin: LocationInput;
   date_ranges: DateRangeInput[];
@@ -283,87 +292,11 @@ export interface SpecificDeparture {
   date_ranges: DateRange[];
 }
 
-// Tipo principal refactorizado para mapeo correcto del esquema GraphQL
-export interface GuaranteedDeparturesInput {
-  specific_dates?: AWSDateTime[];
-  origin?: LocationInput[];
-  days?: WeekDays[];
-}
+// GuaranteedDepartures y GuaranteedDeparturesInput ahora se importan desde @/generated/graphql
+// NOTA: Las interfaces RegularDeparture y SpecificDeparture son locales ya que no existen en GraphQL
 
-export interface GuaranteedDepartures {
-  regular_departures?: RegularDeparture[];
-  specific_departures?: SpecificDeparture[];
-}
-
-export interface ChildRange {
-  name: string;
-  min_minor_age: number;
-  max_minor_age: number;
-  child_price: number;
-}
-
-export interface ChildRangeInput {
-  name: string;
-  min_minor_age: number;
-  max_minor_age: number;
-  child_price: number;
-}
-
-export interface ProductPrice {
-  id?: string;
-  currency: string;
-  price: number;
-  room_name: string;
-  max_adult: number;
-  max_minor: number;
-  children: ChildRange[];
-}
-
-export interface ProductPriceInput {
-  currency: string;
-  price: number;
-  room_name: string;
-  max_adult: number;
-  max_minor: number;
-  children: ChildRangeInput[];
-}
-
-export interface ProductSeason {
-  id?: string;
-  allotment?: number;
-  category?: string;
-  start_date?: AWSDateTime;
-  end_date?: AWSDateTime;
-  schedules?: string;
-  prices?: ProductPrice[];
-  aditional_services?: string;
-  number_of_nights?: string;
-  allotment_remain?: number;
-  extra_prices?: ProductPrice[];
-}
-
-export interface ProductSeasonInput {
-  allotment?: number;
-  category?: string;
-  start_date?: AWSDateTime;
-  end_date?: AWSDateTime;
-  schedules?: string;
-  prices?: ProductPriceInput[];
-  aditional_services?: string;
-  number_of_nights?: string;
-  allotment_remain?: number;
-  extra_prices?: ProductPriceInput[];
-}
-
-export enum WeekDays {
-  MONDAY = 'MONDAY',
-  TUESDAY = 'TUESDAY',
-  WEDNESDAY = 'WEDNESDAY',
-  THURSDAY = 'THURSDAY',
-  FRIDAY = 'FRIDAY',
-  SATURDAY = 'SATURDAY',
-  SUNDAY = 'SUNDAY'
-}
+// ChildRange, ChildRangeInput, ProductPrice, ProductPriceInput, ProductSeason, ProductSeasonInput
+// y WeekDays ahora se importan desde @/generated/graphql
 
 // DEPRECATED: Usar LocationInput del schema oficial
 export interface CircuitLocationInput {
@@ -463,66 +396,34 @@ export interface PaymentInput {
   promotions: boolean;
 }
 
-// Payment Policy Types
-export interface PaymentRequirements {
-  deadline_days_to_pay?: number; // Nullable para evitar error GraphQL
-}
+// Additional type exports from GraphQL generated types
+export type {
+  PaymentRequirements,
+  PaymentRequirementsInput,
+  PaymentConfig,
+  PaymentConfigInput,
+  PaymentOption,
+  PaymentOptionInput,
+  PaymentType,
+  PaymentMethods,
+  DiscountType,
+  DownPaymentType,
+  InstallmentIntervals,
+  CashConfig,
+  CashConfigInput,
+  InstallmentsConfig,
+  InstallmentsConfigInput,
+  GeneralPolicies,
+  GeneralPoliciesInput,
+  ChangePolicy,
+  ChangePolicyInput,
+  Statements,
+  StatementsInput
+} from '@/generated/graphql'
 
-export interface PaymentConfig {
-  cash?: {
-    discount?: number;
-    discount_type?: string;
-    deadline_days_to_pay?: number;
-    payment_methods?: string[];
-  };
-  installments?: {
-    down_payment_before?: number;
-    down_payment_type?: string;
-    down_payment_after?: number;
-    installment_intervals?: string;
-    days_before_must_be_settled?: number;
-    deadline_days_to_pay?: number;
-    payment_methods?: string[];
-  };
-}
-
-export interface PaymentOption {
-  type?: string;
-  description?: string;
-  config?: PaymentConfig;
-  requirements?: PaymentRequirements;
-  benefits_or_legal?: {
-    stated?: string;
-  };
-}
-
-export interface PaymentPolicyInput {
-  product_id: string;
-  options: PaymentOption[];
-  general_policies?: {
-    change_policy?: {
-      allows_date_change?: boolean;
-      deadline_days_to_make_change?: number;
-    };
-  };
-}
-
-export interface PaymentPolicy {
-  id?: string;
-  product_id?: string;
-  provider_id?: string;
-  status?: string;
-  version?: string;
-  created_at?: AWSDateTime;
-  updated_at?: AWSDateTime;
-  options?: PaymentOption[];
-  general_policies?: {
-    change_policy?: {
-      allows_date_change?: boolean;
-      deadline_days_to_make_change?: number;
-    };
-  };
-}
+// Use the re-exported types with GraphQL suffix to avoid confusion
+export type PaymentPolicyInput = PaymentPolicyInputGraphQL;
+export type PaymentPolicy = PaymentPolicyGraphQL;
 
 // Response Types
 export interface LikePayload {
@@ -597,16 +498,7 @@ export interface Follow {
   following_data?: User;
 }
 
-// Estadísticas de usuario
-export interface UserStats {
-  userId: string;
-  connectionsCount: number;
-  followersCount: number;
-  followingCount: number;
-  blockedUsersCount: number;
-  pendingRequestsReceived: number;
-  pendingRequestsSent: number;
-}
+// UserStats ahora se importa desde @/generated/graphql
 
 // Estado combinado de relación entre dos usuarios
 export interface RelationshipStatus {

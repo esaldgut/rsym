@@ -4,6 +4,7 @@ import { HeroSection } from '@/components/ui/HeroSection';
 import { ProviderProductsDashboard } from '@/components/provider/ProviderProductsDashboard';
 import { getProviderProductsAction, getProviderMetricsAction } from '@/lib/server/provider-products-actions';
 import { RouteProtectionWrapper } from '@/components/auth/RouteProtectionWrapper';
+import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 
 /**
  * Página de listado de productos del provider
@@ -19,7 +20,15 @@ export default async function ProviderProductsPage() {
     getProviderMetricsAction()
   ]);
 
-  const initialProducts = initialProductsResult.success ? initialProductsResult.data : null;
+  // Transformar paths a URLs públicas server-side para mejor performance
+  // Esto evita que ProfileImage tenga que generar URLs client-side
+  const initialProducts = initialProductsResult.success && initialProductsResult.data
+    ? {
+        ...initialProductsResult.data,
+        items: initialProductsResult.data.items.map(product => transformPathsToUrls(product))
+      }
+    : null;
+
   const metrics = metricsResult.success ? metricsResult.data : null;
 
   return (

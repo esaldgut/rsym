@@ -7,8 +7,10 @@ import { updateProductAction } from '@/lib/server/product-creation-actions'
 import { validateForPublication } from '@/lib/validations/product-schemas'
 import type { StepProps } from '@/types/wizard'
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-export default function ReviewStep({ userId, onPrevious, onCancelClick }: StepProps) {
+export default function ReviewStep({ userId, onPrevious, onCancelClick, resetUnsavedChanges }: StepProps) {
+  const router = useRouter();
   const { formData } = useProductForm();
   const productId = formData.productId;
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,14 +67,14 @@ export default function ReviewStep({ userId, onPrevious, onCancelClick }: StepPr
 
       if (result.success) {
         setSubmitSuccess(true);
-        
+
         const statusMessage = canPublish ? 'actualizado y publicado' : 'guardado como borrador';
         toastManager.show(
           `🎉 ¡${formData.productType === 'circuit' ? 'Circuito' : 'Paquete'} "${formData.name}" ${statusMessage} exitosamente!`,
           'success',
           5000
         );
-        
+
         // Limpiar localStorage del wizard
         if (typeof window !== 'undefined') {
           localStorage.removeItem('yaan-current-product-id');
@@ -82,10 +84,19 @@ export default function ReviewStep({ userId, onPrevious, onCancelClick }: StepPr
           localStorage.removeItem('yaan-edit-product-data'); // Limpiar datos de edición
           localStorage.removeItem(`yaan-wizard-${formData.productType}`);
         }
-        
-        // Redirigir a la lista de productos después de 3 segundos
+
+        // CRÍTICO: Resetear estado de cambios no guardados ANTES de redirigir
+        // Esto previene que el navegador muestre el alert nativo de "abandonar página"
+        if (resetUnsavedChanges) {
+          console.log('🧹 Reseteando estado de cambios no guardados antes de redirigir');
+          resetUnsavedChanges();
+        }
+
+        // Redirigir usando Next.js router (SPA navigation) en lugar de window.location (full reload)
+        // Esto es más rápido y evita el flash de recarga de página
         setTimeout(() => {
-          window.location.href = '/provider/products';
+          console.log('🔄 Redirigiendo a /provider/products...');
+          router.push('/provider/products');
         }, 3000);
       } else {
         throw new Error(result.error || 'No se recibió confirmación del servidor');

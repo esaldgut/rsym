@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { fetchAuthSession } from 'aws-amplify/auth/server';
-import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
+import { getAuthSessionFromCookies } from '@/utils/amplify-server-utils';
 
 /**
  * Middleware para protección de rutas y headers de seguridad
@@ -76,27 +75,27 @@ export async function middleware(request: NextRequest) {
   );
   
   if (isProtectedRoute) {
-    // Verificar autenticación usando cookies HTTP-only
-    const authenticated = await runWithAmplifyServerContext({
-      nextServerContext: { request, response },
-      operation: async (contextSpec) => {
-        try {
-          const session = await fetchAuthSession(contextSpec);
-          // Verificar que el usuario tenga un ID token válido
-          return session.tokens?.idToken !== undefined;
-        } catch (error) {
-          console.error('Error verificando autenticación:', error);
-          return false;
-        }
-      },
-    });
-    
+    // Verificar autenticación usando cookies custom (CookieStorage client-side)
+    // Patrón híbrido: lee cookies creadas por client-side sin runWithAmplifyServerContext
+    const session = await getAuthSessionFromCookies();
+
+    const authenticated = session?.isAuthenticated || false;
+
     if (!authenticated) {
+      console.log('🔒 [Middleware] Usuario no autenticado, redirigiendo a /auth');
+      console.log('   - Ruta solicitada:', request.nextUrl.pathname);
+
       // Redirigir a la página de inicio de sesión si no está autenticado
       const redirectUrl = new URL('/auth', request.url);
       redirectUrl.searchParams.set('callbackUrl', request.nextUrl.pathname);
       return NextResponse.redirect(redirectUrl);
     }
+
+    console.log('✅ [Middleware] Usuario autenticado:', {
+      username: session.username,
+      userType: session.payload?.['custom:user_type'],
+      route: request.nextUrl.pathname
+    });
     
     // Agregar header para identificar ruta protegida
     response.headers.set('X-Protected-Route', request.nextUrl.pathname);

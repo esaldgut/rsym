@@ -25,6 +25,7 @@ export interface StepProps {
   onPrevious: () => void;
   onCancelClick?: () => void;
   isValid: boolean;
+  resetUnsavedChanges?: () => void; // Callback para resetear estado de cambios no guardados antes de salir
 }
 
 export interface ProductFormData {

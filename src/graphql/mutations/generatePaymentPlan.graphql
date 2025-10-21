@@ -1,7 +1,9 @@
 mutation generatePaymentPlan($input: PaymentPlanInput!) {
   generatePaymentPlan(input: $input) {
     allows_date_change
-    benefits_statements
+    benefits_statements {
+      stated
+    }
     cash_discount_amount
     cash_discount_percentage
     cash_final_amount

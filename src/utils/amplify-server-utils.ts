@@ -1,14 +1,15 @@
 import { cookies } from 'next/headers';
 import { createServerRunner } from '@aws-amplify/adapter-nextjs';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
-import { 
+import {
   fetchAuthSession,
   fetchUserAttributes,
-  getCurrentUser 
+  getCurrentUser
 } from 'aws-amplify/auth/server';
 import type { JWT } from 'aws-amplify/auth';
 import { type Schema } from '@/amplify/data/resource';
 import outputs from '../../amplify/outputs.json';
+import { getAmplifyTokensFromCookies, parseJWT, hasValidCookieSession } from './amplify-server-cookies';
 
 /**
  * Configuración del servidor de Amplify para Next.js
@@ -218,4 +219,64 @@ export async function ensureValidTokens(): Promise<boolean> {
     console.error('Error validando tokens:', error);
     return false;
   }
+}
+
+/**
+ * HELPERS PARA CUSTOM COOKIE READER (Patrón Híbrido)
+ * Permiten a middleware y otros componentes leer cookies de CookieStorage client-side
+ */
+
+/**
+ * Obtiene una sesión de autenticación desde cookies custom (CookieStorage)
+ * Útil para middleware y route protection que no pueden usar runWithAmplifyServerContext
+ *
+ * @returns Objeto de sesión simplificado con idToken y payload
+ */
+export async function getAuthSessionFromCookies(): Promise<{
+  isAuthenticated: boolean;
+  idToken: JWT | null;
+  payload: Record<string, any> | null;
+  username: string | null;
+} | null> {
+  try {
+    const tokens = await getAmplifyTokensFromCookies();
+
+    if (!tokens.idToken) {
+      return {
+        isAuthenticated: false,
+        idToken: null,
+        payload: null,
+        username: null
+      };
+    }
+
+    const idToken = parseJWT(tokens.idToken);
+
+    if (!idToken) {
+      return {
+        isAuthenticated: false,
+        idToken: null,
+        payload: null,
+        username: null
+      };
+    }
+
+    return {
+      isAuthenticated: true,
+      idToken,
+      payload: idToken.payload,
+      username: tokens.username
+    };
+  } catch (error) {
+    console.error('Error obteniendo sesión desde cookies custom:', error);
+    return null;
+  }
+}
+
+/**
+ * Helper rápido para verificar si hay sesión activa
+ * Optimizado para uso en middleware (sin parsing completo)
+ */
+export async function isAuthenticatedViaCookies(): Promise<boolean> {
+  return await hasValidCookieSession();
 }

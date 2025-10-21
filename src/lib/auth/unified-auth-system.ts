@@ -3,6 +3,7 @@ import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { fetchAuthSession, fetchUserAttributes } from 'aws-amplify/auth/server';
 import { cookies } from 'next/headers';
 import { SecurityValidator } from '@/lib/security-validator';
+import { getAmplifyTokensFromCookies, parseJWT } from '@/utils/amplify-server-cookies';
 
 /**
  * Tipos de usuario soportados por YAAN
@@ -47,9 +48,81 @@ export interface AuthValidationResult {
 export class UnifiedAuthSystem {
   /**
    * Valida y obtiene la sesión actual con posibilidad de refresh
+   *
+   * PATRÓN HÍBRIDO:
+   * 1. Intenta leer cookies de CookieStorage (client-side) con custom reader
+   * 2. Si tiene tokens válidos, los usa directamente (más rápido)
+   * 3. Si no, fallback a runWithAmplifyServerContext (adapter-nextjs)
    */
   static async getValidatedSession(forceRefresh = false): Promise<AuthValidationResult> {
     try {
+      // ========================================
+      // PASO 1: Intentar leer cookies custom (CookieStorage client-side)
+      // ========================================
+      if (!forceRefresh) {
+        console.log('🔍 [UnifiedAuthSystem] Intentando leer cookies custom (CookieStorage)...');
+        const customTokens = await getAmplifyTokensFromCookies();
+
+        if (customTokens.idToken) {
+          console.log('✅ [UnifiedAuthSystem] ID Token encontrado en cookies custom');
+
+          // Parsear y validar token
+          const idToken = parseJWT(customTokens.idToken);
+
+          if (idToken) {
+            const payload = idToken.payload;
+
+            // Validar con SecurityValidator
+            const securityValidation = SecurityValidator.validateIdToken(idToken);
+
+            if (securityValidation.isValid) {
+              console.log('✅ [UnifiedAuthSystem] Token custom válido, usando sesión de cookies');
+
+              // Construir userAttributes desde payload (evita llamada a Cognito)
+              const userAttributes = {
+                email: payload.email as string || '',
+                'custom:user_type': payload['custom:user_type'],
+                'custom:provider_is_approved': payload['custom:provider_is_approved'],
+                'custom:influencer_is_approved': payload['custom:influencer_is_approved']
+              };
+
+              // Construir resultado igual que con runWithAmplifyServerContext
+              const result: AuthValidationResult = {
+                isValid: true,
+                isAuthenticated: true,
+                user: {
+                  id: securityValidation.userId,
+                  username: payload['cognito:username'] as string || userAttributes.email || securityValidation.userId,
+                  email: userAttributes.email || '',
+                  userType: securityValidation.userType
+                },
+                permissions: this.buildPermissions(securityValidation.userType, payload, userAttributes),
+                errors: []
+              };
+
+              // Verificar si el token necesita refresh
+              const exp = payload.exp as number;
+              const now = Math.floor(Date.now() / 1000);
+              const timeUntilExpiry = exp - now;
+
+              if (timeUntilExpiry < 600) {
+                result.needsRefresh = true;
+              }
+
+              return result;
+            } else {
+              console.warn('⚠️ [UnifiedAuthSystem] Token custom inválido, fallback a adapter');
+            }
+          }
+        } else {
+          console.log('ℹ️ [UnifiedAuthSystem] No hay cookies custom, usando adapter-nextjs');
+        }
+      }
+
+      // ========================================
+      // PASO 2: Fallback a runWithAmplifyServerContext (adapter-nextjs)
+      // ========================================
+      console.log('🔄 [UnifiedAuthSystem] Usando runWithAmplifyServerContext (adapter-nextjs)...');
       const session = await runWithAmplifyServerContext({
         nextServerContext: { cookies },
         operation: async (contextSpec) => {

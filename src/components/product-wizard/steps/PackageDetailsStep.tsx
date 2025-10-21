@@ -7,6 +7,7 @@ import { packageDetailsSchema } from '@/lib/validations/product-schemas';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { SeasonConfiguration } from '../components/SeasonConfiguration';
 import { GuaranteedDeparturesSelector } from '../components/GuaranteedDeparturesSelector';
+import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
 import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput } from '@/lib/graphql/types';
@@ -25,9 +26,33 @@ interface PackageDetailsFormData {
   planned_hotels_or_similar: string; // Textarea provides string, converted to array on submit
 }
 
-export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid }: StepProps) {
+export default function PackageDetailsStep({ userId, onNext, onPrevious, onCancelClick, isValid }: StepProps) {
   const { formData, updateFormData } = useProductForm();
   const [activeTab, setActiveTab] = useState('destination');
+
+  // Helper: Determinar el primer tab (siempre 'destination')
+  const getFirstTab = (): string => {
+    return 'destination';
+  };
+
+  // Helper: Determinar el último tab (para package es 'hotels')
+  const getLastTab = () => {
+    return 'hotels';
+  };
+
+  // Helper: Determinar el siguiente tab en el orden
+  const getNextTab = (currentTab: string): string | null => {
+    const tabOrder = ['destination', 'departures', 'itinerary', 'seasons', 'hotels'];
+    const currentIndex = tabOrder.indexOf(currentTab);
+    return currentIndex < tabOrder.length - 1 ? tabOrder[currentIndex + 1] : null;
+  };
+
+  // Helper: Determinar el tab anterior en el orden
+  const getPreviousTab = (currentTab: string): string | null => {
+    const tabOrder = ['destination', 'departures', 'itinerary', 'seasons', 'hotels'];
+    const currentIndex = tabOrder.indexOf(currentTab);
+    return currentIndex > 0 ? tabOrder[currentIndex - 1] : null;
+  };
 
   const {
     register,
@@ -59,6 +84,26 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
   const itineraryWatch = watch('itinerary');
   const seasonsWatch = watch('seasons');
   const hotelsWatch = watch('planned_hotels_or_similar');
+
+  // Helper: Verificar si un tab está completo
+  const checkTabCompletion = (tabId: string): boolean => {
+    switch(tabId) {
+      case 'destination':
+        return destinationWatch && destinationWatch.length > 0;
+      case 'departures':
+        return departuresWatch &&
+          (departuresWatch.regular_departures.length > 0 ||
+           departuresWatch.specific_departures.length > 0);
+      case 'itinerary':
+        return itineraryWatch && itineraryWatch.length >= 20;
+      case 'seasons':
+        return seasonsWatch && seasonsWatch.length > 0;
+      case 'hotels':
+        return hotelsWatch && hotelsWatch.length > 0;
+      default:
+        return false;
+    }
+  };
 
   useEffect(() => {
     if (JSON.stringify(destinationWatch) !== JSON.stringify(formData.destination)) {
@@ -96,6 +141,13 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
   }, [hotelsWatch]);
 
   const onSubmit = (data: PackageDetailsFormData) => {
+    // CRÍTICO: Solo avanzar al siguiente step si estamos en el último tab
+    const lastTab = getLastTab();
+    if (activeTab !== lastTab) {
+      console.warn('⚠️ onSubmit llamado antes del último tab, ignorando');
+      return;
+    }
+
     // Limpiar errores previos
     clearErrors();
 
@@ -224,22 +276,30 @@ export default function PackageDetailsStep({ userId, onNext, onPrevious, isValid
       {/* Navigation Tabs */}
       <div className="border-b border-gray-200">
         <nav className="-mb-px flex space-x-8 overflow-x-auto" aria-label="Tabs">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
-                ${activeTab === tab.id
-                  ? 'border-purple-500 text-purple-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }
-              `}
-            >
-              <span>{tab.icon}</span>
-              {tab.name}
-            </button>
-          ))}
+          {tabs.map((tab) => {
+            const isCompleted = checkTabCompletion(tab.id);
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`
+                  whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm flex items-center gap-2 transition-colors
+                  ${activeTab === tab.id
+                    ? 'border-purple-500 text-purple-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }
+                `}
+              >
+                <span>{tab.icon}</span>
+                {tab.name}
+                {isCompleted && (
+                  <span className="ml-1 text-green-500" title="Tab completado">
+                    ✓
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </div>
 
@@ -376,20 +436,60 @@ Día 2: Tour por [actividad]
         </div>
 
         {/* Navigation */}
-        <div className="flex justify-between pt-6 border-t border-gray-200 mt-8">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 pt-6 border-t border-gray-200 mt-8">
+          <div className="flex gap-3 order-2 sm:order-1">
+            <button
+              type="button"
+              onClick={() => {
+                // Si estamos en el PRIMER tab, regresar al Step anterior
+                if (activeTab === getFirstTab()) {
+                  onPrevious();
+                } else {
+                  // Si estamos en otro tab, ir al tab anterior
+                  const previousTab = getPreviousTab(activeTab);
+                  if (previousTab) {
+                    setActiveTab(previousTab);
+                  }
+                }
+              }}
+              className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            >
+              {activeTab === getFirstTab()
+                ? '← Anterior'
+                : `← Anterior: ${tabs.find(t => t.id === getPreviousTab(activeTab))?.name || 'Anterior'}`
+              }
+            </button>
+            <SaveDraftButton variant="outline" />
+            {onCancelClick && (
+              <button
+                type="button"
+                onClick={onCancelClick}
+                className="px-6 py-3 border border-red-300 text-red-600 rounded-lg hover:bg-red-50 font-medium transition-colors"
+                title="Cancelar creación del producto"
+              >
+                Cancelar
+              </button>
+            )}
+          </div>
           <button
-            type="button"
-            onClick={onPrevious}
-            className="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
+            type={activeTab === getLastTab() ? "submit" : "button"}
+            onClick={activeTab === getLastTab() ? undefined : (e) => {
+              e.preventDefault();
+              const nextTab = getNextTab(activeTab);
+              if (nextTab) {
+                setActiveTab(nextTab);
+                // Mostrar toast opcional si el tab no está completo
+                if (!checkTabCompletion(activeTab)) {
+                  toastManager.show('⚠️ Recomendación: Completa este tab antes de continuar', 'warning', 2000);
+                }
+              }
+            }}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow order-1 sm:order-2 w-full sm:w-auto"
           >
-            ← Anterior
-          </button>
-
-          <button
-            type="submit"
-            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg hover:shadow-lg font-medium transition-shadow"
-          >
-            Continuar →
+            {activeTab === getLastTab()
+              ? 'Continuar al Siguiente Paso →'
+              : `Siguiente: ${tabs.find(t => t.id === getNextTab(activeTab))?.name || 'Continuar'} →`
+            }
           </button>
         </div>
       </form>

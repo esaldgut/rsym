@@ -292,7 +292,6 @@ type PaymentOption {
   benefits_or_legal: [Statements]
   config: PaymentConfig!
   description: String!
-  requirements: PaymentRequirements!
   type: PaymentType!
 }
 
@@ -301,7 +300,7 @@ type PaymentPlan {
   #   Política de cambios
   allows_date_change: Boolean
   #   Declaraciones legales/beneficios
-  benefits_statements: [String!]
+  benefits_statements: [Statements!]
   cash_discount_amount: Float
   #   Para pago de contado
   cash_discount_percentage: Float
@@ -346,10 +345,6 @@ type PaymentPolicy {
   status: StatePolicy!
   updated_at: AWSDateTime!
   version: Int!
-}
-
-type PaymentRequirements {
-  deadline_days_to_pay: Int
 }
 
 type PaymentResponse {
@@ -744,7 +739,6 @@ input PaymentOptionInput {
   benefits_or_legal: [StatementsInput]
   config: PaymentConfigInput!
   description: String!
-  requirements: PaymentRequirementsInput!
   type: PaymentType!
 }
 
@@ -760,10 +754,6 @@ input PaymentPlanInput {
 input PaymentPolicyInput {
   general_policies: GeneralPoliciesInput
   options: [PaymentOptionInput]
-}
-
-input PaymentRequirementsInput {
-  deadline_days_to_pay: Int!
 }
 
 input PointInput {

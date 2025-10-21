@@ -61,9 +61,6 @@ query getAllActiveProductsByProvider($filter: ProductFilterInput, $pagination: P
             }
           }
           description
-          requirements {
-            deadline_days_to_pay
-          }
         }
         product_id
         provider_id

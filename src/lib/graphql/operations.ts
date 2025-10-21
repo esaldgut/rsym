@@ -433,9 +433,6 @@ export const updateProduct = /* GraphQL */ `
             }
           }
           description
-          requirements {
-            deadline_days_to_pay
-          }
         }
         product_id
         provider_id
@@ -598,9 +595,6 @@ export const getProductById = /* GraphQL */ `
             }
           }
           description
-          requirements {
-            deadline_days_to_pay
-          }
         }
         product_id
         provider_id
@@ -772,9 +766,6 @@ export const getAllActiveProductsByProvider = /* GraphQL */ `
               }
             }
             description
-            requirements {
-              deadline_days_to_pay
-            }
           }
           product_id
           provider_id

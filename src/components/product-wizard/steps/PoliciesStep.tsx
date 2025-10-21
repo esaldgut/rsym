@@ -1,22 +1,72 @@
 'use client';
 
 import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton'
+import { toastManager } from '@/components/ui/Toast'
 import { useProductForm } from '@/context/ProductFormContext'
-import type { PaymentPolicyInput } from '@/lib/graphql/types'
-import { policiesSchema } from '@/lib/validations/product-schemas'
+import { policiesSchema, type PoliciesSchemaType } from '@/lib/validations/product-schemas'
 import type { StepProps } from '@/types/wizard'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm, type Control, type UseFormRegister } from 'react-hook-form'
 
-interface PoliciesFormData {
-  payment_policy: PaymentPolicyInput;
-}
+// Importar tipos desde types.ts que ahora re-exporta desde GraphQL
+import type {
+  GeneralPoliciesInput,
+  PaymentPolicyInput as GraphQLPaymentPolicyInput,
+  InputMaybe,
+  PaymentOptionInput,
+  PaymentType
+} from '@/lib/graphql/types'
 
-type PaymentType = 'CONTADO' | 'PLAZOS';
-type PaymentMethods = 'CASH' | 'BANK_CARD' | 'APPLE_PAY' | 'GOOGLE_PAY' | 'CODI' | 'CLICK_TO_PAY';
-type DiscountType = 'PERCENTAGE' | 'AMOUNT';
-type DownPaymentType = 'PERCENTAGE' | 'AMOUNT';
-type InstallmentIntervals = 'MENSUAL' | 'QUINCENAL';
+// Usar el tipo inferido del schema de Zod
+type PoliciesFormData = PoliciesSchemaType;
+
+// Función para convertir de GraphQL (con InputMaybe) a tipo de formulario (sin nullables)
+const convertFromGraphQL = (policy?: GraphQLPaymentPolicyInput | null): PoliciesFormData['payment_policy'] => {
+  if (!policy) {
+    return {
+      options: [],
+      general_policies: {
+        change_policy: {
+          allows_date_change: true,
+          deadline_days_to_make_change: 15
+        }
+      }
+    };
+  }
+
+  // Filtrar nulls/undefined del array de options si existe
+  const options = policy.options
+    ?.filter((opt): opt is PaymentOptionInput => opt !== null && opt !== undefined)
+    ?.map(opt => ({
+      ...opt,
+      // Asegurar que el tipo es compatible con el schema
+      type: opt.type as 'CONTADO' | 'PLAZOS',
+      description: opt.description || '',
+      config: {
+        cash: opt.config?.cash || undefined,
+        installments: opt.config?.installments || undefined
+      },
+      benefits_or_legal: opt.benefits_or_legal?.filter(Boolean) || []
+    })) || [];
+
+  // Manejo especial para general_policies que puede venir como null/undefined de GraphQL
+  const generalPolicies = policy.general_policies ? {
+    change_policy: {
+      allows_date_change: policy.general_policies.change_policy?.allows_date_change ?? true,
+      deadline_days_to_make_change: policy.general_policies.change_policy?.deadline_days_to_make_change ?? 15
+    }
+  } : {
+    change_policy: {
+      allows_date_change: true,
+      deadline_days_to_make_change: 15
+    }
+  };
+
+  return {
+    options: options as any, // Cast necesario por la complejidad del tipo
+    general_policies: generalPolicies
+  } as any; // Cast necesario por la complejidad del tipo con InputMaybe
+}
 
 export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: StepProps) {
   const { formData, updateFormData } = useProductForm();
@@ -24,15 +74,7 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
   const { register, handleSubmit, control, formState: { errors }, watch } = useForm<PoliciesFormData>({
     resolver: zodResolver(policiesSchema),
     defaultValues: {
-      payment_policy: formData.payment_policy || {
-        options: [],
-        general_policies: {
-          change_policy: {
-            allows_date_change: true,
-            deadline_days_to_make_change: 15
-          }
-        }
-      }
+      payment_policy: convertFromGraphQL(formData.payment_policy)
     }
   });
 
@@ -42,8 +84,84 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
   });
 
   const onSubmit = (data: PoliciesFormData) => {
-    updateFormData({ payment_policy: data.payment_policy });
+    // Logging ANTES de validación
+    console.log('📊 [PoliciesStep] Datos pre-validación:', JSON.stringify(data, null, 2));
+
+    data.payment_policy.options?.forEach((option, idx) => {
+      console.log(`📋 Opción #${idx + 1}:`, option?.type);
+      if (option?.type === 'CONTADO') {
+        console.log(`  ├─ cash exists:`, !!option.config.cash);
+        console.log(`  ├─ payment_methods:`, option.config.cash?.payment_methods);
+        console.log(`  └─ length:`, option.config.cash?.payment_methods?.length);
+      } else if (option?.type === 'PLAZOS') {
+        console.log(`  ├─ installments exists:`, !!option.config.installments);
+        console.log(`  ├─ payment_methods:`, option.config.installments?.payment_methods);
+        console.log(`  └─ length:`, option.config.installments?.payment_methods?.length);
+      }
+    });
+
+    console.log('✅ [PoliciesStep] Validación exitosa, datos:', data);
+
+    // Convertir a tipo GraphQL antes de guardar (compatible con InputMaybe)
+    // Necesitamos hacer el cast correcto para que coincida con el tipo GraphQL que incluye InputMaybe
+    const graphQLData: GraphQLPaymentPolicyInput = {
+      options: data.payment_policy.options as InputMaybe<Array<InputMaybe<PaymentOptionInput>>>,
+      general_policies: data.payment_policy.general_policies as InputMaybe<GeneralPoliciesInput>
+    };
+
+    updateFormData({ payment_policy: graphQLData });
     onNext();
+  };
+
+  const onError = (errors: any) => {
+    // Validación defensiva: verificar si errors existe y no está vacío
+    if (!errors || typeof errors !== 'object') {
+      console.warn('⚠️ [PoliciesStep] Objeto de errores inválido');
+      return;
+    }
+
+    // Verificar si el objeto está vacío
+    const errorKeys = Object.keys(errors);
+    if (errorKeys.length === 0) {
+      console.warn('⚠️ [PoliciesStep] No hay errores específicos de campo');
+      return;
+    }
+
+    //console.error('❌ [PoliciesStep] Errores de validación:', errors);
+
+    // Navegación segura en el objeto de errores
+    try {
+      const errorValues = Object.values(errors);
+      const firstError = errorValues.find((error: any) => error && typeof error === 'object' && 'message' in error);
+
+      if (firstError && typeof firstError === 'object' && 'message' in firstError) {
+        toastManager.show(`⚠️ Error de validación: ${(firstError as any).message}`, 'error', 5000);
+      }
+
+      // Log detallado de errores en opciones de pago
+      if (errors.payment_policy?.options && Array.isArray(errors.payment_policy.options)) {
+        errors.payment_policy.options.forEach((optionErrors: any, index: number) => {
+          if (optionErrors && typeof optionErrors === 'object') {
+            Object.entries(optionErrors).forEach(([field, error]: [string, any]) => {
+              if (error?.message) {
+                console.error(`❌ Opción #${index + 1} - ${field}:`, error.message);
+
+                // Errores específicos de payment_methods
+                if (field.includes('payment_methods')) {
+                  toastManager.show(
+                    `⚠️ Opción #${index + 1}: ${error.message}`,
+                    'warning',
+                    5000
+                  );
+                }
+              }
+            });
+          }
+        });
+      }
+    } catch (err) {
+      console.error('❌ Error procesando errores de validación:', err);
+    }
   };
 
   const addPaymentOption = (type: PaymentType) => {
@@ -56,33 +174,31 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
       ? `Opción ${optionNumber}: Pago de contado`
       : `Opción ${optionNumber}: Pago en plazos`;
 
+    // Crear la opción siguiendo el tipo del schema de Zod (no el tipo GraphQL)
     const baseOption = {
       type,
       description: defaultDescription,
       config: {
         cash: type === 'CONTADO' ? {
           discount: 0,
-          discount_type: 'PERCENTAGE' as DiscountType,
+          discount_type: 'PERCENTAGE' as const,
           deadline_days_to_pay: 1,
-          payment_methods: ['BANK_CARD'] as PaymentMethods[]
+          payment_methods: ['CASH'] as ('CASH' | 'BANK_CARD' | 'APPLE_PAY' | 'GOOGLE_PAY' | 'CODI' | 'CLICK_TO_PAY')[] // Iniciar con efectivo seleccionado por defecto
         } : undefined,
         installments: type === 'PLAZOS' ? {
           down_payment_before: 30,
-          down_payment_type: 'PERCENTAGE' as DownPaymentType,
+          down_payment_type: 'PERCENTAGE' as const,
           down_payment_after: 50,
-          installment_intervals: 'MENSUAL' as InstallmentIntervals,
+          installment_intervals: 'MENSUAL' as const,
           days_before_must_be_settled: 30,
           deadline_days_to_pay: 3,
-          payment_methods: ['BANK_CARD', 'CASH'] as PaymentMethods[]
+          payment_methods: ['BANK_CARD'] as ('CASH' | 'BANK_CARD' | 'APPLE_PAY' | 'GOOGLE_PAY' | 'CODI' | 'CLICK_TO_PAY')[] // Iniciar con tarjeta seleccionada por defecto
         } : undefined
       },
-      requirements: {
-        deadline_days_to_pay: type === 'CONTADO' ? 1 : 3
-      },
-      benefits_or_legal: [] // Inicializar como array vacío para useFieldArray
+      benefits_or_legal: []
     };
 
-    appendOption(baseOption);
+    appendOption(baseOption as any); // Cast necesario por la complejidad del tipo
   };
 
   return (
@@ -95,7 +211,7 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <form onSubmit={handleSubmit(onSubmit, onError)} className="space-y-8">
         {/* Opciones de pago */}
         <div className="space-y-6">
           <div className="flex justify-between items-center">
@@ -153,6 +269,7 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
               control={control}
               onRemove={() => removeOption(index)}
               paymentType={field.type as PaymentType}
+              errors={errors}
             />
           ))}
 
@@ -241,13 +358,15 @@ function PaymentOptionCard({
   register,
   control,
   onRemove,
-  paymentType
+  paymentType,
+  errors
 }: {
   index: number;
   register: UseFormRegister<PoliciesFormData>;
-  control: Control<PoliciesFormData>;
+  control: Control<PoliciesFormData, any>;
   onRemove: () => void;
   paymentType: PaymentType;
+  errors: any;
 }) {
   const isContado = paymentType === 'CONTADO';
 
@@ -306,7 +425,6 @@ function PaymentOptionCard({
               <input
                 type="number"
                 min="0"
-                max="50"
                 step="0.01"
                 {...register(`payment_policy.options.${index}.config.cash.discount`, { valueAsNumber: true })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
@@ -329,7 +447,7 @@ function PaymentOptionCard({
             <label className="block text-sm font-medium text-gray-700 mb-1">Días para pagar</label>
             <input
               type="number"
-              min="1"
+              min="0"
               {...register(`payment_policy.options.${index}.config.cash.deadline_days_to_pay`, { valueAsNumber: true })}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
               placeholder="1"
@@ -343,6 +461,7 @@ function PaymentOptionCard({
                 { value: 'CASH', label: '💵 Efectivo' },
                 { value: 'BANK_CARD', label: '💳 Tarjeta' },
                 { value: 'APPLE_PAY', label: ' Apple Pay' },
+                { value: 'GOOGLE_PAY', label: '🅖 Google Pay' },
                 { value: 'CODI', label: '📱 CoDi' },
                 { value: 'CLICK_TO_PAY', label: '🔘 Click to Pay' },
               ].map(method => (
@@ -357,6 +476,11 @@ function PaymentOptionCard({
                 </label>
               ))}
             </div>
+            {errors?.payment_policy?.options?.[index]?.config?.cash?.payment_methods && (
+              <p className="text-sm text-red-600 mt-2">
+                {errors.payment_policy.options[index].config.cash.payment_methods.message}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -435,7 +559,6 @@ function PaymentOptionCard({
               <input
                 type="number"
                 min="1"
-                max="30"
                 {...register(`payment_policy.options.${index}.config.installments.deadline_days_to_pay`, { valueAsNumber: true })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500 focus:border-transparent"
                 placeholder="3"
@@ -452,6 +575,7 @@ function PaymentOptionCard({
                 { value: 'CASH', label: '💵 Efectivo' },
                 { value: 'BANK_CARD', label: '💳 Tarjeta' },
                 { value: 'APPLE_PAY', label: ' Apple Pay' },
+                { value: 'GOOGLE_PAY', label: '🅖 Google Pay' },
                 { value: 'CODI', label: '📱 CoDi' },
                 { value: 'CLICK_TO_PAY', label: '🔘 Click to Pay' },
               ].map(method => (
@@ -466,6 +590,11 @@ function PaymentOptionCard({
                 </label>
               ))}
             </div>
+            {errors?.payment_policy?.options?.[index]?.config?.installments?.payment_methods && (
+              <p className="text-sm text-red-600 mt-2">
+                {errors.payment_policy.options[index].config.installments.payment_methods.message}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -478,7 +607,7 @@ function PaymentOptionCard({
           </label>
           <button
             type="button"
-            onClick={() => appendBenefit({ stated: '' })}
+            onClick={() => appendBenefit({ stated: undefined })} // StatementsInput usa undefined para campos opcionales
             className="text-sm text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1"
           >
             <span className="text-lg">+</span> Agregar Beneficio/Declaración

@@ -443,7 +443,8 @@ function WizardContent({
     onNext: handleNext,
     onPrevious: handlePrevious,
     onCancelClick: onCancelClick,
-    isValid: true // TODO: Implementar validación en tiempo real
+    isValid: true, // TODO: Implementar validación en tiempo real
+    resetUnsavedChanges: resetInitialData // Permitir que steps reseteen el estado de cambios no guardados
   };
 
   if (!StepComponent) {
