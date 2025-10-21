@@ -319,8 +319,8 @@ export default function ProviderPageClient({
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-3">Mis Circuitos</h3>
                   <p className="text-gray-600 text-sm mb-6">Gestiona tus rutas y experiencias turísticas con múltiples destinos</p>
-                  <Link 
-                    href="/provider/products"
+                  <Link
+                    href="/provider/products?filter=circuit"
                     className="inline-flex items-center gap-2 bg-gradient-to-r from-pink-500 to-purple-600 hover:from-pink-600 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,8 +340,8 @@ export default function ProviderPageClient({
                   </div>
                   <h3 className="text-xl font-bold text-gray-900 mb-3">Mis Paquetes</h3>
                   <p className="text-gray-600 text-sm mb-6">Administra tus ofertas y promociones completas</p>
-                  <Link 
-                    href="/provider/products"
+                  <Link
+                    href="/provider/products?filter=package"
                     className="inline-flex items-center gap-2 bg-gradient-to-r from-violet-500 to-indigo-600 hover:from-violet-600 hover:to-indigo-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 transform hover:scale-105 shadow-lg"
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

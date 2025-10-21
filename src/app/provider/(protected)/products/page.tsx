@@ -9,14 +9,47 @@ import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 /**
  * Página de listado de productos del provider
  * Versión server-side rendering con server actions siguiendo patrones establecidos
+ * SOPORTA filtrado por URL: /provider/products?filter=circuit|package|draft|published
  */
-export default async function ProviderProductsPage() {
+export default async function ProviderProductsPage({
+  searchParams
+}: {
+  searchParams: { filter?: string }
+}) {
   // Validar que el provider esté completamente aprobado
   const auth = await RouteProtectionWrapper.protectProvider(true);
 
-  // Server-side data fetching inicial
+  // Extract and validate filter from URL query parameters
+  const urlFilter = searchParams.filter as 'circuit' | 'package' | 'draft' | 'published' | undefined;
+  const validFilters = ['circuit', 'package', 'draft', 'published'];
+  const initialFilter = urlFilter && validFilters.includes(urlFilter)
+    ? urlFilter
+    : 'all';
+
+  // Build GraphQL filter based on URL parameter
+  let initialGraphqlFilter = {};
+  if (initialFilter === 'circuit') {
+    initialGraphqlFilter = { product_type: 'circuit' };
+  } else if (initialFilter === 'package') {
+    initialGraphqlFilter = { product_type: 'package' };
+  } else if (initialFilter === 'draft') {
+    initialGraphqlFilter = { published: false };
+  } else if (initialFilter === 'published') {
+    initialGraphqlFilter = { published: true };
+  }
+
+  console.log('🔗 [ProviderProductsPage] URL filter:', {
+    urlParam: searchParams.filter,
+    validated: initialFilter,
+    graphqlFilter: initialGraphqlFilter
+  });
+
+  // Server-side data fetching inicial con filtro aplicado
   const [initialProductsResult, metricsResult] = await Promise.all([
-    getProviderProductsAction({ pagination: { limit: 12 } }),
+    getProviderProductsAction({
+      pagination: { limit: 12 },
+      filter: initialGraphqlFilter
+    }),
     getProviderMetricsAction()
   ]);
 
@@ -56,9 +89,10 @@ export default async function ProviderProductsPage() {
       <div className="bg-gray-50 -mt-8 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Suspense fallback={<div className="text-center py-8">Cargando productos...</div>}>
-            <ProviderProductsDashboard 
+            <ProviderProductsDashboard
               initialProducts={initialProducts}
               metrics={metrics}
+              initialFilter={initialFilter as 'all' | 'circuit' | 'package' | 'draft' | 'published'}
             />
           </Suspense>
         </div>

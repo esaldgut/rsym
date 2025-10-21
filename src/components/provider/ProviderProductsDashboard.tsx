@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { getProviderProductsAction, deleteProductAction } from '@/lib/server/provider-products-actions';
 import { toastManager } from '@/components/ui/Toast';
 import { analytics } from '@/lib/services/analytics-service';
@@ -29,6 +29,7 @@ interface ProductMetrics {
 interface ProviderProductsDashboardProps {
   initialProducts: ProductConnection | null;
   metrics: ProductMetrics | null;
+  initialFilter?: 'all' | 'circuit' | 'package' | 'draft' | 'published';
 }
 
 const FILTER_CONFIG = {
@@ -39,7 +40,11 @@ const FILTER_CONFIG = {
   published: { label: 'Publicados', icon: '✅' }
 };
 
-export function ProviderProductsDashboard({ initialProducts, metrics }: ProviderProductsDashboardProps) {
+export function ProviderProductsDashboard({
+  initialProducts,
+  metrics,
+  initialFilter = 'all'
+}: ProviderProductsDashboardProps) {
   const [products, setProducts] = useState<Product[]>(initialProducts?.items || []);
   const [currentMetrics, setCurrentMetrics] = useState<ProductMetrics>(metrics || {
     total: 0, published: 0, drafts: 0, circuits: 0, packages: 0, totalViews: 0
@@ -47,9 +52,51 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(!!initialProducts?.nextToken);
   const [nextToken, setNextToken] = useState<string | null>(initialProducts?.nextToken || null);
-  const [currentFilter, setCurrentFilter] = useState<ProductFilter>('all');
+  const [currentFilter, setCurrentFilter] = useState<ProductFilter>(initialFilter);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // Log and show toast when filter is applied from URL query parameter
+  useEffect(() => {
+    if (initialFilter !== 'all') {
+      console.log('🔗 [Provider Products Dashboard] Filtro inicial desde URL:', {
+        filter: initialFilter,
+        productsCount: products.length,
+        hasMore: hasMore
+      });
+
+      // Track analytics for URL-based filtering
+      analytics.track('url_filter_applied', {
+        feature: 'product_management',
+        category: 'navigation',
+        userFlow: {
+          currentAction: 'load_with_url_filter',
+          previousAction: 'navigate_from_dashboard'
+        },
+        metadata: {
+          filter: initialFilter,
+          productCount: products.length
+        }
+      });
+
+      // Toast discreto solo cuando viene de navegación (no en refresh)
+      // Solo si hay productos para mostrar (evitar ruido en resultados vacíos)
+      if (products.length > 0) {
+        const filterLabels = {
+          circuit: '🗺️ Circuitos',
+          package: '📦 Paquetes',
+          draft: '✏️ Borradores',
+          published: '✅ Publicados'
+        };
+
+        toastManager.show(
+          `${filterLabels[initialFilter as keyof typeof filterLabels]} cargados (${products.length})`,
+          'info',
+          2000 // Duración más corta para ser menos intrusivo
+        );
+      }
+    }
+  }, [initialFilter]); // Ejecutar solo una vez al montar con el filtro inicial
 
   // Load more products using server action
   const loadMore = useCallback(async () => {
@@ -86,8 +133,10 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
         setNextToken(result.data.nextToken || null);
         setHasMore(!!result.data.nextToken);
 
-        toastManager.show('📦 Más productos cargados', 'info');
-        
+        // No mostrar toast en infinite scroll (intrusivo)
+        // Solo log para debugging
+        console.log('📦 [Infinite Scroll] Más productos cargados:', result.data.items.length);
+
         // Analytics tracking
         analytics.trackSuccess('infinite_scroll', 'load_more', {
           filter: currentFilter,
@@ -151,8 +200,29 @@ export function ProviderProductsDashboard({ initialProducts, metrics }: Provider
         setNextToken(result.data.nextToken || null);
         setHasMore(!!result.data.nextToken);
 
-        toastManager.show('📊 Productos filtrados', 'info');
-        
+        // Toast específico por filtro con contador de resultados
+        const count = result.data.items.length;
+        const filterMessages = {
+          all: `📊 ${count} producto${count !== 1 ? 's' : ''} cargado${count !== 1 ? 's' : ''}`,
+          circuit: count > 0
+            ? `🗺️ ${count} circuito${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}`
+            : 'ℹ️ No tienes circuitos creados',
+          package: count > 0
+            ? `📦 ${count} paquete${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}`
+            : 'ℹ️ No tienes paquetes creados',
+          draft: count > 0
+            ? `✏️ ${count} borrador${count !== 1 ? 'es' : ''} encontrado${count !== 1 ? 's' : ''}`
+            : 'ℹ️ No tienes borradores',
+          published: count > 0
+            ? `✅ ${count} producto${count !== 1 ? 's' : ''} publicado${count !== 1 ? 's' : ''}`
+            : 'ℹ️ No tienes productos publicados'
+        };
+
+        toastManager.show(
+          filterMessages[filter],
+          count > 0 ? 'success' : 'info'
+        );
+
         // Analytics tracking
         analytics.trackSuccess('product_filtering', `apply_${filter}_filter`, {
           filter: filter,
