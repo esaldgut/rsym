@@ -7,6 +7,7 @@ import { createReservationWithPaymentAction, checkAvailabilityAction } from '@/l
 import type { ReservationInput } from '@/lib/graphql/types';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import { useMarketplacePagination } from '@/hooks/useMarketplacePagination';
+import { ProductDetailModal } from '@/components/marketplace/ProductDetailModal';
 
 // REPLICANDO LOS PATTERNS DE ProviderProductsDashboard.tsx + FeedGrid.tsx
 
@@ -74,6 +75,10 @@ export function MarketplaceClient({
   const [isProcessingReservation, setIsProcessingReservation] = useState(false);
   const [isPending, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
 
+  // Estado para el modal de detalle de producto (NUEVO)
+  const [showProductDetail, setShowProductDetail] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
+
   // Estado para filtros avanzados
   const [filters, setFilters] = useState({
     category: '',
@@ -104,6 +109,18 @@ export function MarketplaceClient({
     initialNextToken,
     initialMetrics
   });
+
+  // Manejar apertura de detalle de producto (NUEVO)
+  const handleOpenProductDetail = (product: MarketplaceProduct) => {
+    setSelectedProduct(product);
+    setShowProductDetail(true);
+  };
+
+  // Manejar cierre de detalle de producto (NUEVO)
+  const handleCloseProductDetail = () => {
+    setShowProductDetail(false);
+    setTimeout(() => setSelectedProduct(null), 300); // Delay para animación
+  };
 
   // Manejar inicio de reserva (PATRÓN ORIGINAL MANTENIDO)
   const handleReserveExperience = async (experience: MarketplaceProduct) => {
@@ -407,6 +424,7 @@ export function MarketplaceClient({
                   key={experience.id}
                   experience={experience}
                   onReserve={() => handleReserveExperience(experience)}
+                  onOpenDetail={() => handleOpenProductDetail(experience)}
                 />
               ))}
             </div>
@@ -473,6 +491,18 @@ export function MarketplaceClient({
             </div>
           </>
         ) : null}
+
+        {/* Modal de detalle de producto (NUEVO) */}
+        {showProductDetail && selectedProduct && (
+          <ProductDetailModal
+            product={selectedProduct}
+            onClose={handleCloseProductDetail}
+            onReserve={() => {
+              handleCloseProductDetail();
+              handleReserveExperience(selectedProduct);
+            }}
+          />
+        )}
 
         {/* Modal de reserva (PATRÓN ORIGINAL MANTENIDO) */}
         {showReservationModal && selectedExperience && (
@@ -622,28 +652,45 @@ export function MarketplaceClient({
   );
 }
 
-// Componente de tarjeta de experiencia (PATRÓN ORIGINAL MANTENIDO)
+// Componente de tarjeta de experiencia (MEJORADO CON HOVER Y MODAL)
 interface ExperienceCardProps {
   experience: MarketplaceProduct;
   onReserve: () => void;
+  onOpenDetail?: () => void;
 }
 
-function ExperienceCard({ experience, onReserve }: ExperienceCardProps) {
+function ExperienceCard({ experience, onReserve, onOpenDetail }: ExperienceCardProps) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-lg transition-shadow duration-300">
-      {/* Imagen de portada */}
-      <div className="relative h-48">
+    <div
+      onClick={onOpenDetail}
+      className="group bg-white rounded-2xl shadow-sm overflow-hidden hover:shadow-2xl transition-all duration-500 cursor-pointer transform hover:scale-110 hover:z-10"
+    >
+      {/* Imagen de portada con hover profesional: zoom + sombra + overlay */}
+      <div className="relative w-full aspect-video bg-gradient-to-br from-purple-50 to-pink-50 overflow-hidden rounded-t-2xl">
+        {/* Imagen principal con zoom en hover */}
         <ProfileImage
           path={experience.cover_image_url}
           alt={experience.name || 'Experiencia'}
           fallbackText=""
           size="lg"
-          className="w-full h-full rounded-none"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-108"
         />
-        <div className="absolute top-3 right-3">
-          <span className="px-2 py-1 bg-white/90 text-gray-700 text-xs font-medium rounded-full">
-            {experience.product_type}
+
+        {/* Overlay oscuro sutil en hover */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+
+        {/* Product type badge */}
+        <div className="absolute top-3 right-3 z-10">
+          <span className="px-3 py-1.5 bg-white/95 backdrop-blur-sm text-gray-800 text-xs font-semibold rounded-full shadow-lg">
+            {experience.product_type === 'circuit' ? 'Circuito' : 'Paquete'}
           </span>
+        </div>
+
+        {/* Overlay con CTA en hover (mobile-first) */}
+        <div className="absolute inset-0 flex items-end justify-center p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+          <div className="bg-white/95 backdrop-blur-sm rounded-xl px-4 py-2 shadow-xl transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+            <p className="text-sm font-semibold text-gray-900">Ver detalles</p>
+          </div>
         </div>
       </div>
 
@@ -718,7 +765,10 @@ function ExperienceCard({ experience, onReserve }: ExperienceCardProps) {
           </div>
 
           <button
-            onClick={onReserve}
+            onClick={(e) => {
+              e.stopPropagation(); // Prevenir que se abra el modal al hacer clic en reservar
+              onReserve();
+            }}
             className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02]"
           >
             Reservar ahora
