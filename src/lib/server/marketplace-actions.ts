@@ -138,11 +138,45 @@ export async function getMarketplaceProductsAction(
     if (result?.data?.getAllActiveAndPublishedProducts) {
       const connection = result.data.getAllActiveAndPublishedProducts;
 
-      // Apply client-side search if provided (server-side search would be better)
+      // Apply client-side filtering (FALLBACK - backend no filtra correctamente)
+      // CRITICAL: El backend NO soporta preferences, maxPrice, minPrice
+      // Y el filtrado por product_type no funciona server-side
       let filteredItems = connection.items;
+
+      // Filter by product_type (fallback porque backend NO filtra)
+      if (params.filter?.product_type) {
+        filteredItems = filteredItems.filter((product: any) =>
+          product.product_type === params.filter.product_type
+        );
+      }
+
+      // Filter by preferences (backend NO soporta - campo no existe en ProductFilterInput)
+      if (params.filter?.preferences?.length) {
+        filteredItems = filteredItems.filter((product: any) =>
+          params.filter.preferences.some((pref: string) =>
+            product.preferences?.includes(pref)
+          )
+        );
+      }
+
+      // Filter by max price (backend NO soporta - campo no existe en ProductFilterInput)
+      if (params.filter?.maxPrice) {
+        filteredItems = filteredItems.filter((product: any) =>
+          !product.min_product_price || product.min_product_price <= params.filter.maxPrice
+        );
+      }
+
+      // Filter by min price (backend NO soporta - campo no existe en ProductFilterInput)
+      if (params.filter?.minPrice) {
+        filteredItems = filteredItems.filter((product: any) =>
+          product.min_product_price && product.min_product_price >= params.filter.minPrice
+        );
+      }
+
+      // Filter by search term
       if (params.searchTerm) {
         const searchLower = params.searchTerm.toLowerCase();
-        filteredItems = connection.items.filter((product: any) =>
+        filteredItems = filteredItems.filter((product: any) =>
           product.name?.toLowerCase().includes(searchLower) ||
           product.description?.toLowerCase().includes(searchLower) ||
           product.destination?.some((dest: any) =>
@@ -150,6 +184,21 @@ export async function getMarketplaceProductsAction(
             dest.placeSub?.toLowerCase().includes(searchLower)
           )
         );
+      }
+
+      // Log client-side filtering results
+      if (connection.items.length !== filteredItems.length) {
+        console.log('🔍 [CLIENT-SIDE FILTER]:', {
+          before: connection.items.length,
+          after: filteredItems.length,
+          appliedFilters: {
+            product_type: params.filter?.product_type,
+            preferences: params.filter?.preferences,
+            maxPrice: params.filter?.maxPrice,
+            minPrice: params.filter?.minPrice,
+            searchTerm: params.searchTerm
+          }
+        });
       }
 
       console.log('✅ [SUCCESS] Marketplace products loaded:', {

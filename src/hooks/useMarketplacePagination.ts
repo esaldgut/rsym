@@ -301,6 +301,19 @@ export function useMarketplacePagination({
     }
   }, [loadMetrics, loadProducts, initialProducts.length]);
 
+  // Auto-refresh cuando métricas indican más productos que los mostrados
+  // SOLUCIÓN: Detecta desincronización entre SSR y client-side data después de publicar productos
+  useEffect(() => {
+    // Solo refrescar si:
+    // 1. Las métricas muestran más productos que los cargados
+    // 2. No estamos en medio de una carga
+    // 3. Tenemos productos cargados (evitar refresh en estado inicial)
+    if (metrics.total > products.length && !isLoading && !isLoadingMore && products.length > 0) {
+      console.log('🔄 Auto-refreshing: metrics show', metrics.total, 'products but only', products.length, 'loaded');
+      refresh();
+    }
+  }, [metrics.total, products.length, isLoading, isLoadingMore, refresh]);
+
   return {
     // Data
     products,
