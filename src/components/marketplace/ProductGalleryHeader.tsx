@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
-import { ProfileImage } from '@/components/ui/ProfileImage';
+import { useState, useRef } from 'react';
+import { S3GalleryImage } from '@/components/ui/S3GalleryImage';
 
 interface ProductGalleryHeaderProps {
   images: (string | undefined)[];
@@ -105,15 +105,14 @@ export function ProductGalleryHeader({
       >
         {currentMedia.type === 'image' ? (
           <div
-            className="w-full h-full cursor-pointer"
+            className="relative w-full h-full cursor-pointer"
             onClick={handleMediaClick}
           >
-            <ProfileImage
+            <S3GalleryImage
               path={currentMedia.url}
               alt={`${alt} ${currentIndex + 1}`}
-              fallbackText=""
-              size="lg"
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+              objectFit="cover"
+              className="transition-transform duration-300 group-hover:scale-105"
             />
 
             {/* Hint overlay - appears on hover for images */}
@@ -172,27 +171,6 @@ export function ProductGalleryHeader({
           </>
         )}
 
-        {/* Elegant bar indicators (instead of dots) */}
-        {mediaItems.length > 1 && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2">
-            {mediaItems.map((media, index) => (
-              <button
-                key={index}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  goToIndex(index);
-                }}
-                className={`transition-all duration-300 rounded-full ${
-                  index === currentIndex
-                    ? 'w-12 h-1.5 bg-white shadow-lg'
-                    : 'w-6 h-1.5 bg-white/50 hover:bg-white/75'
-                }`}
-                aria-label={`Ir a ${media.type === 'image' ? 'imagen' : 'video'} ${index + 1}`}
-              />
-            ))}
-          </div>
-        )}
-
         {/* Media type badge for videos */}
         {currentMedia.type === 'video' && (
           <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-medium rounded-lg flex items-center gap-2">
@@ -200,13 +178,6 @@ export function ProductGalleryHeader({
               <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
             </svg>
             Video
-          </div>
-        )}
-
-        {/* Media counter */}
-        {mediaItems.length > 1 && (
-          <div className="absolute top-4 left-4 px-3 py-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-medium rounded-lg">
-            {currentIndex + 1} / {mediaItems.length}
           </div>
         )}
       </div>

@@ -13,6 +13,7 @@ interface ProfileImageProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   className?: string;
   accessLevel?: 'guest' | 'private' | 'protected';
+  rounded?: boolean; // Nuevo: controla si la imagen es circular (default: true)
 }
 
 const sizeClasses = {
@@ -32,7 +33,8 @@ export function ProfileImage({
   fallbackText,
   size = 'lg',
   className = '',
-  accessLevel = 'protected'
+  accessLevel = 'protected',
+  rounded = true
 }: ProfileImageProps) {
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -108,7 +110,7 @@ export function ProfileImage({
   // Mostrar fallback mientras carga o si hay error
   if (isLoading || imageError || !imageUrl) {
     return (
-      <div className={`${sizeClasses[size]} rounded-full bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold ${className}`}>
+      <div className={`${sizeClasses[size]} ${rounded ? 'rounded-full' : 'rounded-lg'} bg-gradient-to-br from-pink-400 to-purple-500 flex items-center justify-center text-white font-bold ${className}`}>
         {isLoading ? (
           <div className="animate-pulse">...</div>
         ) : (
@@ -124,7 +126,7 @@ export function ProfileImage({
         src={imageUrl}
         alt={alt}
         fill
-        className="rounded-full object-cover border-4 border-gray-100"
+        className={`${rounded ? 'rounded-full' : ''} object-cover ${rounded ? 'border-4 border-gray-100' : ''}`}
         onError={async () => {
           console.warn('⚠️ [ProfileImage] Error cargando imagen desde URL');
           setImageError(true);

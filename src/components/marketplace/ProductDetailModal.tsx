@@ -172,7 +172,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
   return (
     <>
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-20 sm:pt-16 lg:pt-20 transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
@@ -182,16 +182,16 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
           onClick={handleClose}
         />
 
-        {/* Modal container - Changed to max-w-4xl */}
+        {/* Modal container - Compacto max-w-3xl */}
         <div
-          className={`relative w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all duration-400 ${
+          className={`relative w-full max-w-3xl max-h-[88vh] sm:max-h-[85vh] bg-white rounded-3xl shadow-2xl overflow-hidden transform transition-all duration-400 ${
             isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
           }`}
         >
           {/* Close button */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 z-50 w-12 h-12 bg-white/95 hover:bg-white backdrop-blur-sm rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="absolute top-3 right-3 z-50 w-11 h-11 bg-white/95 hover:bg-white backdrop-blur-sm rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pink-500"
             aria-label="Cerrar"
           >
             <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -202,11 +202,11 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
           {/* Scrollable content */}
           <div
             ref={scrollContainerRef}
-            className="overflow-y-auto max-h-[95vh] sm:max-h-[90vh] scroll-smooth"
-            style={{ paddingBottom: '100px' }}
+            className="overflow-y-auto max-h-[88vh] sm:max-h-[85vh] scroll-smooth"
+            style={{ paddingBottom: '80px' }}
           >
-            {/* Gallery Header - No thumbnails, elegant bars - Aumentado para mayor impacto */}
-            <div className="relative h-96 sm:h-112 md:h-128">
+            {/* Gallery Header - Compacta y profesional */}
+            <div className="relative h-64 sm:h-72 md:h-80">
               <ProductGalleryHeader
                 images={allImages}
                 videos={allVideos}
@@ -216,7 +216,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
 
               {/* Floating badge */}
               <div className="absolute top-4 left-4 z-10">
-                <span className="px-4 py-2 bg-white/95 backdrop-blur-sm rounded-full text-sm font-semibold shadow-lg flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full text-sm font-semibold shadow-lg flex items-center gap-2">
                   {product.product_type === 'circuit' ? (
                     <>
                       <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
@@ -249,10 +249,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
               </div>
 
               {/* Content */}
-              <div className="p-6 sm:p-8">
+              <div className="p-4 sm:p-6">
                 {/* Title and provider */}
-                <div className="mb-8">
-                  <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3 leading-tight">
+                <div className="mb-6">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3 leading-tight">
                     {product.name}
                   </h1>
                   <div className="flex items-center gap-3 mb-4">
@@ -288,17 +288,17 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                 </div>
 
                 {/* Scroll sections */}
-                <div className="space-y-16">
+                <div className="space-y-8">
                   {/* Description Section */}
                   <section
                     ref={(el) => (sectionRefs.current.descripcion = el)}
                     data-section-id="descripcion"
                     className="scroll-mt-96"
                   >
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                           </svg>
                         </div>
@@ -341,10 +341,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                       data-section-id="itinerario"
                       className="scroll-mt-96"
                     >
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-500 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                             </svg>
                           </div>
@@ -368,10 +368,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                       data-section-id="temporadas"
                       className="scroll-mt-96"
                     >
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                          <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-500 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="w-10 h-10 bg-gradient-to-br from-pink-500 to-purple-500 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                             </svg>
                           </div>
@@ -417,10 +417,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                       data-section-id="alojamiento"
                       className="scroll-mt-96"
                     >
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                          <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                             </svg>
                           </div>
@@ -456,10 +456,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                     data-section-id="resenas"
                     className="scroll-mt-96"
                   >
-                    <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                    <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                       <div className="flex items-center gap-3 mb-6">
-                        <div className="w-12 h-12 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-10 h-10 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl flex items-center justify-center">
+                          <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
                           </svg>
                         </div>
@@ -479,10 +479,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                       data-section-id="mapa"
                       className="scroll-mt-96"
                     >
-                      <div className="bg-white rounded-2xl border border-gray-200 p-6 sm:p-8 shadow-sm">
+                      <div className="bg-white rounded-2xl border border-gray-200 p-5 sm:p-6 shadow-sm">
                         <div className="flex items-center gap-3 mb-6">
-                          <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-teal-500 rounded-xl flex items-center justify-center">
+                            <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                             </svg>
                           </div>
@@ -548,8 +548,8 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
             </div>
           </div>
 
-          {/* Sticky footer with reserve button - Mejorado con animaciones */}
-          <div className="absolute bottom-0 left-0 right-0 bg-white/98 backdrop-blur-md border-t-2 border-pink-200 p-4 sm:p-6 shadow-2xl">
+          {/* Sticky footer with reserve button - Compacto y profesional */}
+          <div className="absolute bottom-0 left-0 right-0 bg-white/98 backdrop-blur-md border-t-2 border-pink-200 p-3 sm:p-5 shadow-2xl">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-baseline gap-2 mb-1">
@@ -564,21 +564,21 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                   )}
                 </div>
                 <div className="flex items-baseline gap-3">
-                  <p className="text-3xl sm:text-4xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-gradient">
+                  <p className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-pink-600 via-purple-600 to-pink-600 bg-clip-text text-transparent animate-gradient">
                     ${product.min_product_price?.toLocaleString() || '0'}
                   </p>
-                  <span className="text-lg font-semibold text-gray-600">MXN</span>
+                  <span className="text-base font-semibold text-gray-600">MXN</span>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">*Precio por persona</p>
               </div>
               <button
                 onClick={onReserve}
-                className="w-full sm:w-auto flex-shrink-0 bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-8 py-4 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base sm:text-lg flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft"
+                className="w-full sm:w-auto flex-shrink-0 bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft"
               >
                 {/* Shine effect */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
-                <svg className="w-6 h-6 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                 </svg>
                 <span className="relative z-10">Reservar ahora</span>
