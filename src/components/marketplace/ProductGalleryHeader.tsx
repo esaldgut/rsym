@@ -135,11 +135,11 @@ export function ProductGalleryHeader({
 
             {/* Hint overlay - appears on hover for images */}
             {showHint && onOpenFullscreen && (
-              <div className="absolute inset-0 bg-black/30 flex items-center justify-center transition-opacity duration-300">
-                <div className="bg-white/95 backdrop-blur-sm rounded-2xl px-6 py-3 shadow-lg">
-                  <div className="flex items-center gap-3 text-gray-900">
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+              <div className="absolute inset-0 bg-black/20 flex items-center justify-center transition-opacity duration-300">
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl px-5 py-2.5 shadow-sm">
+                  <div className="flex items-center gap-2.5 text-white">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                     </svg>
                     <span className="text-sm font-medium">Click para pantalla completa</span>
                   </div>
@@ -182,11 +182,11 @@ export function ProductGalleryHeader({
                 pauseAutoPlay();  // Pausar cuando usuario navega manualmente
                 goToPrevious();
               }}
-              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 hover:bg-white rounded-full flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110"
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 hover:bg-white/30 rounded-full flex items-center justify-center shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 backdrop-blur-sm"
               aria-label="Imagen anterior"
             >
-              <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
               </svg>
             </button>
 
@@ -197,11 +197,11 @@ export function ProductGalleryHeader({
                 pauseAutoPlay();  // Pausar cuando usuario navega manualmente
                 goToNext();
               }}
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 hover:bg-white rounded-full flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110"
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/15 hover:bg-white/30 rounded-full flex items-center justify-center shadow-sm transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110 backdrop-blur-sm"
               aria-label="Imagen siguiente"
             >
-              <svg className="w-6 h-6 text-gray-900" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
               </svg>
             </button>
           </>
@@ -209,7 +209,7 @@ export function ProductGalleryHeader({
 
         {/* Carousel controls - dots and play/pause */}
         {mediaItems.length > 1 && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/10 backdrop-blur-sm px-3 py-1.5 rounded-full">
             {/* Play/Pause button */}
             <button
               onClick={togglePlayPause}
@@ -232,7 +232,7 @@ export function ProductGalleryHeader({
               total={mediaItems.length}
               current={currentIndex}
               onDotClick={goToIndex}
-              dotSize="md"
+              dotSize="sm"
               variant="light"
             />
 
@@ -245,7 +245,7 @@ export function ProductGalleryHeader({
 
         {/* Media type badge for videos */}
         {currentMedia.type === 'video' && (
-          <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/70 backdrop-blur-sm text-white text-xs font-medium rounded-lg flex items-center gap-2">
+          <div className="absolute top-4 right-4 px-3 py-1.5 bg-black/30 backdrop-blur-sm text-white text-xs font-medium rounded-lg flex items-center gap-2">
             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
               <path d="M2 6a2 2 0 012-2h6a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zM14.553 7.106A1 1 0 0014 8v4a1 1 0 00.553.894l2 1A1 1 0 0018 13V7a1 1 0 00-1.447-.894l-2 1z" />
             </svg>

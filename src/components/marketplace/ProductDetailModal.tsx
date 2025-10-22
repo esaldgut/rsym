@@ -172,7 +172,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
   return (
     <>
       <div
-        className={`fixed inset-0 z-50 flex items-start justify-center p-2 sm:p-4 pt-20 sm:pt-16 lg:pt-20 transition-opacity duration-300 ${
+        className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 pt-24 pb-8 sm:pt-28 sm:pb-12 md:pt-32 md:pb-16 transition-opacity duration-300 ${
           isVisible ? 'opacity-100' : 'opacity-0'
         }`}
       >
@@ -191,11 +191,11 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
           {/* Close button */}
           <button
             onClick={handleClose}
-            className="absolute top-3 right-3 z-50 w-11 h-11 bg-white/95 hover:bg-white backdrop-blur-sm rounded-full flex items-center justify-center shadow-xl transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-pink-500"
+            className="absolute top-3 right-3 z-50 w-11 h-11 bg-white/15 hover:bg-white/30 backdrop-blur-sm rounded-full flex items-center justify-center shadow-sm transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-white/20"
             aria-label="Cerrar"
           >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
 
@@ -206,7 +206,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
             style={{ paddingBottom: '80px' }}
           >
             {/* Gallery Header - Compacta y profesional */}
-            <div className="relative h-64 sm:h-72 md:h-80">
+            <div className="relative h-72 sm:h-80 md:h-96">
               <ProductGalleryHeader
                 images={allImages}
                 videos={allVideos}
@@ -216,17 +216,17 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
 
               {/* Floating badge */}
               <div className="absolute top-4 left-4 z-10">
-                <span className="px-3 py-1.5 bg-white/95 backdrop-blur-sm rounded-full text-sm font-semibold shadow-lg flex items-center gap-2">
+                <span className="px-3 py-1.5 bg-white/10 backdrop-blur-sm rounded-full text-sm font-semibold shadow-sm flex items-center gap-2 text-white">
                   {product.product_type === 'circuit' ? (
                     <>
-                      <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                       </svg>
                       Circuito
                     </>
                   ) : (
                     <>
-                      <svg className="w-4 h-4 text-pink-600" fill="currentColor" viewBox="0 0 20 20">
+                      <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                         <path d="M3 1a1 1 0 000 2h1.22l.305 1.222a.997.997 0 00.01.042l1.358 5.43-.893.892C3.74 11.846 4.632 14 6.414 14H15a1 1 0 000-2H6.414l1-1H14a1 1 0 00.894-.553l3-6A1 1 0 0017 3H6.28l-.31-1.243A1 1 0 005 1H3zM16 16.5a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM6.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3z" />
                       </svg>
                       Paquete

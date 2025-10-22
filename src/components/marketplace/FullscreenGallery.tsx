@@ -180,7 +180,7 @@ export function FullscreenGallery({
                 aria-label="Imagen anterior"
               >
                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 19l-7-7 7-7" />
                 </svg>
               </button>
 
@@ -190,7 +190,7 @@ export function FullscreenGallery({
                 aria-label="Imagen siguiente"
               >
                 <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
                 </svg>
               </button>
             </>
@@ -198,7 +198,7 @@ export function FullscreenGallery({
 
           {/* Carousel controls - dots and play/pause */}
           {mediaItems.length > 1 && (
-            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-md px-6 py-3 rounded-full">
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
               {/* Play/Pause button */}
               <button
                 onClick={togglePlayPause}
@@ -221,7 +221,7 @@ export function FullscreenGallery({
                 total={mediaItems.length}
                 current={currentIndex}
                 onDotClick={goToIndex}
-                dotSize="md"
+                dotSize="sm"
                 variant="light"
               />
 
