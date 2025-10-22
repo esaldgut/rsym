@@ -190,6 +190,22 @@
         "isOneOf": null,
         "fields": [
           {
+            "name": "benefits_or_legal",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Statements",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "deadline_days_to_pay",
             "description": null,
             "args": [],
@@ -274,6 +290,22 @@
         "isOneOf": false,
         "fields": null,
         "inputFields": [
+          {
+            "name": "benefits_or_legal",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "StatementsInput",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "deadline_days_to_pay",
             "description": null,
@@ -2562,6 +2594,22 @@
         "isOneOf": null,
         "fields": [
           {
+            "name": "benefits_or_legal",
+            "description": null,
+            "args": [],
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "OBJECT",
+                "name": "Statements",
+                "ofType": null
+              }
+            },
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
+          {
             "name": "days_before_must_be_settled",
             "description": null,
             "args": [],
@@ -2694,6 +2742,22 @@
         "isOneOf": false,
         "fields": null,
         "inputFields": [
+          {
+            "name": "benefits_or_legal",
+            "description": null,
+            "type": {
+              "kind": "LIST",
+              "name": null,
+              "ofType": {
+                "kind": "INPUT_OBJECT",
+                "name": "StatementsInput",
+                "ofType": null
+              }
+            },
+            "defaultValue": null,
+            "isDeprecated": false,
+            "deprecationReason": null
+          },
           {
             "name": "days_before_must_be_settled",
             "description": null,

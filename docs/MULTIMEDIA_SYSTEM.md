@@ -10,9 +10,13 @@ El **Sistema Multimedia YAAN** es una solución completa y optimizada para subir
 Sistema Multimedia YAAN
 ├── 📦 Core Service
 │   └── MediaUploadService (Singleton)
-├── 🧩 UI Components  
+├── 🧩 UI Components
 │   ├── MediaUploadZone (Drag & Drop + Validation)
 │   └── MediaPreview (Thumbnails + Progress)
+├── 🖼️ S3 Image Display System (NEW)
+│   ├── useS3Image Hook (shared S3 logic)
+│   ├── ProfileImage (avatars - fixed size, circular)
+│   └── S3GalleryImage (galleries - responsive, rectangular)
 ├── 🌐 Route Handler
 │   └── /api/upload/media (AWS S3 Upload)
 └── 🔧 Configuration
@@ -23,11 +27,17 @@ Sistema Multimedia YAAN
 
 ```
 /src
+├── hooks/
+│   └── useS3Image.ts                 # Hook compartido para S3 images (NEW)
 ├── lib/services/
 │   └── media-upload-service.ts       # Core service (Singleton)
-├── components/media/
-│   ├── MediaUploadZone.tsx          # Drag & drop upload zone
-│   └── MediaPreview.tsx             # File preview with progress
+├── components/
+│   ├── ui/
+│   │   ├── ProfileImage.tsx         # Avatars (circular, fixed size)
+│   │   └── S3GalleryImage.tsx       # Galleries (rectangular, responsive) (NEW)
+│   └── media/
+│       ├── MediaUploadZone.tsx      # Drag & drop upload zone
+│       └── MediaPreview.tsx         # File preview with progress
 └── app/api/upload/media/
     └── route.ts                     # AWS Route Handler
 ```
@@ -173,6 +183,185 @@ function AdvancedUploadComponent() {
         accept="all"
         maxFiles={10}
       />
+    </div>
+  );
+}
+```
+
+## 🖼️ S3 Gallery System (NEW)
+
+### Descripción
+
+El **S3 Gallery System** es una arquitectura DRY para mostrar imágenes de AWS S3 en galerías de productos y vistas de pantalla completa. Separa responsabilidades entre avatares (ProfileImage) y galerías (S3GalleryImage).
+
+### Componentes
+
+#### 1. Hook: `useS3Image`
+
+**Ubicación**: `src/hooks/useS3Image.ts`
+
+Centraliza la lógica de carga de imágenes desde S3, compartida por ProfileImage y S3GalleryImage:
+
+```typescript
+import { useS3Image } from '@/hooks/useS3Image';
+
+function MyComponent() {
+  const { imageUrl, isLoading, error } = useS3Image({
+    path: 'public/products/image.jpg',
+    accessLevel: 'protected'
+  });
+
+  if (isLoading) return <div>Cargando...</div>;
+  if (error) return <div>Error al cargar imagen</div>;
+
+  return <img src={imageUrl} alt="Product" />;
+}
+```
+
+**Prioridades de Carga**:
+1. URL pre-firmada del servidor (óptimo)
+2. Path público (`public/*`) → construye URL directa sin autenticación
+3. Path protegido → obtiene URL firmada client-side
+4. URL directa (src) → usa tal cual
+
+**Paths Públicos** (sin autenticación):
+```typescript
+// Input: "public/products/whale.jpg"
+// Output: "https://yaan-provider-documents.s3.us-west-2.amazonaws.com/public/products/whale.jpg"
+```
+
+#### 2. Componente: `S3GalleryImage`
+
+**Ubicación**: `src/components/ui/S3GalleryImage.tsx`
+
+Componente optimizado para galerías de productos - **NO para avatares**:
+
+```typescript
+import { S3GalleryImage } from '@/components/ui/S3GalleryImage';
+
+// Uso en galería de producto
+<S3GalleryImage
+  path="public/products/image1.jpg"
+  alt="Product image"
+  objectFit="cover"  // 'cover' para galerías, 'contain' para pantalla completa
+  className="w-full h-full"
+/>
+```
+
+**Props**:
+```typescript
+interface S3GalleryImageProps {
+  path?: string | null;        // Path en S3 (e.g., "public/products/img.jpg")
+  signedUrl?: string | null;   // URL pre-firmada (opcional)
+  src?: string | null;         // URL directa (opcional)
+  alt: string;                 // Texto alternativo
+  className?: string;          // Clases CSS adicionales
+  objectFit?: 'cover' | 'contain';  // Comportamiento de ajuste
+  accessLevel?: 'guest' | 'private' | 'protected';
+}
+```
+
+### Diferencias: ProfileImage vs S3GalleryImage
+
+| Característica | ProfileImage | S3GalleryImage |
+|---------------|--------------|----------------|
+| **Propósito** | Avatares, fotos de perfil | Galerías de productos, fullscreen |
+| **Tamaño** | Fijo (e.g., `w-60 h-60`) | Responsivo (`w-full h-full`) |
+| **Forma** | Circular (`rounded-full`) | Rectangular (sin bordes) |
+| **Use Case** | Perfiles, comentarios, usuarios | Modal de producto, galería completa |
+| **Ejemplo** | Avatar en navbar, foto en comentario | Imagen principal en ProductDetailModal |
+
+### Uso en Galerías de Productos
+
+#### ProductGalleryHeader
+
+**Ubicación**: `src/components/marketplace/ProductGalleryHeader.tsx`
+
+Galería principal del modal de producto:
+```typescript
+<S3GalleryImage
+  path={currentMedia.url}
+  alt={`${alt} ${currentIndex + 1}`}
+  objectFit="cover"
+  className="transition-transform duration-300 group-hover:scale-105"
+/>
+```
+
+**Características**:
+- Imágenes llenan todo el header (h-64 sm:h-72 md:h-80)
+- Hover con zoom suave (scale-105)
+- Navegación entre imágenes con flechas
+- Hint de "Click para pantalla completa"
+
+#### FullscreenGallery
+
+**Ubicación**: `src/components/marketplace/FullscreenGallery.tsx`
+
+Vista de pantalla completa sin thumbnails (enfoque en venta):
+```typescript
+<S3GalleryImage
+  path={currentMedia.url}
+  alt={`${alt} ${currentIndex + 1}`}
+  objectFit="contain"
+  className="max-w-full max-h-full"
+/>
+```
+
+**Características**:
+- **Sin thumbnails** - solo imagen principal grande
+- Botón cerrar posicionado debajo del navbar (`top-24`)
+- Padding responsivo: `px-4 py-20 sm:px-8 sm:py-24 md:px-16 md:py-24`
+- Navegación con flechas y teclado (Escape, ←, →)
+- Contador de imágenes (1/4, 2/4, etc.)
+
+### Ventajas de esta Arquitectura
+
+**Antes** ❌:
+- ProfileImage usado en galerías → thumbnails de 240px en fullscreen
+- Lógica S3 duplicada en múltiples componentes
+- Imágenes no llenaban el espacio disponible
+- Código difícil de mantener
+
+**Después** ✅:
+- Hook `useS3Image` compartido → DRY principle
+- `S3GalleryImage` para galerías, `ProfileImage` para avatares
+- Imágenes responsive que llenan el contenedor
+- Paths públicos manejados eficientemente sin autenticación
+- Mejor presentación → mayor conversión de ventas
+
+### Ejemplo Completo
+
+```typescript
+'use client';
+
+import { useState } from 'react';
+import { S3GalleryImage } from '@/components/ui/S3GalleryImage';
+
+export function ProductGallery({ images }: { images: string[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  return (
+    <div className="relative w-full h-96">
+      {/* Imagen principal */}
+      <S3GalleryImage
+        path={images[currentIndex]}
+        alt={`Product image ${currentIndex + 1}`}
+        objectFit="cover"
+        className="w-full h-full"
+      />
+
+      {/* Navegación */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+        {images.map((_, idx) => (
+          <button
+            key={idx}
+            onClick={() => setCurrentIndex(idx)}
+            className={`w-2 h-2 rounded-full ${
+              idx === currentIndex ? 'bg-white' : 'bg-white/50'
+            }`}
+          />
+        ))}
+      </div>
     </div>
   );
 }
@@ -407,6 +596,6 @@ Para contribuir al sistema multimedia, sigue las guías de desarrollo de YAAN y 
 
 ---
 
-**Última actualización**: $(date)  
-**Versión**: 2.0.0  
+**Última actualización**: 2025-01-21
+**Versión**: 2.1.0
 **Mantenedor**: Equipo de Desarrollo YAAN

@@ -49,10 +49,16 @@ mutation updateProduct($input: UpdateProductInput!) {
         }
         config {
           cash {
+            benefits_or_legal {
+              stated
+            }
             deadline_days_to_pay
             discount
           }
           installments {
+            benefits_or_legal {
+              stated
+            }
             days_before_must_be_settled
             deadline_days_to_pay
             down_payment_after

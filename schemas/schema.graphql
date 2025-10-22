@@ -17,6 +17,7 @@ type BlockEvent {
 }
 
 type CashConfig {
+ benefits_or_legal: [Statements]
  deadline_days_to_pay: Int!
  discount: Float!
  discount_type: DiscountType!
@@ -158,6 +159,7 @@ type HolderCompanions {
 }
 
 type InstallmentsConfig {
+ benefits_or_legal: [Statements]
  days_before_must_be_settled: Int!
  deadline_days_to_pay: Int!
  down_payment_after: Float!
@@ -623,6 +625,7 @@ enum WeekDays {
 }
 
 input CashConfigInput {
+ benefits_or_legal: [StatementsInput]
  deadline_days_to_pay: Int!
  discount: Float!
  discount_type: DiscountType!
@@ -694,6 +697,7 @@ input HolderCompanionsInput {
 }
 
 input InstallmentsConfigInput {
+ benefits_or_legal: [StatementsInput]
  days_before_must_be_settled: Int!
  deadline_days_to_pay: Int!
  down_payment_after: Float!

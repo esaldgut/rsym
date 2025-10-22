@@ -2,6 +2,53 @@
 
 Todas las modificaciones importantes del proyecto están documentadas en este archivo.
 
+## [1.3.0] - 2025-01-21
+
+### 🚀 Added
+
+#### S3 Gallery System
+- **NEW:** Hook `useS3Image` (`src/hooks/useS3Image.ts`) - Centraliza lógica de carga de imágenes S3
+- **NEW:** Componente `S3GalleryImage` (`src/components/ui/S3GalleryImage.tsx`) - Componente dedicado para galerías de productos
+- **NEW:** Soporte para paths públicos S3 (`public/*`) sin autenticación
+- **NEW:** Sistema DRY con hook compartido entre ProfileImage y S3GalleryImage
+
+#### Product Gallery Improvements
+- **ENHANCED:** ProductGalleryHeader ahora usa S3GalleryImage (imágenes responsive que llenan el contenedor)
+- **ENHANCED:** FullscreenGallery sin thumbnails - enfoque completo en imagen principal para mejor conversión
+- **ENHANCED:** Navegación por teclado en galería (Escape, ←, →)
+- **ENHANCED:** Contador de imágenes visible (1/4, 2/4, etc.)
+
+### 🔧 Changed
+
+#### Component Architecture
+- **REFACTORED:** ProductGalleryHeader migrado de ProfileImage a S3GalleryImage
+- **REFACTORED:** FullscreenGallery migrado de ProfileImage a S3GalleryImage
+- **IMPROVED:** Separación clara: ProfileImage (avatares) vs S3GalleryImage (galerías)
+
+#### UI/UX Improvements
+- **UPDATED:** FullscreenGallery padding responsivo: `px-4 py-20 sm:px-8 sm:py-24 md:px-16 md:py-24`
+- **UPDATED:** Botón cerrar fullscreen posicionado a `top-24` (libra navbar)
+- **UPDATED:** ProductDetailModal padding superior en mobile: `pt-20` (mejor centrado)
+
+### ❌ Removed
+
+- **REMOVED:** Thumbnails de FullscreenGallery (sidebar desktop y strip mobile)
+- **REMOVED:** Lógica duplicada de carga S3 en múltiples componentes
+
+### 🐛 Fixed
+
+- **FIXED:** Imágenes de galería ahora llenan todo el espacio disponible (antes: thumbnails de 240px)
+- **FIXED:** Botón cerrar fullscreen ahora visible y clickeable (no se empalma con navbar)
+- **FIXED:** Modal de producto mejor posicionado en mobile (no pegado al navbar)
+- **FIXED:** Paths públicos S3 manejados eficientemente sin URLs firmadas innecesarias
+
+### 📚 Documentation
+
+- **UPDATED:** CLAUDE.md con nueva sección "S3 Gallery System"
+- **UPDATED:** docs/MULTIMEDIA_SYSTEM.md con arquitectura de galerías
+- **ADDED:** Comparativa ProfileImage vs S3GalleryImage
+- **ADDED:** Ejemplos de uso en ProductGalleryHeader y FullscreenGallery
+
 ## [1.2.0] - $(date '+%Y-%m-%d')
 
 ### 🚀 Added
