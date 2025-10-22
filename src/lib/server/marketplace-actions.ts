@@ -3,10 +3,11 @@
 import { getAllActiveAndPublishedProducts, getProductById, createReservation, generatePaymentLink } from '@/lib/graphql/operations';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
-import { revalidateTag } from 'next/cache';
+import { revalidateTag, unstable_cache } from 'next/cache';
 import outputs from '../../../amplify/outputs.json';
 import { getServerSession } from '@/utils/amplify-server-utils';
 import type { Schema } from '@/amplify/data/resource';
+import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 
 // SIGUIENDO EXACTAMENTE EL PATTERN DE provider-products-actions.ts
 interface ServerActionResponse<T = any> {
@@ -24,6 +25,8 @@ interface MarketplaceProduct {
   product_type: string;
   published: boolean;
   cover_image_url?: string;
+  image_url?: string[];
+  video_url?: string[];
   min_product_price?: number;
   preferences?: string[];
   destination?: Array<{
@@ -208,10 +211,15 @@ export async function getMarketplaceProductsAction(
         serverTotal: connection.total
       });
 
+      // Transform S3 paths to full URLs for images and videos
+      const itemsWithUrls = filteredItems.map((item: any) => transformPathsToUrls(item));
+
+      console.log('🔄 [S3 URLs] Transformed paths to URLs for', itemsWithUrls.length, 'products');
+
       return {
         success: true,
         data: {
-          items: filteredItems,
+          items: itemsWithUrls,
           nextToken: params.searchTerm ? undefined : connection.nextToken, // No pagination when searching
           total: connection.total || filteredItems.length
         }
@@ -370,9 +378,14 @@ export async function getMarketplaceProductAction(
     if (product && product.published) {
       console.log('✅ [SUCCESS] Marketplace product loaded:', product.id);
 
+      // Transform S3 paths to full URLs for images and videos
+      const productWithUrls = transformPathsToUrls(product);
+
+      console.log('🔄 [S3 URLs] Transformed paths to URLs for product:', productId);
+
       return {
         success: true,
-        data: product,
+        data: productWithUrls,
         cached: true
       };
     }

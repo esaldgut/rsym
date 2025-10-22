@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { S3GalleryImage } from '@/components/ui/S3GalleryImage';
+import { useCarousel } from '@/hooks/useCarousel';
+import { CarouselDots } from '@/components/ui/CarouselDots';
 
 interface ProductGalleryHeaderProps {
   images: (string | undefined)[];
@@ -25,8 +27,24 @@ export function ProductGalleryHeader({
     ...validVideos.map(vid => ({ type: 'video' as const, url: vid }))
   ];
 
-  const [currentIndex, setCurrentIndex] = useState(0);
+  // Carousel auto-play
+  const {
+    currentIndex,
+    isPlaying,
+    goToNext,
+    goToPrevious,
+    goToIndex,
+    togglePlayPause,
+    pauseAutoPlay,
+    resumeAutoPlay
+  } = useCarousel({
+    totalItems: mediaItems.length,
+    interval: 5000,  // 5 segundos entre cambios
+    autoPlay: true
+  });
+
   const [showHint, setShowHint] = useState(false);
+  const [isManualNavigation, setIsManualNavigation] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
 
@@ -46,17 +64,12 @@ export function ProductGalleryHeader({
 
   const currentMedia = mediaItems[currentIndex];
 
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? mediaItems.length - 1 : prev - 1));
-  };
-
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev === mediaItems.length - 1 ? 0 : prev + 1));
-  };
-
-  const goToIndex = (index: number) => {
-    setCurrentIndex(index);
-  };
+  // Reset manual navigation flag when auto-play advances
+  useEffect(() => {
+    if (isPlaying) {
+      setIsManualNavigation(false);
+    }
+  }, [currentIndex, isPlaying]);
 
   // Touch handlers for mobile swipe
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -74,6 +87,9 @@ export function ProductGalleryHeader({
     const threshold = 50;
 
     if (Math.abs(distance) > threshold) {
+      // Pausar auto-play cuando usuario navega manualmente
+      setIsManualNavigation(true);
+      pauseAutoPlay();
       if (distance > 0) {
         goToNext();
       } else {
@@ -112,7 +128,9 @@ export function ProductGalleryHeader({
               path={currentMedia.url}
               alt={`${alt} ${currentIndex + 1}`}
               objectFit="cover"
-              className="transition-transform duration-300 group-hover:scale-105"
+              className={`group-hover:scale-105 ${
+                isManualNavigation ? '' : 'transition-transform duration-150'
+              }`}
             />
 
             {/* Hint overlay - appears on hover for images */}
@@ -135,6 +153,20 @@ export function ProductGalleryHeader({
             controls
             className="w-full h-full object-cover"
             playsInline
+            autoPlay
+            onPlay={() => {
+              // Pausar auto-play del carrusel cuando video empieza
+              pauseAutoPlay();
+            }}
+            onEnded={() => {
+              // Cuando video termina, avanzar al siguiente y reanudar auto-play
+              resumeAutoPlay();
+              goToNext();
+            }}
+            onPause={(e) => {
+              // Si usuario pausa video manualmente, no hacer nada
+              // (el auto-play ya está pausado desde onPlay)
+            }}
           >
             Tu navegador no soporta el elemento de video.
           </video>
@@ -146,6 +178,8 @@ export function ProductGalleryHeader({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setIsManualNavigation(true);
+                pauseAutoPlay();  // Pausar cuando usuario navega manualmente
                 goToPrevious();
               }}
               className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 hover:bg-white rounded-full flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110"
@@ -159,6 +193,8 @@ export function ProductGalleryHeader({
             <button
               onClick={(e) => {
                 e.stopPropagation();
+                setIsManualNavigation(true);
+                pauseAutoPlay();  // Pausar cuando usuario navega manualmente
                 goToNext();
               }}
               className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 bg-white/95 hover:bg-white rounded-full flex items-center justify-center shadow-xl transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 hover:scale-110"
@@ -169,6 +205,42 @@ export function ProductGalleryHeader({
               </svg>
             </button>
           </>
+        )}
+
+        {/* Carousel controls - dots and play/pause */}
+        {mediaItems.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full">
+            {/* Play/Pause button */}
+            <button
+              onClick={togglePlayPause}
+              className="w-8 h-8 flex items-center justify-center hover:scale-110 transition-transform"
+              aria-label={isPlaying ? 'Pausar carrusel' : 'Reproducir carrusel'}
+            >
+              {isPlaying ? (
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              ) : (
+                <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                </svg>
+              )}
+            </button>
+
+            {/* Dots navigation */}
+            <CarouselDots
+              total={mediaItems.length}
+              current={currentIndex}
+              onDotClick={goToIndex}
+              dotSize="md"
+              variant="light"
+            />
+
+            {/* Counter */}
+            <span className="text-white text-xs font-medium">
+              {currentIndex + 1}/{mediaItems.length}
+            </span>
+          </div>
         )}
 
         {/* Media type badge for videos */}

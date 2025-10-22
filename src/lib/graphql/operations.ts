@@ -107,6 +107,8 @@ export const getAllActiveAndPublishedProducts = /* GraphQL */ `
         product_type
         published
         cover_image_url
+        image_url
+        video_url
         min_product_price
         preferences
         destination {

@@ -18,6 +18,8 @@ interface MarketplaceProduct {
   product_type: string;
   published: boolean;
   cover_image_url?: string;
+  image_url?: string[];
+  video_url?: string[];
   min_product_price?: number;
   preferences?: string[];
   destination?: Array<{
