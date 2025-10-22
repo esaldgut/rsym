@@ -3833,7 +3833,7 @@
     "@smithy/types" "^4.8.0"
     tslib "^2.6.2"
 
-"@aws-sdk/credential-providers@^3", "@aws-sdk/credential-providers@^3.750.0", "@aws-sdk/credential-providers@^3.873.0":
+"@aws-sdk/credential-providers@^3", "@aws-sdk/credential-providers@^3.750.0", "@aws-sdk/credential-providers@^3.806.0", "@aws-sdk/credential-providers@^3.873.0":
   version "3.914.0"
   resolved "https://registry.npmjs.org/@aws-sdk/credential-providers/-/credential-providers-3.914.0.tgz#5dfb345bf362f530c841e409c3870dbde1bdd474"
   integrity sha512-FWume1iF2VkC065NmyxGnh4cyTHeLBQrzswX+lxvnHy3N27CGArmzcW6AUAIRmQasFeEtmPPcRKCv4BXGS9EXA==
@@ -4292,7 +4292,7 @@
     "@smithy/types" "^4.1.0"
     tslib "^2.6.2"
 
-"@aws-sdk/types@3.914.0", "@aws-sdk/types@^3.222.0", "@aws-sdk/types@^3.734.0":
+"@aws-sdk/types@3.914.0", "@aws-sdk/types@^3.222.0", "@aws-sdk/types@^3.734.0", "@aws-sdk/types@^3.804.0":
   version "3.914.0"
   resolved "https://registry.npmjs.org/@aws-sdk/types/-/types-3.914.0.tgz#175cf9a4b2267aafbb110fe1316e6827de951fdb"
   integrity sha512-kQWPsRDmom4yvAfyG6L1lMmlwnTzm1XwMHOU+G5IFlsP4YEaMtXidDzW/wiivY0QFrhfCz/4TVmu0a2aPU57ug==
@@ -4424,6 +4424,16 @@
     "@smithy/types" "^4.8.0"
     fast-xml-parser "5.2.5"
     tslib "^2.6.2"
+
+"@aws/amazon-location-utilities-auth-helper@^1.2.3":
+  version "1.2.3"
+  resolved "https://registry.npmjs.org/@aws/amazon-location-utilities-auth-helper/-/amazon-location-utilities-auth-helper-1.2.3.tgz#2a339a9f6d73eb72ec49737d737b587c7887b42e"
+  integrity sha512-PT/blrPq2z8KPbbnQjn2BuqOlYyktpX65nTosTXHg4D3DC9kCA7z701fwZ3TFLwrJywEO9IlddoaGnfmW0+gIw==
+  dependencies:
+    "@aws-crypto/sha256-js" "^5.2.0"
+    "@aws-sdk/credential-providers" "^3.806.0"
+    "@aws-sdk/types" "^3.804.0"
+    "@smithy/util-hex-encoding" "^4.0.0"
 
 "@aws/lambda-invoke-store@^0.0.1":
   version "0.0.1"
@@ -7668,7 +7678,7 @@
   dependencies:
     tslib "^2.6.2"
 
-"@smithy/util-hex-encoding@^4.2.0":
+"@smithy/util-hex-encoding@^4.0.0", "@smithy/util-hex-encoding@^4.2.0":
   version "4.2.0"
   resolved "https://registry.npmjs.org/@smithy/util-hex-encoding/-/util-hex-encoding-4.2.0.tgz#1c22ea3d1e2c3a81ff81c0a4f9c056a175068a7b"
   integrity sha512-CCQBwJIvXMLKxVbO88IukazJD9a4kQ9ZN7/UMGBjBcJYvatpWk+9g870El4cB8/EJxfe+k+y0GmR9CAzkF+Nbw==
@@ -10338,9 +10348,9 @@ get-symbol-description@^1.1.0:
     get-intrinsic "^1.2.6"
 
 get-tsconfig@^4.10.0, get-tsconfig@^4.7.5:
-  version "4.12.0"
-  resolved "https://registry.npmjs.org/get-tsconfig/-/get-tsconfig-4.12.0.tgz#cfb3a4446a2abd324a205469e8bda4e7e44cbd35"
-  integrity sha512-LScr2aNr2FbjAjZh2C6X6BxRx1/x+aTDExct/xyq2XKbYOiG5c0aK7pMsSuyc0brz3ibr/lbQiHD9jzt4lccJw==
+  version "4.13.0"
+  resolved "https://registry.npmjs.org/get-tsconfig/-/get-tsconfig-4.13.0.tgz#fcdd991e6d22ab9a600f00e91c318707a5d9a0d7"
+  integrity sha512-1VKTZJCwBrvbd+Wn3AOgQP/2Av+TfTCOlE4AcRJE72W1ksZXbAx8PPBR9RzgTeSPzlPMHrbANMH3LbltH73wxQ==
   dependencies:
     resolve-pkg-maps "^1.0.0"
 

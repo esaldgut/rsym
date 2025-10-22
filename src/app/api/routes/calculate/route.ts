@@ -1,17 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   LocationClient,
-  CalculateRouteCommand,
-  OptimizeWaypointsCommand
+  CalculateRouteCommand
 } from '@aws-sdk/client-location';
+import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 
-// Initialize AWS Location Service client
+/**
+ * AWS Location Service Client - Configuración de Credenciales
+ *
+ * ARQUITECTURA DE SEGURIDAD DE DOS CAPAS:
+ *
+ * Capa 1: AUTENTICACIÓN DE USUARIO (JWT)
+ *   - Usuarios se autentican con Cognito User Pool
+ *   - API route valida JWT antes de procesar requests
+ *   - Implementado en el handler POST más abajo
+ *
+ * Capa 2: AUTORIZACIÓN DE SERVICIO AWS (IAM)
+ *   - El servidor usa CREDENCIALES AWS SEPARADAS (no las del usuario)
+ *   - SDK usa Default Credential Provider Chain:
+ *
+ *     EN DESARROLLO LOCAL:
+ *     1. Variables de entorno (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+ *     2. ~/.aws/credentials file (perfil 'default')
+ *     3. ~/.aws/config para región
+ *
+ *     EN PRODUCCIÓN (ECS FARGATE):
+ *     1. ECS Task IAM Role (auto-detectado por SDK)
+ *     2. Copilot crea automáticamente el Task Role
+ *     3. Sin credenciales hardcodeadas en código
+ *
+ * BENEFICIOS:
+ * ✅ Separación de concerns: Autenticación ≠ Autorización de servicio
+ * ✅ Seguridad: Usuarios nunca ven credenciales AWS del servidor
+ * ✅ Auditoría: Logs rastrean qué usuario solicitó qué operación
+ * ✅ Escalabilidad: Fácil ajustar permisos independientemente
+ */
 const locationClient = new LocationClient({
-  region: process.env.AWS_REGION || 'us-west-2',
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || ''
-  }
+  region: process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-west-2'
 });
 
 const ROUTE_CALCULATOR_NAME = process.env.AWS_ROUTE_CALCULATOR_NAME || 'YaanTourismRouteCalculator';
@@ -47,6 +72,41 @@ interface RouteCalculationResponse {
 
 export async function POST(request: NextRequest): Promise<NextResponse<RouteCalculationResponse>> {
   try {
+    // ========================================================================
+    // PASO 1: AUTENTICACIÓN - Validar JWT del Usuario (Cognito User Pool)
+    // ========================================================================
+    console.log('[API /api/routes/calculate] 🔐 Validando autenticación JWT...');
+
+    const user = await getAuthenticatedUser();
+
+    if (!user) {
+      console.log('[API /api/routes/calculate] ❌ Usuario no autenticado - rechazando request');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'No autenticado. Por favor inicia sesión para calcular rutas.'
+        },
+        { status: 401 }
+      );
+    }
+
+    console.log('[API /api/routes/calculate] ✅ Usuario autenticado:', {
+      userId: user.userId,
+      userType: user.userType,
+      email: user.attributes?.email || 'N/A'
+    });
+
+    // ========================================================================
+    // PASO 2: AUTORIZACIÓN - Verificar permisos (todos los usuarios pueden calcular rutas)
+    // ========================================================================
+    // NOTA: A diferencia de los endpoints de upload, el cálculo de rutas está
+    // disponible para todos los tipos de usuario autenticados (admin, provider,
+    // influencer, traveler). No se requiere aprobación especial.
+    console.log('[API /api/routes/calculate] ✅ Usuario autorizado para calcular rutas');
+
+    // ========================================================================
+    // PASO 3: PROCESAMIENTO - Calcular ruta usando credenciales AWS del servidor
+    // ========================================================================
     // Parse request body
     const body: RouteCalculationRequest = await request.json();
     const { waypoints, optimize = false, travelMode = 'Car' } = body;
@@ -81,53 +141,11 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
       );
     }
 
-    let optimizedWaypointOrder: number[] | undefined;
-    let waypointsToUse = waypoints;
+    console.log('[API /api/routes/calculate] 🗺️ Calculando ruta para', waypoints.length, 'waypoints usando AWS Location Service');
 
-    // Optimize waypoints if requested and more than 2 waypoints
-    if (optimize && waypoints.length > 2) {
-      try {
-        const startPosition = waypoints[0].position;
-        const endPosition = waypoints[waypoints.length - 1].position;
-        const middleWaypoints = waypoints.slice(1, -1);
-
-        if (middleWaypoints.length > 0) {
-          const optimizeCommand = new OptimizeWaypointsCommand({
-            CalculatorName: ROUTE_CALCULATOR_NAME,
-            DeparturePosition: startPosition,
-            DestinationPosition: endPosition,
-            WaypointPositions: middleWaypoints.map((wp) => wp.position),
-            TravelMode: travelMode,
-            OptimizeFor: 'FastestRoute'
-          });
-
-          const optimizeResponse = await locationClient.send(optimizeCommand);
-
-          if (optimizeResponse.OptimizedWaypoints) {
-            // Reconstruct waypoints in optimized order
-            optimizedWaypointOrder = optimizeResponse.OptimizedWaypoints.map((ow) => {
-              const originalIndex = middleWaypoints.findIndex(
-                (wp) => wp.position[0] === ow.Position![0] && wp.position[1] === ow.Position![1]
-              );
-              return originalIndex + 1; // +1 because we excluded the first waypoint
-            });
-
-            waypointsToUse = [
-              waypoints[0],
-              ...optimizeResponse.OptimizedWaypoints.map((ow, index) => ({
-                position: ow.Position as [number, number],
-                place: middleWaypoints[optimizedWaypointOrder![index] - 1]?.place,
-                placeSub: middleWaypoints[optimizedWaypointOrder![index] - 1]?.placeSub
-              })),
-              waypoints[waypoints.length - 1]
-            ];
-          }
-        }
-      } catch (optimizeError) {
-        console.error('Waypoint optimization failed, using original order:', optimizeError);
-        // Continue with original order if optimization fails
-      }
-    }
+    // NOTE: OptimizeWaypointsCommand no está disponible en @aws-sdk/client-location v3.873.0
+    // Por ahora, usamos los waypoints en el orden proporcionado
+    const waypointsToUse = waypoints;
 
     // Calculate route through all waypoints
     const departurePosition = waypointsToUse[0].position;
@@ -135,6 +153,13 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
     const intermediateWaypoints = waypointsToUse
       .slice(1, -1)
       .map((wp) => wp.position);
+
+    console.log('[API /api/routes/calculate] Route params:', {
+      departure: departurePosition,
+      destination: destinationPosition,
+      intermediates: intermediateWaypoints.length,
+      calculator: ROUTE_CALCULATOR_NAME
+    });
 
     const calculateCommand = new CalculateRouteCommand({
       CalculatorName: ROUTE_CALCULATOR_NAME,
@@ -172,13 +197,18 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
       arrivalTime: index > 0 ? new Date(Date.now() + index * 3600000).toISOString() : undefined // Example arrival times
     }));
 
+    console.log('[API /api/routes/calculate] Route calculated successfully:', {
+      distance: Math.round(totalDistance * 10) / 10,
+      duration: Math.round(totalDuration),
+      geometryPoints: routeGeometry.length
+    });
+
     return NextResponse.json({
       success: true,
       data: {
         totalDistance: Math.round(totalDistance * 10) / 10, // Round to 1 decimal
         totalDuration: Math.round(totalDuration),
         routeGeometry,
-        ...(optimizedWaypointOrder && { optimizedOrder: optimizedWaypointOrder }),
         waypoints: responseWaypoints
       }
     });

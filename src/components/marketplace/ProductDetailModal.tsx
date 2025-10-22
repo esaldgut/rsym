@@ -5,7 +5,7 @@ import { ProductGalleryHeader } from './ProductGalleryHeader';
 import { FullscreenGallery } from './FullscreenGallery';
 import { SeasonCard } from './SeasonCard';
 import { ProductReviews } from './ProductReviews';
-import { AmazonLocationMap } from './maps/AmazonLocationMap';
+import { HybridProductMap } from './maps/HybridProductMap';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 
 interface MarketplaceProduct {
@@ -20,10 +20,29 @@ interface MarketplaceProduct {
   min_product_price?: number;
   preferences?: string[];
   destination?: Array<{
+    id?: string;
     place?: string;
     placeSub?: string;
-    coordinates?: number[];
-    complementaryDescription?: string;
+    coordinates?: {
+      latitude?: number;
+      longitude?: number;
+    };
+    complementary_description?: string;
+  }>;
+  departures?: Array<{
+    id?: string;
+    days?: string[];
+    specific_dates?: string[];
+    origin?: Array<{
+      id?: string;
+      place?: string;
+      placeSub?: string;
+      coordinates?: {
+        latitude?: number;
+        longitude?: number;
+      };
+      complementary_description?: string;
+    }>;
   }>;
   origin?: Array<{
     place?: string;
@@ -488,7 +507,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                           </div>
                           <h2 className="text-2xl font-bold text-gray-900">Mapa de Ruta</h2>
                         </div>
-                        <AmazonLocationMap
+                        <HybridProductMap
                           destinations={product.destination}
                           productType={product.product_type as 'circuit' | 'package'}
                           productName={product.name}
@@ -503,7 +522,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
 
           {/* Sticky lateral navigation (desktop only) */}
           <div className="hidden lg:block absolute left-8 top-1/2 -translate-y-1/2 z-40">
-            <div className="flex flex-col gap-4 bg-white/95 backdrop-blur-sm rounded-full py-4 px-2 shadow-xl border border-gray-200">
+            <div className="flex flex-col gap-4 bg-white/90 backdrop-blur-sm rounded-full py-4 px-2 shadow-sm border border-gray-200/50">
               {SECTIONS.map((section) => {
                 // Only show section nav if that section exists in the product
                 const shouldShow =
@@ -528,7 +547,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                     aria-label={`Ir a ${section.label}`}
                   >
                     <div
-                      className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                      className={`w-2 h-2 rounded-full transition-all duration-300 ${
                         isActive
                           ? 'bg-gradient-to-r from-pink-500 to-purple-600 scale-125 shadow-lg'
                           : 'bg-gray-300 hover:bg-gray-400 hover:scale-110'
@@ -537,9 +556,9 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
 
                     {/* Tooltip */}
                     <div className="absolute left-full ml-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap">
-                      <div className="bg-gray-900 text-white text-xs font-medium px-3 py-2 rounded-lg shadow-xl">
+                      <div className="bg-white/90 backdrop-blur-sm text-gray-900 text-xs font-medium px-3 py-2 rounded-lg shadow-sm border border-gray-200/50">
                         {section.label}
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-gray-900 transform rotate-45"></div>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 w-2 h-2 bg-white/90 backdrop-blur-sm border-l border-b border-gray-200/50 transform rotate-45"></div>
                       </div>
                     </div>
                   </button>

@@ -112,8 +112,29 @@ export const getAllActiveAndPublishedProducts = /* GraphQL */ `
         min_product_price
         preferences
         destination {
+          id
           place
           placeSub
+          coordinates {
+            latitude
+            longitude
+          }
+          complementary_description
+        }
+        departures {
+          id
+          days
+          specific_dates
+          origin {
+            id
+            place
+            placeSub
+            coordinates {
+              latitude
+              longitude
+            }
+            complementary_description
+          }
         }
         seasons {
           id
@@ -686,8 +707,29 @@ export const getAllProductsByEmail = /* GraphQL */ `
           allotment_remain
         }
         destination {
+          id
           place
           placeSub
+          coordinates {
+            latitude
+            longitude
+          }
+          complementary_description
+        }
+        departures {
+          id
+          days
+          specific_dates
+          origin {
+            id
+            place
+            placeSub
+            coordinates {
+              latitude
+              longitude
+            }
+            complementary_description
+          }
         }
         min_product_price
       }
@@ -870,12 +912,28 @@ export const getProductsByType = /* GraphQL */ `
           }
         }
         destination {
+          id
           place
           placeSub
-          complementary_description
           coordinates {
             latitude
             longitude
+          }
+          complementary_description
+        }
+        departures {
+          id
+          days
+          specific_dates
+          origin {
+            id
+            place
+            placeSub
+            coordinates {
+              latitude
+              longitude
+            }
+            complementary_description
           }
         }
         min_product_price

@@ -5,14 +5,39 @@ import { useState } from 'react';
 interface Destination {
   place?: string;
   placeSub?: string;
-  coordinates?: number[] | [number, number];
+  coordinates?: number[] | [number, number] | { latitude?: number; longitude?: number };
   complementaryDescription?: string;
+  complementary_description?: string; // Alias para compatibilidad con GraphQL
 }
 
 interface ProductMapProps {
   destinations: Destination[];
   productType: 'circuit' | 'package';
   productName: string;
+}
+
+/**
+ * Helper function para normalizar coordenadas a formato [lng, lat]
+ * Acepta arrays [lng, lat] o Point objects {latitude, longitude}
+ */
+function normalizeCoordinates(
+  coords: number[] | [number, number] | { latitude?: number; longitude?: number } | undefined
+): [number, number] | undefined {
+  if (!coords) return undefined;
+
+  // Si ya es un array, retornar directamente
+  if (Array.isArray(coords) && coords.length === 2) {
+    return coords as [number, number];
+  }
+
+  // Si es un Point object, convertir a array [lng, lat]
+  if (typeof coords === 'object' && 'latitude' in coords && 'longitude' in coords) {
+    if (typeof coords.latitude === 'number' && typeof coords.longitude === 'number') {
+      return [coords.longitude, coords.latitude];
+    }
+  }
+
+  return undefined;
 }
 
 export function ProductMap({ destinations, productType, productName }: ProductMapProps) {
@@ -188,16 +213,19 @@ export function ProductMap({ destinations, productType, productName }: ProductMa
                   {destination.placeSub && (
                     <p className="text-sm text-gray-600 truncate mt-1">{destination.placeSub}</p>
                   )}
-                  {destination.complementaryDescription && (
+                  {(destination.complementaryDescription || destination.complementary_description) && (
                     <p className="text-xs text-gray-500 mt-2 line-clamp-2">
-                      {destination.complementaryDescription}
+                      {destination.complementaryDescription || destination.complementary_description}
                     </p>
                   )}
-                  {destination.coordinates && destination.coordinates.length === 2 && (
-                    <p className="text-xs text-gray-400 mt-2 font-mono">
-                      {destination.coordinates[1]?.toFixed(4)}, {destination.coordinates[0]?.toFixed(4)}
-                    </p>
-                  )}
+                  {(() => {
+                    const normalizedCoords = normalizeCoordinates(destination.coordinates);
+                    return normalizedCoords ? (
+                      <p className="text-xs text-gray-400 mt-2 font-mono">
+                        {normalizedCoords[1]?.toFixed(4)}, {normalizedCoords[0]?.toFixed(4)}
+                      </p>
+                    ) : null;
+                  })()}
                 </div>
 
                 {/* Arrow indicator for circuits */}

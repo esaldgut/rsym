@@ -30,8 +30,29 @@ interface MarketplaceProduct {
   min_product_price?: number;
   preferences?: string[];
   destination?: Array<{
+    id?: string;
     place?: string;
     placeSub?: string;
+    coordinates?: {
+      latitude?: number;
+      longitude?: number;
+    };
+    complementary_description?: string;
+  }>;
+  departures?: Array<{
+    id?: string;
+    days?: string[];
+    specific_dates?: string[];
+    origin?: Array<{
+      id?: string;
+      place?: string;
+      placeSub?: string;
+      coordinates?: {
+        latitude?: number;
+        longitude?: number;
+      };
+      complementary_description?: string;
+    }>;
   }>;
   seasons?: Array<{
     id: string;

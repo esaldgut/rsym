@@ -5,10 +5,14 @@ import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
 interface Destination {
+  id?: string;
   place?: string;
   placeSub?: string;
-  coordinates?: number[] | [number, number];
-  complementaryDescription?: string;
+  coordinates?: {
+    latitude?: number;
+    longitude?: number;
+  };
+  complementary_description?: string;
 }
 
 interface AmazonLocationMapProps {
@@ -38,7 +42,11 @@ export function AmazonLocationMap({ destinations, productType, productName }: Am
 
   // Filter valid destinations with coordinates
   const validDestinations = destinations.filter(
-    (d) => d.coordinates && Array.isArray(d.coordinates) && d.coordinates.length === 2
+    (d) =>
+      d.coordinates &&
+      typeof d.coordinates === 'object' &&
+      typeof d.coordinates.latitude === 'number' &&
+      typeof d.coordinates.longitude === 'number'
   );
 
   useEffect(() => {
@@ -60,9 +68,10 @@ export function AmazonLocationMap({ destinations, productType, productName }: Am
       try {
         // Get first destination as initial center
         const firstDest = validDestinations[0];
+        // Convert Point {latitude, longitude} to MapLibre [longitude, latitude]
         const initialCenter: [number, number] = [
-          firstDest.coordinates![0],
-          firstDest.coordinates![1]
+          firstDest.coordinates!.longitude!,
+          firstDest.coordinates!.latitude!
         ];
 
         // Map configuration
@@ -99,7 +108,7 @@ export function AmazonLocationMap({ destinations, productType, productName }: Am
             // Calculate route if circuit with multiple destinations
             if (productType === 'circuit' && validDestinations.length > 1) {
               const waypoints = validDestinations.map((dest) => ({
-                position: [dest.coordinates![0], dest.coordinates![1]] as [number, number],
+                position: [dest.coordinates!.longitude!, dest.coordinates!.latitude!] as [number, number],
                 place: dest.place,
                 placeSub: dest.placeSub
               }));
@@ -136,7 +145,7 @@ export function AmazonLocationMap({ destinations, productType, productName }: Am
             } else {
               // Just add markers for packages or single destinations
               const waypoints = validDestinations.map((dest) => ({
-                position: [dest.coordinates![0], dest.coordinates![1]] as [number, number],
+                position: [dest.coordinates!.longitude!, dest.coordinates!.latitude!] as [number, number],
                 place: dest.place,
                 placeSub: dest.placeSub
               }));
@@ -484,9 +493,9 @@ export function AmazonLocationMap({ destinations, productType, productName }: Am
                   {destination.placeSub && (
                     <p className="text-xs text-gray-600 mt-0.5">{destination.placeSub}</p>
                   )}
-                  {destination.complementaryDescription && (
+                  {destination.complementary_description && (
                     <p className="text-xs text-gray-500 mt-1 line-clamp-2">
-                      {destination.complementaryDescription}
+                      {destination.complementary_description}
                     </p>
                   )}
                 </div>
