@@ -1,0 +1,59 @@
+# CloudFormation Template para AWS Location Service IAM Permissions
+# Este addon otorga permisos al ECS Task Role para usar AWS Location Service
+
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, job, or workflow is being deployed to.
+  Name:
+    Type: String
+    Description: The name of the service, job, or workflow being deployed.
+
+Resources:
+  # IAM Policy para AWS Location Service
+  LocationServiceAccessPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      Description: !Sub 'Grants the ECS task role access to AWS Location Service for ${Name}'
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          # Permiso para calcular rutas
+          - Sid: AllowCalculateRoute
+            Effect: Allow
+            Action:
+              - geo:CalculateRoute
+            Resource:
+              - !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:route-calculator/YaanTourismRouteCalculator'
+
+          # Permisos adicionales para búsqueda de lugares (si se necesita en el futuro)
+          - Sid: AllowSearchPlaceIndex
+            Effect: Allow
+            Action:
+              - geo:SearchPlaceIndexForText
+              - geo:SearchPlaceIndexForPosition
+              - geo:SearchPlaceIndexForSuggestions
+            Resource:
+              - !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:place-index/*'
+
+          # Permisos para acceder a mapas y estilos (para tiles)
+          - Sid: AllowGetMapResources
+            Effect: Allow
+            Action:
+              - geo:GetMapStyleDescriptor
+              - geo:GetMapGlyphs
+              - geo:GetMapSprites
+              - geo:GetMapTile
+            Resource:
+              - !Sub 'arn:aws:geo:${AWS::Region}:${AWS::AccountId}:map/YaanEsri'
+
+Outputs:
+  # Exportar el ARN de la policy para que Copilot la adjunte al Task Role
+  LocationServiceAccessPolicyArn:
+    Description: ARN of the IAM policy that grants access to AWS Location Service
+    Value: !Ref LocationServiceAccessPolicy
+    Export:
+      Name: !Sub ${App}-${Env}-${Name}-LocationServiceAccessPolicyArn

@@ -3,7 +3,10 @@ import {
   LocationClient,
   CalculateRouteCommand
 } from '@aws-sdk/client-location';
-import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-identity';
+import { CognitoIdentityClient } from '@aws-sdk/client-cognito-identity';
+import { getAuthenticatedUser, getIdTokenServer } from '@/utils/amplify-server-utils';
+import config from '../../../../../amplify/outputs.json';
 
 /**
  * AWS Location Service Client - Configuración de Credenciales
@@ -15,31 +18,131 @@ import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
  *   - API route valida JWT antes de procesar requests
  *   - Implementado en el handler POST más abajo
  *
- * Capa 2: AUTORIZACIÓN DE SERVICIO AWS (IAM)
- *   - El servidor usa CREDENCIALES AWS SEPARADAS (no las del usuario)
- *   - SDK usa Default Credential Provider Chain:
+ * Capa 2: AUTORIZACIÓN DE SERVICIO AWS (IAM vía Cognito Identity Pool)
+ *   - PATTERN: Cognito Identity Pool credentials (igual que s3-actions.ts)
+ *   - SDK intercambia ID Token del usuario por credenciales temporales de AWS
+ *   - El Cognito Identity Pool Authenticated Role tiene permisos para geo:CalculateRoute
  *
- *     EN DESARROLLO LOCAL:
- *     1. Variables de entorno (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
- *     2. ~/.aws/credentials file (perfil 'default')
- *     3. ~/.aws/config para región
+ *   FLUJO DE CREDENCIALES:
+ *   1. Usuario autenticado → ID Token del Cognito User Pool
+ *   2. SDK intercambia ID Token → Credenciales temporales del Identity Pool
+ *   3. Credenciales temporales → Acceso a AWS Location Service
+ *   4. SDK auto-refresca credenciales cuando expiran (usando el ID Token)
  *
- *     EN PRODUCCIÓN (ECS FARGATE):
- *     1. ECS Task IAM Role (auto-detectado por SDK)
- *     2. Copilot crea automáticamente el Task Role
- *     3. Sin credenciales hardcodeadas en código
+ *   EN DESARROLLO Y PRODUCCIÓN:
+ *   - Mismo patrón funciona en ambos ambientes
+ *   - No requiere ~/.aws/credentials ni variables de entorno
+ *   - Auto-refresh automático por el SDK
+ *   - Credenciales de corta duración (1 hora, renovables)
  *
  * BENEFICIOS:
- * ✅ Separación de concerns: Autenticación ≠ Autorización de servicio
- * ✅ Seguridad: Usuarios nunca ven credenciales AWS del servidor
+ * ✅ Auto-refresh automático: SDK maneja expiración transparentemente
+ * ✅ Consistencia: Mismo pattern que s3-actions.ts
+ * ✅ Sin archivos externos: No depende de ~/.aws/credentials
+ * ✅ Seguridad: Credenciales temporales de corta duración
  * ✅ Auditoría: Logs rastrean qué usuario solicitó qué operación
- * ✅ Escalabilidad: Fácil ajustar permisos independientemente
+ * ✅ Simplicidad: Funciona igual en dev y producción
  */
-const locationClient = new LocationClient({
-  region: process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-west-2'
-});
 
 const ROUTE_CALCULATOR_NAME = process.env.AWS_ROUTE_CALCULATOR_NAME || 'YaanTourismRouteCalculator';
+const AWS_REGION = process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-west-2';
+
+/**
+ * Obtiene un LocationClient con credenciales del Cognito Identity Pool
+ * PATTERN: Idéntico a getS3Client() en s3-actions.ts para consistencia
+ *
+ * Este patrón utiliza el ID Token del usuario autenticado para obtener
+ * credenciales temporales del Cognito Identity Pool, que luego se usan
+ * para acceder a AWS Location Service.
+ *
+ * BENEFICIO CLAVE: El SDK AWS auto-refresca las credenciales cuando expiran,
+ * eliminando completamente el problema de "ExpiredTokenException".
+ */
+async function getLocationClient(): Promise<LocationClient> {
+  console.log('[API /api/routes/calculate] 🔑 Creando LocationClient con Cognito Identity Pool...');
+
+  const idToken = await getIdTokenServer();
+
+  if (!idToken) {
+    throw new Error('Token de autenticación requerido para calcular rutas');
+  }
+
+  console.log('[API /api/routes/calculate] ✅ ID Token obtenido, intercambiando por credenciales AWS...');
+
+  return new LocationClient({
+    region: config.auth.aws_region,
+    credentials: fromCognitoIdentityPool({
+      client: new CognitoIdentityClient({ region: config.auth.aws_region }),
+      identityPoolId: config.auth.identity_pool_id,
+      logins: {
+        [`cognito-idp.${config.auth.aws_region}.amazonaws.com/${config.auth.user_pool_id}`]: idToken
+      }
+    })
+  });
+}
+
+/**
+ * Ejecuta un comando de AWS con retry logic para robustez adicional
+ *
+ * NOTA: Con el patrón de Cognito Identity Pool, el auto-refresh automático
+ * hace que los errores de token expirado sean extremadamente raros. Esta
+ * función de retry se mantiene como capa adicional de seguridad, pero en
+ * la práctica ya no debería ser necesaria.
+ *
+ * @param command - Comando de AWS Location Service a ejecutar
+ * @param maxAttempts - Número máximo de intentos (default: 2)
+ * @returns Resultado del comando
+ */
+async function executeWithRetry<TOutput>(
+  command: CalculateRouteCommand,
+  maxAttempts = 2
+): Promise<TOutput> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      console.log(`[API /api/routes/calculate] 🔄 Intento ${attempt}/${maxAttempts} de ejecutar comando...`);
+
+      // Crear cliente fresco en cada intento (garantiza credenciales actualizadas)
+      const client = await getLocationClient();
+      const result = await client.send(command);
+
+      console.log(`[API /api/routes/calculate] ✅ Comando ejecutado exitosamente en intento ${attempt}`);
+      return result as TOutput;
+
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+      const errorMessage = lastError.message;
+
+      // Detectar errores de credenciales expiradas
+      const isTokenExpired =
+        errorMessage.includes('security token included in the request is expired') ||
+        errorMessage.includes('The security token') ||
+        errorMessage.includes('expired') ||
+        errorMessage.includes('ExpiredToken');
+
+      console.error(`[API /api/routes/calculate] ❌ Error en intento ${attempt}:`, {
+        message: errorMessage,
+        isTokenExpired,
+        willRetry: isTokenExpired && attempt < maxAttempts
+      });
+
+      // Si es error de token expirado Y aún tenemos intentos, reintentar
+      if (isTokenExpired && attempt < maxAttempts) {
+        console.log(`[API /api/routes/calculate] 🔁 Token expirado detectado, reintentando con credenciales frescas...`);
+        // Esperar 500ms antes de reintentar (dar tiempo al SDK para refresh)
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+
+      // Si no es error de token O ya no quedan intentos, lanzar el error
+      throw lastError;
+    }
+  }
+
+  // Esto no debería alcanzarse nunca, pero TypeScript lo requiere
+  throw lastError || new Error('Max attempts reached without success');
+}
 
 interface Waypoint {
   position: [number, number]; // [longitude, latitude]
@@ -172,7 +275,8 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
       DepartNow: true
     });
 
-    const calculateResponse = await locationClient.send(calculateCommand);
+    // Execute with automatic retry on token expiration
+    const calculateResponse = await executeWithRetry(calculateCommand);
 
     // Extract route geometry from all legs
     const routeGeometry: Array<[number, number]> = [];
@@ -213,12 +317,20 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
       }
     });
   } catch (error) {
-    console.error('Route calculation error:', error);
+    console.error('[API /api/routes/calculate] ❌ Route calculation error:', error);
 
     const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+
+    console.error('[API /api/routes/calculate] Error details:', {
+      name: errorName,
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : undefined
+    });
 
     // Check for specific AWS errors
     if (errorMessage.includes('ResourceNotFoundException')) {
+      console.error('[API /api/routes/calculate] 🔍 ResourceNotFoundException - Route calculator no encontrado');
       return NextResponse.json(
         {
           success: false,
@@ -229,6 +341,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
     }
 
     if (errorMessage.includes('AccessDeniedException')) {
+      console.error('[API /api/routes/calculate] 🔒 AccessDeniedException - Acceso denegado');
       return NextResponse.json(
         {
           success: false,
@@ -238,6 +351,35 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
       );
     }
 
+    // Check for 400 km distance limit error (Esri DataSource)
+    if (errorMessage.includes('400 km') || errorMessage.includes('distance between all route positions')) {
+      console.error('[API /api/routes/calculate] 📏 Distance limit exceeded - 400 km limit de Esri');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'La distancia total del circuito excede el límite de 400 km para cálculo de rutas. El mapa mostrará una aproximación con líneas rectas.',
+          errorCode: 'DISTANCE_LIMIT_EXCEEDED',
+          limit: 400
+        },
+        { status: 400 }
+      );
+    }
+
+    // Check for token expiration errors (should be rare after retry logic)
+    if (errorMessage.includes('security token') || errorMessage.includes('expired') || errorMessage.includes('ExpiredToken')) {
+      console.error('[API /api/routes/calculate] ⏰ Token expiration error después de reintentos - esto es inesperado');
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'AWS credentials expired and could not be refreshed. Please try again.',
+          errorCode: 'CREDENTIALS_EXPIRED'
+        },
+        { status: 500 }
+      );
+    }
+
+    // Generic error
+    console.error('[API /api/routes/calculate] ⚠️ Error genérico no categorizado');
     return NextResponse.json(
       {
         success: false,

@@ -32,9 +32,38 @@ const nextConfig = {
     '@aws-amplify/adapter-nextjs',
     'aws-amplify'
   ],
-  // Configuración de headers para cookies HttpOnly
+  // Configuración de headers para cookies HttpOnly y deep linking
   async headers() {
     return [
+      // Headers para archivos de verificación de deep linking (Android)
+      {
+        source: '/.well-known/assetlinks.json',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/json'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600'
+          }
+        ]
+      },
+      // Headers para archivos de verificación de deep linking (iOS)
+      {
+        source: '/.well-known/apple-app-site-association',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/json'
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=3600'
+          }
+        ]
+      },
+      // Headers generales para cookies HttpOnly
       {
         source: '/(.*)',
         headers: [

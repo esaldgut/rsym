@@ -2,11 +2,11 @@
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "YAANLocationServiceAccess",
+      "Sid": "YAANLocationServicePlaceIndexAccess",
       "Effect": "Allow",
       "Action": [
         "geo:SearchPlaceIndexForText",
-        "geo:SearchPlaceIndexForPosition", 
+        "geo:SearchPlaceIndexForPosition",
         "geo:GetPlace"
       ],
       "Resource": [
@@ -14,11 +14,23 @@
       ]
     },
     {
+      "Sid": "YAANLocationServiceRouteCalculatorAccess",
+      "Effect": "Allow",
+      "Action": [
+        "geo:CalculateRoute"
+      ],
+      "Resource": [
+        "arn:aws:geo:us-west-2:288761749126:route-calculator/YaanTourismRouteCalculator"
+      ]
+    },
+    {
       "Sid": "YAANLocationServiceList",
-      "Effect": "Allow", 
+      "Effect": "Allow",
       "Action": [
         "geo:ListPlaceIndexes",
-        "geo:DescribePlaceIndex"
+        "geo:DescribePlaceIndex",
+        "geo:ListRouteCalculators",
+        "geo:DescribeRouteCalculator"
       ],
       "Resource": "*",
       "Condition": {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ProfileImage } from '../../components/ui/ProfileImage';
 import { useRequireCompleteProfile } from '../../components/guards/ProfileCompletionGuard';
 import { createReservationWithPaymentAction, checkAvailabilityAction } from '@/lib/server/reservation-actions';
@@ -8,6 +9,9 @@ import type { ReservationInput } from '@/lib/graphql/types';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import { useMarketplacePagination } from '@/hooks/useMarketplacePagination';
 import { ProductDetailModal } from '@/components/marketplace/ProductDetailModal';
+import { validateDeepLinkParams } from '@/utils/validators';
+import { logger } from '@/utils/logger';
+import { getProductByIdAction } from '@/lib/server/marketplace-product-actions';
 
 // REPLICANDO LOS PATTERNS DE ProviderProductsDashboard.tsx + FeedGrid.tsx
 
@@ -21,6 +25,7 @@ interface MarketplaceProduct {
   image_url?: string[];
   video_url?: string[];
   min_product_price?: number;
+  itinerary?: string;
   preferences?: string[];
   destination?: Array<{
     place?: string;
@@ -64,6 +69,8 @@ export function MarketplaceClient({
     hasMetrics: !!initialMetrics
   });
 
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { checkProfile } = useRequireCompleteProfile();
 
   // Estado para el modal de reserva (PATRÓN DEL CÓDIGO ORIGINAL)
@@ -77,9 +84,9 @@ export function MarketplaceClient({
   const [isProcessingReservation, setIsProcessingReservation] = useState(false);
   const [isPending, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
 
-  // Estado para el modal de detalle de producto (NUEVO)
-  const [showProductDetail, setShowProductDetail] = useState(false);
+  // Estado para el modal de detalle de producto - ahora sincronizado con URL
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
+  const [isLoadingProduct, setIsLoadingProduct] = useState(false);
 
   // Estado para filtros avanzados
   const [filters, setFilters] = useState({
@@ -112,15 +119,109 @@ export function MarketplaceClient({
     initialMetrics
   });
 
-  // Manejar apertura de detalle de producto (NUEVO)
+  // Validar y derivar estado del modal desde URL query parameters
+  const validatedParams = validateDeepLinkParams(searchParams);
+  const productIdFromUrl = validatedParams.productId;
+  const productTypeFromUrl = validatedParams.productType;
+  const showProductDetail = Boolean(productIdFromUrl);
+
+  // Sincronizar producto seleccionado con URL al montar o cambiar URL
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProduct = async () => {
+      if (productIdFromUrl) {
+        // Buscar producto en la lista actual
+        const product = products.find(p => p.id === productIdFromUrl);
+        if (product) {
+          setSelectedProduct(product);
+          logger.deepLink('Producto encontrado desde URL', {
+            productId: product.id,
+            productName: product.name
+          });
+        } else {
+          // Si no está en la lista actual, intentar cargar individualmente
+          logger.deepLink('Producto no encontrado en lista, cargando individualmente', {
+            productId: productIdFromUrl
+          });
+
+          setIsLoadingProduct(true);
+          try {
+            const result = await getProductByIdAction(productIdFromUrl);
+
+            if (!cancelled) {
+              if (result.success && result.data?.product) {
+                setSelectedProduct(result.data.product as MarketplaceProduct);
+                logger.deepLink('Producto cargado exitosamente', {
+                  productId: result.data.product.id,
+                  productName: result.data.product.name
+                });
+              } else {
+                setSelectedProduct(null);
+                toastManager.error(result.error || 'Producto no encontrado');
+                logger.warn('No se pudo cargar el producto', {
+                  productId: productIdFromUrl,
+                  error: result.error
+                });
+              }
+              setIsLoadingProduct(false);
+            }
+          } catch (error) {
+            if (!cancelled) {
+              setSelectedProduct(null);
+              setIsLoadingProduct(false);
+              logger.error('Error al cargar producto', {
+                productId: productIdFromUrl,
+                error: error instanceof Error ? error.message : 'Error desconocido'
+              });
+            }
+          }
+        }
+      } else {
+        setSelectedProduct(null);
+        setIsLoadingProduct(false);
+      }
+    };
+
+    loadProduct();
+
+    // Cleanup function para evitar updates en componente desmontado
+    return () => {
+      cancelled = true;
+    };
+  }, [productIdFromUrl, products]);
+
+  // Manejar apertura de detalle de producto - actualiza URL
   const handleOpenProductDetail = (product: MarketplaceProduct) => {
+    logger.deepLink('Abriendo producto modal', {
+      productId: product.id,
+      productType: product.product_type
+    });
+
+    // Actualizar URL con query parameters
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('product', product.id);
+    params.set('type', product.product_type);
+
+    // Usar replace para no agregar entrada al historial
+    router.replace(`/marketplace?${params.toString()}`, { scroll: false });
+
     setSelectedProduct(product);
-    setShowProductDetail(true);
   };
 
-  // Manejar cierre de detalle de producto (NUEVO)
+  // Manejar cierre de detalle de producto - limpia URL
   const handleCloseProductDetail = () => {
-    setShowProductDetail(false);
+    logger.deepLink('Cerrando producto modal');
+
+    // Limpiar query parameters de la URL
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('product');
+    params.delete('type');
+
+    // Actualizar URL sin los parámetros del producto
+    const newUrl = params.toString() ? `/marketplace?${params.toString()}` : '/marketplace';
+    router.replace(newUrl, { scroll: false });
+
     setTimeout(() => setSelectedProduct(null), 300); // Delay para animación
   };
 
@@ -494,16 +595,33 @@ export function MarketplaceClient({
           </>
         ) : null}
 
-        {/* Modal de detalle de producto (NUEVO) */}
-        {showProductDetail && selectedProduct && (
-          <ProductDetailModal
-            product={selectedProduct}
-            onClose={handleCloseProductDetail}
-            onReserve={() => {
-              handleCloseProductDetail();
-              handleReserveExperience(selectedProduct);
-            }}
-          />
+        {/* Modal de detalle de producto con loading state */}
+        {showProductDetail && (
+          <>
+            {isLoadingProduct ? (
+              // Loading skeleton para el modal
+              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white rounded-2xl p-8 max-w-md">
+                  <div className="animate-pulse">
+                    <div className="h-8 bg-gray-300 rounded mb-4 w-3/4"></div>
+                    <div className="h-64 bg-gray-200 rounded mb-4"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded mb-2 w-5/6"></div>
+                    <div className="h-4 bg-gray-200 rounded w-4/6"></div>
+                  </div>
+                </div>
+              </div>
+            ) : selectedProduct ? (
+              <ProductDetailModal
+                product={selectedProduct}
+                onClose={handleCloseProductDetail}
+                onReserve={() => {
+                  handleCloseProductDetail();
+                  handleReserveExperience(selectedProduct);
+                }}
+              />
+            ) : null}
+          </>
         )}
 
         {/* Modal de reserva (PATRÓN ORIGINAL MANTENIDO) */}

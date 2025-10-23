@@ -70,6 +70,38 @@ class SecureLogger {
     const status = success ? '✅' : '❌';
     console.info(`[GraphQL] ${status} ${operation}`);
   }
+
+  deepLink(message: string, data?: LogData) {
+    if (!this.isDevelopment) return;
+    console.info(`🔗 [DeepLink] ${message}`, data ? this.sanitizeData(data) : '');
+  }
+
+  performance(operation: string, duration: number) {
+    if (!this.isDevelopment) return;
+    const emoji = duration > 1000 ? '🐌' : '⚡';
+    console.info(`${emoji} [Performance] ${operation}: ${duration.toFixed(2)}ms`);
+  }
 }
 
 export const logger = new SecureLogger();
+
+// Helper para medir performance
+export function measurePerformance<T>(
+  operation: string,
+  fn: () => T | Promise<T>
+): T | Promise<T> {
+  const start = performance.now();
+
+  const result = fn();
+
+  if (result instanceof Promise) {
+    return result.finally(() => {
+      const duration = performance.now() - start;
+      logger.performance(operation, duration);
+    });
+  }
+
+  const duration = performance.now() - start;
+  logger.performance(operation, duration);
+  return result;
+}

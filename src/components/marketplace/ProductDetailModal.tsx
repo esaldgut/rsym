@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ProductGalleryHeader } from './ProductGalleryHeader';
+import { ProductGalleryHeader, ProductGalleryHeaderHandle } from './ProductGalleryHeader';
 import { FullscreenGallery } from './FullscreenGallery';
 import { SeasonCard } from './SeasonCard';
 import { ProductReviews } from './ProductReviews';
 import { HybridProductMap } from './maps/HybridProductMap';
 import { ProfileImage } from '@/components/ui/ProfileImage';
+import { ItineraryCard } from './ItineraryCard';
 
 interface MarketplaceProduct {
   id: string;
@@ -88,6 +89,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
   const [activeSection, setActiveSection] = useState<SectionId>('descripcion');
   const [selectedSeasonIndex, setSelectedSeasonIndex] = useState(0);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const galleryRef = useRef<ProductGalleryHeaderHandle>(null);
 
   // Section refs for intersection observer
   const sectionRefs = useRef<Record<SectionId, HTMLDivElement | null>>({
@@ -163,10 +165,16 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
   };
 
   const handleOpenFullscreenGallery = () => {
+    console.log('[ProductDetailModal] 🖼️ Abriendo galería fullscreen');
+    // Pause the ProductGalleryHeader carousel when opening fullscreen
+    galleryRef.current?.pause();
     setShowFullscreenGallery(true);
   };
 
   const handleCloseFullscreenGallery = () => {
+    console.log('[ProductDetailModal] 🔙 Cerrando galería fullscreen');
+    // Resume the ProductGalleryHeader carousel when closing fullscreen
+    galleryRef.current?.resume();
     setShowFullscreenGallery(false);
   };
 
@@ -227,6 +235,7 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
             {/* Gallery Header - Compacta y profesional */}
             <div className="relative h-72 sm:h-80 md:h-96">
               <ProductGalleryHeader
+                ref={galleryRef}
                 images={allImages}
                 videos={allVideos}
                 alt={product.name}
@@ -371,11 +380,10 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                             {product.product_type === 'circuit' ? 'Itinerario Día a Día' : 'Actividades Incluidas'}
                           </h2>
                         </div>
-                        <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
-                          <pre className="whitespace-pre-wrap text-gray-700 font-sans leading-relaxed text-base">
-                            {product.itinerary}
-                          </pre>
-                        </div>
+                        <ItineraryCard
+                          itinerary={product.itinerary}
+                          productType={product.product_type}
+                        />
                       </div>
                     </section>
                   )}

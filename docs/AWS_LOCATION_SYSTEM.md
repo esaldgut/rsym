@@ -2,35 +2,62 @@
 
 ## Documentación Técnica Completa
 
+**Última Actualización:** 2025-10-23 (v2.0.1)
+**Estado:** ✅ Sistema completamente operacional con patrón Cognito Identity Pool
+
 ### 📍 Descripción General
 
-El **Sistema AWS Location YAAN** es una implementación enterprise-grade que integra AWS Location Service con la plataforma YAAN para proporcionar capacidades avanzadas de geocodificación, búsqueda de lugares y mapeo automático de coordenadas para productos turísticos (circuitos y paquetes).
+El **Sistema AWS Location YAAN** es una implementación enterprise-grade que integra AWS Location Service con la plataforma YAAN para proporcionar:
+
+1. **Búsqueda de Lugares** - Geocodificación y place search con AWS Location Place Index
+2. **Mapas Interactivos** - Visualización de rutas con autenticación Cognito
+3. **Cálculo de Rutas** - Optimización de circuitos turísticos con Route Calculator
+
+**Recursos AWS utilizados:**
+- `YAANPlaceIndex` (Esri) - Búsqueda de lugares
+- `YaanTourismRouteCalculator` (Esri) - Cálculo de rutas
+- `YaanEsri` (Esri) - Map tiles para visualización
+
+**Ver también:**
+- [CHANGELOG v2.0.1](/CHANGELOG.md#201---2025-10-23) - Fix de ExpiredTokenException
+- [LOCATION-SERVICE-SETUP.md](/LOCATION-SERVICE-SETUP.md) - Configuración IAM
+- [CLAUDE.md](/CLAUDE.md) - Sección "AWS Location Services - Interactive Maps"
 
 ### 🏗️ Arquitectura del Sistema
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    YAAN Platform Frontend                  │
-├─────────────────────────────────────────────────────────────┤
-│  LocationMultiSelector.tsx                                 │
-│  ├── LocationSearch.tsx                                    │
-│  └── AWS Location Service Integration                      │
-├─────────────────────────────────────────────────────────────┤
-│  Server Actions (location-actions.ts)                     │
-│  ├── searchPlacesByText()                                 │
-│  ├── searchPlacesByCoordinates()                          │
-│  ├── getPlaceDetails()                                    │
-│  └── validateAddress()                                    │
-├─────────────────────────────────────────────────────────────┤
-│  AWS Location Service                                      │
-│  ├── YAANPlaceIndex (Esri)                               │
-│  ├── Cognito Identity Pool Authentication                 │
-│  └── Geographic Data Providers                           │
-├─────────────────────────────────────────────────────────────┤
-│  GraphQL Schema & TypeScript Types                        │
-│  ├── LocationInput {coordinates: PointInput}             │
-│  └── Point {longitude: Float, latitude: Float}           │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                       YAAN Platform Frontend                           │
+├────────────────────────────────────────────────────────────────────────┤
+│  Product Creation (Product Wizard)                                    │
+│  ├── LocationMultiSelector.tsx                                        │
+│  │   └── LocationSearch.tsx → location-actions.ts (Server Action)    │
+│  └── Place Search: YAANPlaceIndex (Esri)                             │
+├────────────────────────────────────────────────────────────────────────┤
+│  Product Display (ProductDetailModal)                                 │
+│  ├── HybridProductMap.tsx (Strategy Component)                       │
+│  │   ├── CognitoLocationMap.tsx (Interactive) → /api/routes/calculate│
+│  │   └── ProductMap.tsx (Decorative Fallback)                        │
+│  └── Route Calculation: YaanTourismRouteCalculator (Esri)           │
+├────────────────────────────────────────────────────────────────────────┤
+│  Server-Side Components                                               │
+│  ├── Server Actions (location-actions.ts)                            │
+│  │   ├── searchPlacesByText()                                        │
+│  │   ├── searchPlacesByCoordinates()                                 │
+│  │   └── getPlaceDetails()                                           │
+│  └── API Routes (/api/routes/calculate)                              │
+│      └── Route calculation with JWT authentication                   │
+├────────────────────────────────────────────────────────────────────────┤
+│  AWS Location Service                                                 │
+│  ├── YAANPlaceIndex (Esri) - Place search                           │
+│  ├── YaanTourismRouteCalculator (Esri) - Route optimization         │
+│  ├── YaanEsri Map (Esri) - Interactive map tiles                    │
+│  └── Cognito Identity Pool Authentication (Auto-refresh)            │
+├────────────────────────────────────────────────────────────────────────┤
+│  Security Architecture (Two Layers)                                   │
+│  ├── Layer 1: JWT Authentication (Cognito User Pool ID Token)        │
+│  └── Layer 2: IAM Authorization (Cognito Identity Pool Credentials)  │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### 🔧 Componentes Principales
@@ -295,6 +322,339 @@ export async function validateAddress(
 ): Promise<LocationActionResponse>
 ```
 
+---
+
+### 🗺️ Sistema de Mapas Interactivos
+
+El sistema de mapas proporciona visualización de rutas optimizadas para productos tipo "circuit" y mapas decorativos para paquetes.
+
+#### Arquitectura de Tres Componentes
+
+```
+HybridProductMap (Strategy Pattern)
+    ├── Detection: AWS Location Service configured?
+    │   ├── YES → CognitoLocationMap (Interactive with route calculation)
+    │   └── NO → ProductMap (Decorative fallback)
+    └── Auto-selection based on amplify/outputs.json
+```
+
+#### 1. HybridProductMap.tsx - Componente de Estrategia
+
+**Propósito**: Auto-detecta configuración AWS y renderiza el componente apropiado.
+
+**Ubicación**: `src/components/marketplace/maps/HybridProductMap.tsx`
+
+**Detección de Configuración:**
+```typescript
+const hasAwsLocationService = useMemo(() => {
+  return !!(
+    outputs?.auth?.identity_pool_id &&
+    outputs?.auth?.user_pool_id &&
+    outputs?.auth?.aws_region
+  );
+}, []);
+
+// WITH configuration → CognitoLocationMap (interactive)
+// WITHOUT configuration → ProductMap (decorative)
+```
+
+**Características:**
+- ✅ Auto-detección de configuración AWS
+- ✅ Fallback transparente a mapa decorativo
+- ✅ Sin cambios necesarios cuando AWS se configura
+- ✅ Logging de debugging en desarrollo
+
+**Uso en ProductDetailModal:**
+```typescript
+<HybridProductMap
+  destinations={product.destination}
+  productType={product.product_type}
+  productName={product.name}
+/>
+```
+
+#### 2. CognitoLocationMap.tsx - Mapa Interactivo
+
+**Propósito**: Mapa completamente interactivo con autenticación Cognito y cálculo de rutas.
+
+**Ubicación**: `src/components/marketplace/maps/CognitoLocationMap.tsx`
+
+**Características:**
+- ✅ Autenticación Cognito Identity Pool (NO API keys)
+- ✅ Cálculo de rutas con API `/api/routes/calculate`
+- ✅ Map tiles de AWS Location Service (`YaanEsri`)
+- ✅ Marcadores interactivos con popups
+- ✅ Visualización de línea de ruta optimizada
+- ✅ Controles de navegación y zoom
+- ✅ Información de distancia y duración
+
+**Autenticación con MapLibre GL JS:**
+```typescript
+import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper';
+import maplibregl from 'maplibre-gl';
+
+// Obtener helper de autenticación
+const authHelper = await withIdentityPoolId(outputs.auth.identity_pool_id);
+
+// Configurar mapa con autenticación
+const map = new maplibregl.Map({
+  container: mapContainer.current,
+  style: {
+    sources: {
+      'aws-location': {
+        type: 'raster',
+        tiles: [
+          `https://maps.geo.${region}.amazonaws.com/maps/v0/maps/${mapName}/tiles/{z}/{x}/{y}`
+        ],
+        transformRequest: authHelper.transformRequest  // Auto-refresh credentials
+      }
+    }
+  }
+});
+```
+
+**Cálculo de Rutas (para circuitos):**
+```typescript
+// Llamar API route con JWT authentication
+const response = await fetch('/api/routes/calculate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    waypoints: [
+      { position: [lng1, lat1], place: 'Tijuana' },
+      { position: [lng2, lat2], place: 'Ensenada' }
+    ],
+    travelMode: 'Car'
+  })
+});
+
+const data = await response.json();
+// { totalDistance: 235.5, totalDuration: 14808, routeGeometry: [...] }
+```
+
+**Manejo de Errores:**
+- **400 km Distance Limit**: Muestra banner amber con mensaje user-friendly
+- **Route Calculation Error**: Fallback a líneas rectas entre destinos
+- **Map Load Error**: Muestra mensaje de error con opción de vista alternativa
+
+#### 3. ProductMap.tsx - Mapa Decorativo (Fallback)
+
+**Propósito**: Mapa simple sin autenticación AWS ni cálculo de rutas.
+
+**Ubicación**: `src/components/marketplace/ProductMap.tsx`
+
+**Características:**
+- ✅ Sin dependencias de AWS
+- ✅ Sin autenticación requerida
+- ✅ Marcadores estáticos
+- ✅ Líneas rectas entre destinos (no rutas calculadas)
+- ✅ Funciona inmediatamente sin configuración
+
+**Uso**: Automáticamente usado por HybridProductMap cuando AWS no está configurado.
+
+---
+
+### 🛣️ API de Cálculo de Rutas
+
+**Endpoint**: `POST /api/routes/calculate`
+**Ubicación**: `src/app/api/routes/calculate/route.ts`
+**Versión**: v2.0.1 (Fix de ExpiredTokenException aplicado)
+
+#### Arquitectura de Seguridad de Dos Capas
+
+**Layer 1: JWT Authentication (Cognito User Pool)**
+- Valida ID Token del usuario autenticado
+- Asegura que solo usuarios autenticados pueden calcular rutas
+- Returns 401 Unauthorized si token inválido/faltante
+
+**Layer 2: IAM Authorization (Cognito Identity Pool)**
+- Servidor obtiene credenciales temporales AWS
+- SDK auto-refresca credenciales usando ID Token
+- Permisos configurados en Cognito Identity Pool Authenticated Role
+
+**Flujo de Autenticación:**
+```
+1. Cliente envía request con cookies de sesión Cognito
+2. API route valida JWT ID Token
+3. API route obtiene credenciales temporales del Identity Pool
+4. SDK AWS auto-refresca credenciales cuando expiran
+5. LocationClient calcula ruta con credenciales temporales
+6. Resultado devuelto al cliente
+```
+
+#### Implementación (Pattern v2.0.1)
+
+```typescript
+import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-identity';
+import { CognitoIdentityClient } from '@aws-sdk/client-cognito-identity';
+import { LocationClient, CalculateRouteCommand } from '@aws-sdk/client-location';
+import { getIdTokenServer } from '@/utils/amplify-server-utils';
+
+async function getLocationClient(): Promise<LocationClient> {
+  // Obtener ID Token del usuario autenticado
+  const idToken = await getIdTokenServer();
+
+  if (!idToken) {
+    throw new Error('Token de autenticación requerido');
+  }
+
+  // Crear cliente con Cognito Identity Pool credentials
+  return new LocationClient({
+    region: config.auth.aws_region,
+    credentials: fromCognitoIdentityPool({
+      client: new CognitoIdentityClient({ region: config.auth.aws_region }),
+      identityPoolId: config.auth.identity_pool_id,
+      logins: {
+        [`cognito-idp.${config.auth.aws_region}.amazonaws.com/${config.auth.user_pool_id}`]: idToken
+      }
+    })
+  });
+}
+```
+
+#### ✅ Beneficios del Pattern v2.0.1
+
+| Aspecto | ANTES (fromNodeProviderChain) | DESPUÉS (fromCognitoIdentityPool) |
+|---------|-------------------------------|-----------------------------------|
+| **Credentials Source** | `~/.aws/credentials` file | Cognito Identity Pool |
+| **Auto-refresh** | ❌ NO (manual refresh requerido) | ✅ SÍ (automático por SDK) |
+| **Temporary Credentials** | ❌ Se expiraban sin solución | ✅ Auto-renovadas con ID Token |
+| **Development** | Dependía de archivo local | Funciona igual que producción |
+| **Production** | ECS Task Role requerido | Cognito Identity Pool (consistente) |
+| **Error Handling** | ExpiredTokenException frecuente | Eliminado completamente |
+
+**Ver:** [CHANGELOG v2.0.1](/CHANGELOG.md#201---2025-10-23) para detalles del fix.
+
+#### Request Format
+
+```typescript
+interface RouteCalculationRequest {
+  waypoints: Array<{
+    position: [number, number];  // [longitude, latitude]
+    place?: string;
+    placeSub?: string;
+  }>;
+  optimize?: boolean;
+  travelMode?: 'Car' | 'Truck' | 'Walking';
+}
+```
+
+#### Response Format
+
+```typescript
+interface RouteCalculationResponse {
+  success: boolean;
+  data?: {
+    totalDistance: number;        // kilometers
+    totalDuration: number;        // seconds
+    routeGeometry: Array<[number, number]>;  // polyline coordinates
+    waypoints: Array<{
+      position: [number, number];
+      place?: string;
+      placeSub?: string;
+    }>;
+  };
+  error?: string;
+  errorCode?: 'DISTANCE_LIMIT_EXCEEDED' | 'CREDENTIALS_EXPIRED';
+}
+```
+
+#### Error Handling
+
+**400 km Distance Limit (Esri DataSource):**
+```typescript
+if (errorMessage.includes('400 km')) {
+  return NextResponse.json({
+    success: false,
+    error: 'La distancia total del circuito excede el límite de 400 km',
+    errorCode: 'DISTANCE_LIMIT_EXCEEDED',
+    limit: 400
+  }, { status: 400 });
+}
+```
+
+**Manejo en Frontend:**
+```typescript
+if (result.errorCode === 'DISTANCE_LIMIT_EXCEEDED') {
+  // Mostrar banner amber con líneas rectas
+  showFallbackRoute();
+}
+```
+
+#### Auto-Retry Logic
+
+```typescript
+async function executeWithRetry<TOutput>(
+  command: CalculateRouteCommand,
+  maxAttempts = 2
+): Promise<TOutput> {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      // Fresh client on each attempt (auto-refresh credentials)
+      const client = await getLocationClient();
+      return await client.send(command) as TOutput;
+    } catch (error) {
+      const isTokenExpired = error.message?.includes('expired');
+
+      if (isTokenExpired && attempt < maxAttempts) {
+        console.log('Token expired, retrying with fresh credentials...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+        continue;
+      }
+      throw error;
+    }
+  }
+}
+```
+
+**Nota**: Con el patrón Cognito Identity Pool v2.0.1, el auto-retry raramente es necesario (SDK maneja refresh automáticamente).
+
+---
+
+### ⚠️ Componente Deprecated: AmazonLocationMap.tsx
+
+**Ubicación**: `src/components/marketplace/maps/AmazonLocationMap.tsx`
+**Estado**: ⚠️ **DEPRECATED** - NO usar en nuevos desarrollos
+
+#### Por Qué Está Deprecated
+
+| Aspecto | AmazonLocationMap (Old) | CognitoLocationMap (New) |
+|---------|------------------------|--------------------------|
+| **Authentication** | API Key (`NEXT_PUBLIC_LOCATION_API_KEY`) | Cognito Identity Pool |
+| **Security** | ❌ API key expuesta en cliente | ✅ Credenciales temporales auto-renovadas |
+| **Credentials Management** | ❌ Manual | ✅ Auto-refresh por SDK |
+| **Consistency** | ❌ Pattern diferente al resto del sistema | ✅ Mismo pattern que Server Actions |
+| **Usage** | ❌ No usado en codebase actual | ✅ Usado en ProductDetailModal |
+
+#### Migration Guide
+
+**BEFORE (Deprecated):**
+```typescript
+<AmazonLocationMap
+  destinations={destinations}
+  productType="circuit"
+  productName="Tour México"
+/>
+```
+
+**AFTER (Recomendado):**
+```typescript
+<HybridProductMap
+  destinations={destinations}
+  productType="circuit"
+  productName="Tour México"
+/>
+```
+
+**Beneficios de Migrar:**
+1. ✅ Auto-detección de configuración AWS
+2. ✅ Fallback automático a mapa decorativo
+3. ✅ Seguridad mejorada (Cognito vs API keys)
+4. ✅ Consistencia con arquitectura v2.0.1
+5. ✅ Auto-refresh de credenciales
+
+**Acción Requerida**: Ninguna - AmazonLocationMap no se usa actualmente en el codebase.
+
 ### 🔧 Configuración AWS Location Service
 
 #### YAANPlaceIndex Configuration:
@@ -407,12 +767,45 @@ test('should handle invalid search text', async () => {
 
 ## 🏆 Conclusión
 
-El **Sistema AWS Location YAAN** representa una implementación enterprise-grade que cumple con:
+El **Sistema AWS Location YAAN v2.0.1** representa una implementación enterprise-grade completamente refactorizada que cumple con:
+
+### Capacidades del Sistema
+- ✅ **Place Search**: Geocodificación y búsqueda de lugares con YAANPlaceIndex (Esri)
+- ✅ **Interactive Maps**: Visualización de rutas optimizadas con autenticación Cognito
+- ✅ **Route Calculation**: Optimización de circuitos turísticos con YaanTourismRouteCalculator
+- ✅ **Hybrid Strategy**: Auto-detección de configuración AWS con fallback decorativo
+- ✅ **Two-Layer Security**: JWT Authentication + IAM Authorization
+
+### Estándares de Calidad
 - ✅ AWS Well-Architected Framework
-- ✅ Next.js 15.3.4 best practices
+- ✅ Next.js 15 App Router best practices
 - ✅ GraphQL schema compliance
-- ✅ Security standards
-- ✅ Performance requirements
+- ✅ Enterprise-grade security (Cognito Identity Pool)
+- ✅ Auto-refresh credentials (eliminado ExpiredTokenException)
+- ✅ Consistent architecture pattern across all components
 - ✅ User experience excellence
 
-**El sistema está production-ready y proporciona una base sólida para el crecimiento futuro de la plataforma YAAN.**
+### Componentes Production-Ready
+1. **Server Actions** (`location-actions.ts`) - Place search con Cognito credentials
+2. **API Routes** (`/api/routes/calculate`) - Route calculation con v2.0.1 fix
+3. **Interactive Maps** (`CognitoLocationMap.tsx`) - MapLibre GL JS + Cognito auth
+4. **Hybrid Strategy** (`HybridProductMap.tsx`) - Auto-detection con fallback
+5. **IAM Policies** (`docs/aws-location-iam-policy.json`) - Permisos completos
+
+### v2.0.1 Improvements
+- ✅ **Fix crítico**: ExpiredTokenException eliminado completamente
+- ✅ **Pattern unificado**: Cognito Identity Pool en todos los componentes
+- ✅ **Auto-refresh**: SDK maneja expiración de credenciales automáticamente
+- ✅ **Consistencia**: Mismo patrón en Server Actions, API Routes y Client Components
+- ✅ **Documentación**: Arquitectura completa documentada
+
+**El sistema está production-ready, fully operational y proporciona una base sólida y escalable para el crecimiento futuro de la plataforma YAAN.**
+
+---
+
+**Última Actualización:** 2025-10-23 (v2.0.1)
+**Mantenido por:** YAAN Development Team
+**Referencias:**
+- [CHANGELOG v2.0.1](/CHANGELOG.md#201---2025-10-23)
+- [LOCATION-SERVICE-SETUP.md](/LOCATION-SERVICE-SETUP.md)
+- [CLAUDE.md](/CLAUDE.md) - Sección "AWS Location Services - Interactive Maps"

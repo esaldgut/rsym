@@ -77,6 +77,9 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
   const [error, setError] = useState<string | null>(null);
   console.log('✅ [CognitoLocationMap] error useState inicializado');
 
+  const [warning, setWarning] = useState<string | null>(null);
+  console.log('✅ [CognitoLocationMap] warning useState inicializado');
+
   const [routeData, setRouteData] = useState<RouteData | null>(null);
   console.log('✅ [CognitoLocationMap] routeData useState inicializado');
 
@@ -261,8 +264,16 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           style: mapStyle
         });
 
+        // CRITICAL: Verify container still exists after async operations
+        // The component might have unmounted while we were fetching auth tokens
+        if (!mapContainer.current) {
+          console.warn('⚠️ [CognitoLocationMap] Container ref ya no existe después de operaciones async, abortando inicialización');
+          setIsLoading(false);
+          return;
+        }
+
         const mapInstance = new maplibregl.Map({
-          container: mapContainer.current!,
+          container: mapContainer.current,
           style: mapStyle,
           center: initialCenter,
           zoom: initialZoom,
@@ -377,18 +388,123 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     }
   };
 
+  // Helper function: Calculate distance between two coordinates using Haversine formula
+  const calculateHaversineDistance = (
+    coord1: [number, number],
+    coord2: [number, number]
+  ): number => {
+    const R = 6371; // Earth's radius in kilometers
+    const [lon1, lat1] = coord1;
+    const [lon2, lat2] = coord2;
+
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+
+    const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c;
+
+    return distance; // Returns distance in kilometers
+  };
+
+  // Helper function: Calculate total distance for all waypoints
+  const calculateTotalDistance = (waypoints: Array<[number, number]>): number => {
+    let totalDistance = 0;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      totalDistance += calculateHaversineDistance(waypoints[i], waypoints[i + 1]);
+    }
+    return totalDistance;
+  };
+
+  // Fallback: Draw straight lines between waypoints
+  const drawStraightLineRoute = (mapInstance: maplibregl.Map, waypoints: Array<[number, number]>) => {
+    console.log('📏 [CognitoLocationMap] Dibujando líneas rectas como fallback...');
+
+    // Create line geometry
+    const routeGeoJSON: GeoJSON.LineString = {
+      type: 'LineString',
+      coordinates: waypoints
+    };
+
+    // Calculate estimated distance
+    const estimatedDistance = calculateTotalDistance(waypoints);
+    const estimatedDuration = (estimatedDistance / 60) * 3600; // Assuming 60 km/h average
+
+    console.log('📏 [CognitoLocationMap] Distancia estimada (líneas rectas):', estimatedDistance.toFixed(1), 'km');
+
+    setRouteData({
+      distance: estimatedDistance * 1000, // Convert to meters
+      duration: estimatedDuration,
+      geometry: routeGeoJSON
+    });
+
+    // Add route line to map
+    if (mapInstance.getSource('route')) {
+      (mapInstance.getSource('route') as maplibregl.GeoJSONSource).setData({
+        type: 'Feature',
+        properties: { isApproximation: true },
+        geometry: routeGeoJSON
+      });
+    } else {
+      mapInstance.addSource('route', {
+        type: 'geojson',
+        data: {
+          type: 'Feature',
+          properties: { isApproximation: true },
+          geometry: routeGeoJSON
+        }
+      });
+
+      // Dashed line style for approximation
+      mapInstance.addLayer({
+        id: 'route',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#f59e0b', // Amber color to indicate approximation
+          'line-width': 3,
+          'line-opacity': 0.7,
+          'line-dasharray': [2, 2] // Dashed line
+        }
+      });
+
+      mapInstance.addLayer({
+        id: 'route-outline',
+        type: 'line',
+        source: 'route',
+        layout: {
+          'line-join': 'round',
+          'line-cap': 'round'
+        },
+        paint: {
+          'line-color': '#ffffff',
+          'line-width': 5,
+          'line-opacity': 0.5,
+          'line-dasharray': [2, 2]
+        }
+      }, 'route');
+    }
+  };
+
   // Calculate and display route for circuits
   const calculateAndDisplayRoute = async (mapInstance: maplibregl.Map) => {
+    // Prepare waypoints - API expects position as [longitude, latitude]
+    // IMPORTANT: Declared outside try/catch so it's available in the fallback catch block
+    const waypoints = validDestinations.map(d => ({
+      position: [d.coordinates!.longitude!, d.coordinates!.latitude!] as [number, number],
+      place: d.place,
+      placeSub: d.placeSub
+    }));
+
     try {
       console.log('🛣️ [CognitoLocationMap] Calculando ruta...');
-
-      // Prepare waypoints - API expects position as [longitude, latitude]
-      const waypoints = validDestinations.map(d => ({
-        position: [d.coordinates!.longitude!, d.coordinates!.latitude!] as [number, number],
-        place: d.place,
-        placeSub: d.placeSub
-      }));
-
       console.log('🛣️ [CognitoLocationMap] Waypoints preparados:', waypoints);
 
       // Call route calculation API
@@ -404,9 +520,33 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
       console.log('🛣️ [CognitoLocationMap] API response status:', response.status);
 
+      // Check for 400 km distance limit error
+      if (response.status === 400) {
+        const errorData = await response.json();
+        console.warn('⚠️ [CognitoLocationMap] 400 km limit exceeded, using straight line fallback');
+
+        // Use fallback: draw straight lines
+        const waypointPositions = waypoints.map(w => w.position);
+        drawStraightLineRoute(mapInstance, waypointPositions);
+
+        // Set warning message for user (not blocking error)
+        setWarning('⚠️ Ruta aproximada con líneas rectas. La distancia total excede el límite de cálculo de 400 km.');
+        return;
+      }
+
       if (!response.ok) {
         const errorText = await response.text();
         console.error('❌ [CognitoLocationMap] API error response:', errorText);
+
+        // Handle 500 errors (expired token, service unavailable) gracefully with immediate fallback
+        if (response.status === 500) {
+          console.warn('⚠️ [CognitoLocationMap] API error 500 (posible token expirado), activando fallback inmediato');
+          const waypointPositions = waypoints.map(w => w.position);
+          drawStraightLineRoute(mapInstance, waypointPositions);
+          setWarning('⚠️ Ruta aproximada con líneas rectas. El servicio de cálculo no está disponible temporalmente. Por favor, recarga la página.');
+          return; // Exit gracefully without throwing
+        }
+
         throw new Error(`Error al calcular la ruta: ${response.status}`);
       }
 
@@ -483,7 +623,17 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       }
     } catch (err) {
       console.error('❌ [CognitoLocationMap] Error al calcular ruta:', err);
-      // Non-critical error - map still works without route
+
+      // Try fallback: draw straight lines as approximation
+      try {
+        console.warn('⚠️ [CognitoLocationMap] Intentando fallback con líneas rectas...');
+        const waypointPositions = waypoints.map(w => w.position);
+        drawStraightLineRoute(mapInstance, waypointPositions);
+        setWarning('⚠️ Ruta aproximada con líneas rectas. No se pudo calcular la ruta real.');
+      } catch (fallbackErr) {
+        console.error('❌ [CognitoLocationMap] Fallback también falló:', fallbackErr);
+        // Non-critical error - map still works without route
+      }
     }
   };
 
@@ -506,8 +656,36 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           </div>
         )}
 
+        {/* Warning banner - Se muestra como banner superior sin bloquear el mapa */}
+        {warning && !isLoading && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-20 max-w-md">
+            <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg shadow-lg p-4 flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-amber-900">{warning}</p>
+                {routeData && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Distancia estimada: {(routeData.distance / 1000).toFixed(1)} km
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setWarning(null)}
+                className="text-amber-600 hover:text-amber-800 transition-colors"
+                aria-label="Cerrar advertencia"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error overlay - Se muestra ENCIMA del mapa */}
-        {error && (
+        {error && !warning && (
           <div className="absolute inset-0 bg-gradient-to-br from-red-50 to-pink-50 flex items-center justify-center z-10">
             <div className="text-center text-red-600">
               <svg className="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

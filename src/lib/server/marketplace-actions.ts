@@ -28,6 +28,7 @@ interface MarketplaceProduct {
   image_url?: string[];
   video_url?: string[];
   min_product_price?: number;
+  itinerary?: string;
   preferences?: string[];
   destination?: Array<{
     id?: string;

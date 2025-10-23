@@ -1,0 +1,65 @@
+# copilot/web/addons/monitoring.yml
+Parameters:
+  App:
+    Type: String
+    Description: Your application's name.
+  Env:
+    Type: String
+    Description: The environment name your service, web, is being deployed to.
+
+Resources:
+  # CloudWatch Dashboard
+  ApplicationDashboard:
+    Type: AWS::CloudWatch::Dashboard
+    Properties:
+      DashboardName: !Sub ${App}-${Env}-dashboard
+      DashboardBody: !Sub |
+        {
+          "widgets": [
+            {
+              "type": "metric",
+              "properties": {
+                "metrics": [
+                  ["AWS/ApplicationELB", "RequestCount", "LoadBalancer", "${LoadBalancer}"],
+                  ["AWS/ApplicationELB", "TargetResponseTime", "LoadBalancer", "${LoadBalancer}"],
+                  ["AWS/ECS", "CPUUtilization", "ServiceName", "${Service}", "ClusterName", "${Cluster}"],
+                  ["AWS/ECS", "MemoryUtilization", "ServiceName", "${Service}", "ClusterName", "${Cluster}"]
+                ],
+                "period": 300,
+                "stat": "Average",
+                "region": "us-west-2",
+                "title": "YAAN Application Metrics"
+              }
+            }
+          ]
+        }
+
+  # CloudWatch Alarms
+  HighCPUAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub ${App}-${Env}-high-cpu
+      AlarmDescription: High CPU utilization
+      MetricName: CPUUtilization
+      Namespace: AWS/ECS
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 80
+      ComparisonOperator: GreaterThanThreshold
+      AlarmActions:
+        - !Ref SNSTopic
+
+  # SNS Topic for alerts
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub ${App}-${Env}-alerts
+      Subscription:
+        - Protocol: email
+          Endpoint: admin@yaan.com.mx
+
+Outputs:
+  DashboardURL:
+    Description: CloudWatch Dashboard URL
+    Value: !Sub https://console.aws.amazon.com/cloudwatch/home?region=us-west-2#dashboards:name=${ApplicationDashboard}

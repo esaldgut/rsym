@@ -1,0 +1,11 @@
+name: dev
+type: Environment
+region: us-west-2
+
+network:
+  vpc:
+    enable_nat: false
+
+import:
+  certificate_arns:
+    - "arn:aws:acm:us-east-1:288761749126:certificate/f43843ed-80b0-4a47-a24b-168c698a691b"

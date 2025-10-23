@@ -2,6 +2,144 @@
 
 Todas las modificaciones importantes del proyecto están documentadas en este archivo.
 
+## [2.0.1] - 2025-10-23
+
+### 🐛 Fixed
+
+#### AWS Credentials Expiration Error (CRITICAL FIX)
+- **FIXED:** `ExpiredTokenException` en API `/api/routes/calculate` que impedía calcular rutas
+- **FIXED:** Retry logic que fallaba en ambos intentos con credenciales expiradas
+- **FIXED:** Error que aparecía incluso inmediatamente después de que el usuario iniciara sesión
+
+#### Root Cause
+- API route usaba `fromNodeProviderChain` que leía credenciales temporales de `~/.aws/credentials`
+- Si las credenciales en el archivo estaban expiradas, el SDK NO podía refrescarlas automáticamente
+- Crear nuevos clientes no ayudaba (leían el mismo archivo con credenciales expiradas)
+
+### 🔧 Changed
+
+#### API Route Refactoring
+- **REFACTORED:** `/api/routes/calculate/route.ts` para usar Cognito Identity Pool credentials
+- **CHANGED:** Pattern de credenciales de `fromNodeProviderChain` → `fromCognitoIdentityPool`
+- **IMPROVED:** Ahora usa el mismo pattern que `s3-actions.ts` (consistencia arquitectónica)
+- **REMOVED:** Dependencia de archivos externos (`~/.aws/credentials`)
+
+#### IAM Policy Updates
+- **UPDATED:** `docs/aws-location-iam-policy.json` con permisos para `geo:CalculateRoute`
+- **ADDED:** Nuevo statement `YAANLocationServiceRouteCalculatorAccess`
+- **ADDED:** Permisos para listar y describir route calculators
+
+### 📚 Documentation
+
+- **UPDATED:** CLAUDE.md sección "AWS SDK Client Management Pattern"
+  - Documenta que `fromNodeProviderChain` con credenciales temporales NO funciona
+  - Muestra Cognito Identity Pool como el pattern correcto
+  - Explica beneficios del auto-refresh automático
+- **ADDED:** CLAUDE.md pitfall #19 sobre el problema de `fromNodeProviderChain`
+  - Síntomas detallados del error
+  - Explicación de por qué el retry no funciona
+  - Solución con código de ejemplo
+- **UPDATED:** Comentarios inline en `/api/routes/calculate/route.ts` con arquitectura actualizada
+
+### ✅ Benefits
+
+- ✅ **Auto-refresh automático**: SDK refresca credenciales usando el ID Token
+- ✅ **No más ExpiredTokenException**: Error completamente eliminado
+- ✅ **Sin archivos externos**: No depende de `~/.aws/credentials`
+- ✅ **Funciona en dev y prod**: Mismo código en ambos ambientes
+- ✅ **Consistencia**: Mismo pattern que otros servicios AWS (S3)
+
+### ⚠️ Breaking Changes
+
+**Ninguno** - El cambio es transparente para el usuario. Los permisos del Cognito Identity Pool Authenticated Role deben incluir `geo:CalculateRoute` (ver `docs/aws-location-iam-policy.json`).
+
+## [2.0.0] - 2025-10-23
+
+### 🚀 Added
+
+#### Deep Linking System (Web + Mobile)
+- **NEW:** Archivos de verificación `.well-known/assetlinks.json` (Android App Links)
+- **NEW:** Archivo `.well-known/apple-app-site-association` (iOS Universal Links)
+- **NEW:** Sistema completo de query parameters para modales (`?product=ID&type=TYPE`)
+- **NEW:** Utilidades de deep linking (`src/utils/deep-link-utils.ts`)
+  - Detección de dispositivo móvil (iOS/Android)
+  - Generación de deep links con esquema personalizado (`yaan://`)
+  - Contexto de deep linking (source, campaign, referrer)
+- **NEW:** SmartAppBanner para promoción de app móvil
+  - Aparece solo en dispositivos móviles
+  - Timing inteligente: 5s primera vez, 10s subsecuentes
+  - Persistencia de 7 días tras cierre
+- **NEW:** Página de prueba de deep linking (`/test-deeplink`)
+- **NEW:** Server action `getProductByIdAction()` para carga individual de productos
+- **NEW:** Sistema de validación y sanitización (`src/utils/validators.ts`)
+  - Validación UUID y alfanumérica
+  - Sanitización contra XSS
+  - Validación de parámetros de deep link
+
+#### Security Enhancements
+- **NEW:** Validación completa de query parameters contra XSS
+- **NEW:** Logger seguro con sanitización de datos sensibles
+- **NEW:** Límites de longitud en strings de entrada (100 caracteres)
+- **NEW:** Whitelist de parámetros permitidos en deep links
+
+### 🔧 Changed
+
+#### URL Management
+- **IMPROVED:** URLs dinámicas basadas en environment (dev/staging/production)
+- **IMPROVED:** Marketplace ahora actualiza URL con query parameters al abrir modal
+- **IMPROVED:** Persistencia de estado del modal a través de refreshes
+
+#### UX Improvements
+- **OPTIMIZED:** SmartAppBanner z-index de z-50 a z-40 (no cubre modales)
+- **OPTIMIZED:** Timing de banner mejorado para menor intrusión
+- **IMPROVED:** Carga automática de productos no listados vía deep link
+- **IMPROVED:** Loading skeleton mientras se carga producto individual
+
+#### Code Quality
+- **REFACTORED:** Logger centralizado con métodos específicos para deep linking
+- **REFACTORED:** Lógica de deep linking extraída a utilidades reutilizables
+- **IMPROVED:** Memory management con cleanup de event listeners
+- **IMPROVED:** Performance logging con medición de tiempos
+
+### 🐛 Fixed
+
+#### Security Fixes
+- **FIXED:** Vulnerabilidad XSS en query parameters no validados
+- **FIXED:** Memory leaks en event listeners de deep linking
+- **FIXED:** Exposición de logs sensibles en producción
+- **FIXED:** URLs hardcodeadas que rompían en desarrollo
+
+#### Functionality Fixes
+- **FIXED:** Deep links a productos no cargados ahora funcionan correctamente
+- **FIXED:** SmartAppBanner no interfiere con interacción de modales
+- **FIXED:** Query parameters se limpian correctamente al cerrar modal
+- **FIXED:** Detección de app móvil funciona con todos los user agents
+
+### 📚 Documentation
+
+- **ADDED:** Documentación completa en `DEEP_LINKING_WEB_IMPLEMENTATION.md`
+- **ADDED:** README.md en `.well-known/` para equipo móvil
+- **ADDED:** Template `.env.example` con configuración de deep linking
+- **UPDATED:** CLAUDE.md con sección completa de Deep Linking System
+- **UPDATED:** CLAUDE.md Common Pitfalls con 7 nuevos pitfalls de deep linking
+- **UPDATED:** CLAUDE.md File Structure con archivos de deep linking
+
+### ⚠️ Breaking Changes
+
+- **IMPORTANT:** Requiere actualización de variables de entorno:
+  - `NEXT_PUBLIC_BASE_URL` (requerido)
+  - `NEXT_PUBLIC_APP_SCHEME` (requerido)
+  - `NEXT_PUBLIC_IOS_APP_ID` (opcional)
+  - `NEXT_PUBLIC_ANDROID_PACKAGE_NAME` (opcional)
+
+### 📱 Mobile Team TODO
+
+- Actualizar `package_name` en assetlinks.json con el package real de Android
+- Agregar SHA256 fingerprints reales (producción y desarrollo)
+- Reemplazar `TEAM_ID` en apple-app-site-association con Team ID de Apple
+- Implementar manejo de Universal Links/App Links en la app
+- Parsear query parameters en la app móvil
+
 ## [1.3.0] - 2025-01-21
 
 ### 🚀 Added

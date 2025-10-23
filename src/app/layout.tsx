@@ -12,6 +12,7 @@ import { ToastContainer } from '@/components/ui/Toast';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { UnifiedAuthSystem } from '@/lib/auth/unified-auth-system';
 import type { InitialAuthData, AmplifyAuthUser } from '@/hooks/useAmplifyAuth';
+import { SmartAppBanner } from '@/components/ui/SmartAppBanner';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -86,6 +87,10 @@ export default async function RootLayout({
               {children}
             </MainContentWrapper>
             <ToastContainer />
+            <SmartAppBanner
+              showOnPaths={['/marketplace', '/moments', '/provider']}
+              hideOnPaths={['/auth', '/admin']}
+            />
           </QueryProvider>
         </AuthProvider>
       </body>

@@ -1,0 +1,45 @@
+name: nextjs-dev
+type: Load Balanced Web Service
+
+# Configuración de recursos para desarrollo
+cpu: 1024       # 1 vCPU
+memory: 2048    # 2 GB
+
+platform: linux/x86_64
+
+# Usar Dockerfile de desarrollo para preservar funcionalidad
+build:
+  dockerfile: ./Dockerfile.dev
+  context: .
+
+# Health check para desarrollo
+http:
+  path: '/'
+  healthcheck:
+    path: '/'
+    interval: 60s
+    timeout: 30s
+    retries: 5
+    healthy_threshold: 1
+    unhealthy_threshold: 3
+    start_period: 120s
+
+# Solo 1 instancia para validación
+count: 1
+
+# Variables de entorno para desarrollo
+environments:
+  dev:
+    variables:
+      NODE_ENV: development
+      PORT: 3000
+      NEXT_PUBLIC_AWS_REGION: us-west-2
+      NEXT_PUBLIC_COGNITO_IDENTITY_POOL_ID: us-west-2:00035e2e-e92f-4e72-a91b-454acba27eec
+      NEXT_PUBLIC_COGNITO_USER_POOL_ID: us-west-2_e8mS22a1i
+      NEXT_PUBLIC_S3_BUCKET_URL: https://yaan-provider-documents.s3.amazonaws.com
+      AMPLIFY_ENABLE_SSR: true
+
+# Logs detallados para debugging
+logging:
+  level: debug
+  retention: 7

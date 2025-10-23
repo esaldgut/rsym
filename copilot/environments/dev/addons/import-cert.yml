@@ -1,0 +1,17 @@
+Parameters:
+  App:
+    Type: String
+  Env:
+    Type: String
+
+Mappings:
+  EnvironmentCertificateArn:
+    dev:
+      CertificateArn: "arn:aws:acm:us-east-1:288761749126:certificate/f43843ed-80b0-4a47-a24b-168c698a691b"
+
+Outputs:
+  ImportedCertificateArn:
+    Description: Imported certificate ARN for the environment
+    Value: !FindInMap [EnvironmentCertificateArn, !Ref Env, CertificateArn]
+    Export:
+      Name: !Sub ${COPILOT_APPLICATION_NAME}-${COPILOT_ENVIRONMENT_NAME}-imported-cert

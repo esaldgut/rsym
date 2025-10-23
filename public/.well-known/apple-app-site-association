@@ -1,0 +1,28 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.yaan.app",
+        "paths": [
+          "/moments/*",
+          "/marketplace/*",
+          "/marketplace/product/*",
+          "/marketplace/package/*",
+          "/marketplace/circuit/*",
+          "/provider/*",
+          "/profile/*",
+          "/auth/*",
+          "/booking/*",
+          "/search/*"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["TEAM_ID.com.yaan.app"]
+  },
+  "activitycontinuation": {
+    "apps": ["TEAM_ID.com.yaan.app"]
+  }
+}

@@ -1,0 +1,59 @@
+# Manifest basado en documentación oficial AWS Copilot
+# https://aws.github.io/copilot-cli/docs/manifest/lb-web-service/
+
+name: nextjs-dev
+type: Load Balanced Web Service
+
+# Configuración HTTP con health check optimizado para Next.js dev
+http:
+  path: '/'
+  healthcheck:
+    path: '/api/health'              # Endpoint dedicado
+    healthy_threshold: 3             # Checks exitosos para marcar healthy
+    unhealthy_threshold: 2           # Default oficial
+    interval: 30s                    # Default oficial
+    timeout: 10s                     # Tiempo de espera razonable
+    grace_period: 180s               # 3 minutos para yarn dev startup
+    success_codes: '200'             # Solo 200 OK
+  alias: 'yaan.com.mx'
+  additional_aliases:
+    - 'www.yaan.com.mx'
+  certificate: 'arn:aws:acm:us-west-2:288761749126:certificate/777f93fa-5315-472e-9df3-94b41098ac4f'
+
+# Imagen de desarrollo
+image:
+  build: Dockerfile.dev
+  port: 3000
+
+# Recursos escalados para performance con imagen grande
+cpu: 2048        # 2 vCPUs - Escalamiento vertical para yarn dev + imagen 2.83GB
+memory: 6144     # 6GB RAM - Necesario para imagen grande + hot reload + compilaciones
+
+# Plataforma y configuración básica
+platform: linux/x86_64
+count: 2         # 2 instancias para distribución de carga y redundancia
+exec: true       # Permitir copilot task exec para debugging
+
+# Red
+network:
+  connect: true  # Service Connect para comunicación interna
+
+# Variables de entorno para desarrollo
+variables:
+  NODE_ENV: development
+  NEXT_TELEMETRY_DISABLED: 1
+  PORT: 3000
+  AWS_REGION: us-west-2
+  HOSTNAME: "0.0.0.0"
+
+# Logging habilitado
+logging:
+  enable_metadata: true
+
+# Configuración específica por entorno
+environments:
+  dev:
+    count: 1
+    variables:
+      LOG_LEVEL: debug
+      NEXT_PUBLIC_ENV: development

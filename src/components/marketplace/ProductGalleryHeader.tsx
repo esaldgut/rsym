@@ -1,9 +1,18 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { S3GalleryImage } from '@/components/ui/S3GalleryImage';
 import { useCarousel } from '@/hooks/useCarousel';
 import { CarouselDots } from '@/components/ui/CarouselDots';
+
+/**
+ * Handle interface for ProductGalleryHeader
+ * Allows parent components to control carousel playback imperatively
+ */
+export interface ProductGalleryHeaderHandle {
+  pause: () => void;
+  resume: () => void;
+}
 
 interface ProductGalleryHeaderProps {
   images: (string | undefined)[];
@@ -12,12 +21,16 @@ interface ProductGalleryHeaderProps {
   onOpenFullscreen?: () => void;
 }
 
-export function ProductGalleryHeader({
-  images,
-  videos = [],
-  alt = 'Product image',
-  onOpenFullscreen
-}: ProductGalleryHeaderProps) {
+export const ProductGalleryHeader = forwardRef<ProductGalleryHeaderHandle, ProductGalleryHeaderProps>(
+  function ProductGalleryHeader(
+    {
+      images,
+      videos = [],
+      alt = 'Product image',
+      onOpenFullscreen
+    },
+    ref
+  ) {
   // Filter out undefined values and combine images and videos
   const validImages = images.filter((img): img is string => !!img);
   const validVideos = videos.filter((vid): vid is string => !!vid);
@@ -42,6 +55,18 @@ export function ProductGalleryHeader({
     interval: 5000,  // 5 segundos entre cambios
     autoPlay: true
   });
+
+  // Expose carousel control methods to parent via ref
+  useImperativeHandle(ref, () => ({
+    pause: () => {
+      console.log('[ProductGalleryHeader] 🎬 Pausando carrusel desde parent');
+      pauseAutoPlay();
+    },
+    resume: () => {
+      console.log('[ProductGalleryHeader] ▶️ Reanudando carrusel desde parent');
+      resumeAutoPlay();
+    }
+  }), [pauseAutoPlay, resumeAutoPlay]);
 
   const [showHint, setShowHint] = useState(false);
   const [isManualNavigation, setIsManualNavigation] = useState(false);
@@ -255,4 +280,4 @@ export function ProductGalleryHeader({
       </div>
     </div>
   );
-}
+});
