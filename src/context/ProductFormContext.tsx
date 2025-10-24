@@ -16,6 +16,45 @@ import type {
   FormStep
 } from '@/types/wizard';
 
+/**
+ * Tipos para transformaciones de datos GraphQL → Frontend
+ */
+
+/** Coordenadas en formato flexible (array o objeto) */
+interface CoordinatesInput {
+  latitude?: number;
+  longitude?: number;
+}
+
+/** Origen con coordenadas opcionales */
+interface OriginInput {
+  place?: string;
+  placeSub?: string;
+  coordinates?: [number, number] | CoordinatesInput | null;
+}
+
+/** Salida (departure) tal como viene del backend */
+interface DepartureRaw {
+  days?: string[];
+  specific_dates?: string[];
+  origin?: OriginInput | OriginInput[] | null;
+}
+
+/** Destino tal como viene del backend */
+interface DestinationRaw {
+  place?: string;
+  placeSub?: string;
+  complementary_description?: string;
+  coordinates?: [number, number] | CoordinatesInput | null;
+}
+
+/** Opción de pago tal como viene del backend */
+interface PaymentPolicyOptionRaw {
+  type: string;
+  benefits_or_legal?: string[];
+  [key: string]: unknown;
+}
+
 const initialFormData: ProductFormData = {
   productId: null,
   name: '',
@@ -113,7 +152,7 @@ export function ProductFormProvider({
         console.log('🚀 [DEPARTURES] Cantidad de departures:', departures.length);
 
         // Función auxiliar para convertir coordenadas de GraphQL a formato interno
-        const convertCoordinates = (origin: any) => {
+        const convertCoordinates = (origin: OriginInput | null | undefined) => {
           if (!origin) return { place: '', placeSub: '', coordinates: undefined };
 
           let coordinates = undefined;
@@ -134,11 +173,11 @@ export function ProductFormProvider({
 
         const mappedDepartures = {
           regular_departures: departures
-            .filter((d: any) => d.days && d.days.length > 0)
-            .flatMap((d: any) => {
+            .filter((d: DepartureRaw) => d.days && d.days.length > 0)
+            .flatMap((d: DepartureRaw) => {
               // Si origin es array, crear una entrada por cada origen
               if (d.origin && Array.isArray(d.origin)) {
-                return d.origin.map((o: any) => ({
+                return d.origin.map((o: OriginInput) => ({
                   origin: convertCoordinates(o),
                   days: d.days || []
                 }));
@@ -153,10 +192,10 @@ export function ProductFormProvider({
         };
 
         departures
-          .filter((d: any) => d.specific_dates && d.specific_dates.length > 0)
-          .forEach((d: any) => {
+          .filter((d: DepartureRaw) => d.specific_dates && d.specific_dates.length > 0)
+          .forEach((d: DepartureRaw) => {
             if (d.origin && Array.isArray(d.origin)) {
-              d.origin.forEach((origin: any) => {
+              d.origin.forEach((origin: OriginInput) => {
                 mappedDepartures.specific_departures.push({
                   origin: convertCoordinates(origin),
                   date_ranges: d.specific_dates?.map((date: string) => ({
@@ -172,7 +211,7 @@ export function ProductFormProvider({
         console.log('✅ [DEPARTURES] Regular departures count:', mappedDepartures.regular_departures.length);
         console.log('✅ [DEPARTURES] Specific departures count:', mappedDepartures.specific_departures.length);
 
-        const mappedDestinations = (parsed.destination || []).map((dest: any) => ({
+        const mappedDestinations = (parsed.destination || []).map((dest: DestinationRaw) => ({
           place: dest.place || '',
           placeSub: dest.placeSub || '',
           complementary_description: dest.complementary_description || '',
@@ -188,7 +227,7 @@ export function ProductFormProvider({
         // Log específico de benefits_or_legal para debugging mapeo
         if (parsed.payment_policy?.options) {
           console.log('💎 [BENEFITS_OR_LEGAL] Raw por opción:',
-            parsed.payment_policy.options.map((opt: any, idx: number) => ({
+            parsed.payment_policy.options.map((opt: PaymentPolicyOptionRaw, idx: number) => ({
               index: idx,
               type: opt.type,
               benefitsCount: opt.benefits_or_legal?.length || 0,
@@ -232,7 +271,7 @@ export function ProductFormProvider({
         // Log específico final de benefits_or_legal después del mapeo
         if (finalFormData.payment_policy?.options) {
           console.log('💎 [BENEFITS_OR_LEGAL] Final después de mapeo a formData:',
-            finalFormData.payment_policy.options.map((opt: any, idx: number) => ({
+            finalFormData.payment_policy.options.map((opt: PaymentPolicyOptionRaw, idx: number) => ({
               index: idx,
               type: opt.type,
               hasbenefits: !!opt.benefits_or_legal,
@@ -265,7 +304,7 @@ export function ProductFormProvider({
         const departures = parsed.departures || [];
 
         // Función auxiliar para convertir coordenadas de GraphQL a formato interno
-        const convertCoordinates = (origin: any) => {
+        const convertCoordinates = (origin: OriginInput | null | undefined) => {
           if (!origin) return { place: '', placeSub: '', coordinates: undefined };
 
           // Si las coordenadas vienen como objeto {latitude, longitude}, convertir a array [longitude, latitude]
@@ -290,11 +329,11 @@ export function ProductFormProvider({
         // Nueva lógica de mapeo que maneja la estructura del esquema GraphQL real
         const mappedDepartures = {
           regular_departures: departures
-            .filter((d: any) => d.days && d.days.length > 0)
-            .flatMap((d: any) => {
+            .filter((d: DepartureRaw) => d.days && d.days.length > 0)
+            .flatMap((d: DepartureRaw) => {
               // Si origin es array, crear una entrada por cada origen
               if (d.origin && Array.isArray(d.origin)) {
-                return d.origin.map((o: any) => ({
+                return d.origin.map((o: OriginInput) => ({
                   origin: convertCoordinates(o),
                   days: d.days || []
                 }));
@@ -310,11 +349,11 @@ export function ProductFormProvider({
 
         // Manejar salidas específicas - pueden venir agrupadas en un solo objeto con múltiples orígenes
         departures
-          .filter((d: any) => d.specific_dates && d.specific_dates.length > 0)
-          .forEach((d: any) => {
+          .filter((d: DepartureRaw) => d.specific_dates && d.specific_dates.length > 0)
+          .forEach((d: DepartureRaw) => {
             // Si hay múltiples orígenes, crear una entrada para cada uno
             if (d.origin && Array.isArray(d.origin)) {
-              d.origin.forEach((origin: any) => {
+              d.origin.forEach((origin: OriginInput) => {
                 mappedDepartures.specific_departures.push({
                   origin: convertCoordinates(origin),
                   date_ranges: d.specific_dates?.map((date: string) => ({
@@ -327,7 +366,7 @@ export function ProductFormProvider({
           });
 
         // Convertir coordenadas en destination también
-        const mappedDestinations = (parsed.destination || []).map((dest: any) => ({
+        const mappedDestinations = (parsed.destination || []).map((dest: DestinationRaw) => ({
           place: dest.place || '',
           placeSub: dest.placeSub || '',
           complementary_description: dest.complementary_description || '',
@@ -341,7 +380,7 @@ export function ProductFormProvider({
         // Log específico de benefits_or_legal para localStorage path
         if (parsed.payment_policy?.options) {
           console.log('💎 [BENEFITS_OR_LEGAL] localStorage - Raw por opción:',
-            parsed.payment_policy.options.map((opt: any, idx: number) => ({
+            parsed.payment_policy.options.map((opt: PaymentPolicyOptionRaw, idx: number) => ({
               index: idx,
               type: opt.type,
               benefitsCount: opt.benefits_or_legal?.length || 0,

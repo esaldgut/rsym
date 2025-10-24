@@ -6,6 +6,14 @@
  * Siguiendo la arquitectura de Analytics Paralelos
  */
 
+/**
+ * Metadata para eventos de analytics
+ * Restringido a tipos primitivos y serializables
+ */
+export interface AnalyticsMetadata {
+  [key: string]: string | number | boolean | undefined;
+}
+
 export interface TrackingContext {
   // Feature Tracking
   feature: string;
@@ -33,7 +41,7 @@ export interface TrackingContext {
   };
   
   // Business Context
-  metadata?: Record<string, any>;
+  metadata?: AnalyticsMetadata;
 }
 
 export interface AnalyticsEvent {
@@ -108,7 +116,7 @@ class AnalyticsService {
   /**
    * Track evento de éxito
    */
-  trackSuccess(feature: string, action: string, metadata?: Record<string, any>): void {
+  trackSuccess(feature: string, action: string, metadata?: AnalyticsMetadata): void {
     this.track(`${feature}_success`, {
       feature,
       category: 'user_action',
@@ -122,7 +130,7 @@ class AnalyticsService {
   /**
    * Track evento de error
    */
-  trackError(feature: string, error: Error | string, metadata?: Record<string, any>): void {
+  trackError(feature: string, error: Error | string, metadata?: AnalyticsMetadata): void {
     const errorMessage = error instanceof Error ? error.message : error;
     
     this.track(`${feature}_error`, {
@@ -139,7 +147,7 @@ class AnalyticsService {
   /**
    * Track performance metrics
    */
-  trackPerformance(feature: string, action: string, duration: number, metadata?: Record<string, any>): void {
+  trackPerformance(feature: string, action: string, duration: number, metadata?: AnalyticsMetadata): void {
     this.track(`${feature}_performance`, {
       feature,
       category: 'performance',
@@ -156,7 +164,7 @@ class AnalyticsService {
   /**
    * Track user journey/flow
    */
-  trackUserFlow(feature: string, currentAction: string, previousAction?: string, metadata?: Record<string, any>): void {
+  trackUserFlow(feature: string, currentAction: string, previousAction?: string, metadata?: AnalyticsMetadata): void {
     this.track(`${feature}_flow`, {
       feature,
       category: 'user_journey',

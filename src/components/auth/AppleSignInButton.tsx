@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 interface AppleSignInButtonProps {
   customState?: string;
   onSuccess?: () => void;
-  onError?: (error: any) => void;
+  onError?: (error: unknown) => void;
   className?: string;
 }
 

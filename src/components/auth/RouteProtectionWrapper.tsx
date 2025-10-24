@@ -1,5 +1,9 @@
 import { redirect } from 'next/navigation';
-import { UnifiedAuthSystem, type YAANUserType } from '@/lib/auth/unified-auth-system';
+import {
+  UnifiedAuthSystem,
+  type YAANUserType,
+  type AuthValidationResult
+} from '@/lib/auth/unified-auth-system';
 
 /**
  * Configuración para protección de rutas
@@ -186,7 +190,7 @@ export class RouteProtectionWrapper {
     return '/profile';
   }
 
-  private static hasPermission(auth: any, permission: string): boolean {
+  private static hasPermission(auth: AuthValidationResult, permission: string): boolean {
     if (!auth.permissions) return false;
     
     // Mapear permisos a propiedades del objeto permissions

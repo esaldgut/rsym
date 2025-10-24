@@ -14,9 +14,10 @@ export function QueryProvider({ children }: QueryProviderProps) {
         defaultOptions: {
           queries: {
             staleTime: 5 * 60 * 1000, // 5 minutes
-            retry: (failureCount, error: any) => {
+            retry: (failureCount, error: unknown) => {
               // No retry on authentication errors
-              if (error?.status === 401 || error?.status === 403) {
+              const errorWithStatus = error as { status?: number };
+              if (errorWithStatus?.status === 401 || errorWithStatus?.status === 403) {
                 return false;
               }
               return failureCount < 3;

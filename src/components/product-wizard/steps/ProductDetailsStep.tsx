@@ -173,10 +173,11 @@ export default function ProductDetailsStep({ userId, onNext, onPrevious, onCance
       // Validación exitosa - continuar
       updateFormData(processedData);
       onNext();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Mostrar warnings pero permitir continuar
-      if (error.errors) {
-        error.errors.forEach((err: any) => {
+      if (error && typeof error === 'object' && 'errors' in error) {
+        const zodError = error as { errors: Array<{ path: string[]; message: string }> };
+        zodError.errors.forEach((err) => {
           const fieldPath = err.path;
           const fieldName = fieldPath[0];
 

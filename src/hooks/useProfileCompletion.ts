@@ -12,10 +12,20 @@ interface ProfileCompletionState {
   missingFields: string[];
 }
 
+/**
+ * Metadata contextual para completar perfil
+ */
+export interface ProfileMetadata {
+  experienceId?: string;
+  title?: string;
+  feature?: string;
+  [key: string]: unknown;
+}
+
 interface ProfileCompletionContext {
   returnUrl: string;
   action: string;
-  data?: any;
+  data?: ProfileMetadata;
 }
 
 export function useProfileCompletion() {

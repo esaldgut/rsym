@@ -4,11 +4,21 @@ import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useProfileCompletion } from '@/hooks/useProfileCompletion';
 
+/**
+ * Metadata contextual para guards de perfil
+ */
+export interface GuardMetadata {
+  experienceId?: string;
+  title?: string;
+  feature?: string;
+  [key: string]: unknown;
+}
+
 interface ProfileCompletionGuardProps {
   children: ReactNode;
   fallbackUrl?: string;
   action?: string;
-  data?: any;
+  data?: GuardMetadata;
   showLoading?: boolean;
 }
 
@@ -61,7 +71,7 @@ export function useRequireCompleteProfile() {
 
   const checkProfile = (
     action: string,
-    data?: any,
+    data?: GuardMetadata,
     onComplete?: () => void
   ) => {
     if (isLoading) return;

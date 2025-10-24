@@ -96,7 +96,7 @@ export function SeasonConfiguration({
     setExpandedSeason(seasons.length);
   };
 
-  const updateSeason = (index: number, field: keyof ProductSeasonInput, value: any) => {
+  const updateSeason = (index: number, field: keyof ProductSeasonInput, value: ProductSeasonInput[keyof ProductSeasonInput]) => {
     const updated = [...seasons];
 
     // Convertir a número solo para allotment
@@ -139,7 +139,7 @@ export function SeasonConfiguration({
     setExpandedSeason(index + 1); // Expandir la temporada duplicada
   };
 
-  const updatePrice = (seasonIndex: number, priceIndex: number, field: keyof ProductPriceInput, value: any) => {
+  const updatePrice = (seasonIndex: number, priceIndex: number, field: keyof ProductPriceInput, value: ProductPriceInput[keyof ProductPriceInput]) => {
     const updated = [...seasons];
     const prices = [...(updated[seasonIndex].prices || [])];
     prices[priceIndex] = { ...prices[priceIndex], [field]: value };
@@ -210,11 +210,11 @@ export function SeasonConfiguration({
   };
 
   const updateChildRange = (
-    seasonIndex: number, 
-    priceIndex: number, 
-    childIndex: number, 
-    field: keyof ChildRangeInput, 
-    value: any
+    seasonIndex: number,
+    priceIndex: number,
+    childIndex: number,
+    field: keyof ChildRangeInput,
+    value: ChildRangeInput[keyof ChildRangeInput]
   ) => {
     const updated = [...seasons];
     const prices = [...(updated[seasonIndex].prices || [])];

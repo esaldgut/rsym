@@ -1,8 +1,21 @@
 'use client';
 
+/**
+ * Datos de recuperación del wizard con metadata adicional
+ */
+export interface ProductFormDataWithRecovery {
+  name?: string;
+  productType?: 'circuit' | 'package';
+  description?: string;
+  currentStep?: number;
+  _savedAt?: string;
+  _savedBy?: 'auto-save' | 'manual' | 'recovery';
+  [key: string]: unknown;
+}
+
 interface RecoveryModalProps {
   isOpen: boolean;
-  recoveryData: any;
+  recoveryData: ProductFormDataWithRecovery | null;
   onRecover: () => void;
   onDiscard: () => void;
 }

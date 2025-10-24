@@ -5,12 +5,21 @@
  * Decodifica errores de Cognito y state OAuth
  */
 
+/**
+ * OAuth state decodificado
+ */
+export interface CognitoOAuthState {
+  redirect?: string;
+  provider?: string;
+  [key: string]: unknown;
+}
+
 export interface CognitoError {
   code?: string;
   error?: string;
   error_description?: string;
   state?: string;
-  decodedState?: any;
+  decodedState?: CognitoOAuthState;
 }
 
 export function decodeCognitoError(url: string): CognitoError {

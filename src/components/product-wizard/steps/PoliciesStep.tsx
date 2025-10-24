@@ -113,7 +113,7 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
     onNext();
   };
 
-  const onError = (errors: any) => {
+  const onError = (errors: unknown) => {
     // Validación defensiva: verificar si errors existe y no está vacío
     if (!errors || typeof errors !== 'object') {
       console.warn('⚠️ [PoliciesStep] Objeto de errores inválido');
@@ -132,35 +132,43 @@ export default function PoliciesStep({ onNext, onPrevious, onCancelClick }: Step
     // Navegación segura en el objeto de errores
     try {
       const errorValues = Object.values(errors);
-      const firstError = errorValues.find((error: any) => error && typeof error === 'object' && 'message' in error);
+      const firstError = errorValues.find((error: unknown): error is { message: string } =>
+        error !== null && typeof error === 'object' && 'message' in error
+      );
 
       if (firstError && typeof firstError === 'object' && 'message' in firstError) {
-        toastManager.show(`⚠️ Error de validación: ${(firstError as any).message}`, 'error', 5000);
+        toastManager.show(`⚠️ Error de validación: ${firstError.message}`, 'error', 5000);
       }
 
       // Log detallado de errores en opciones de pago
-      if (errors.payment_policy?.options && Array.isArray(errors.payment_policy.options)) {
-        errors.payment_policy.options.forEach((optionErrors: any, index: number) => {
-          if (optionErrors && typeof optionErrors === 'object') {
-            Object.entries(optionErrors).forEach(([field, error]: [string, any]) => {
-              if (error?.message) {
-                console.error(`❌ Opción #${index + 1} - ${field}:`, error.message);
+      const errorsObj = errors as Record<string, unknown>;
+      if (errorsObj.payment_policy && typeof errorsObj.payment_policy === 'object') {
+        const paymentPolicyErrors = errorsObj.payment_policy as Record<string, unknown>;
+        if (paymentPolicyErrors.options && Array.isArray(paymentPolicyErrors.options)) {
+          paymentPolicyErrors.options.forEach((optionErrors: unknown, index: number) => {
+            if (optionErrors && typeof optionErrors === 'object') {
+              Object.entries(optionErrors).forEach(([field, error]) => {
+                if (error && typeof error === 'object' && 'message' in error) {
+                  const errorWithMessage = error as { message: string };
+                  console.error(`❌ Opción #${index + 1} - ${field}:`, errorWithMessage.message);
 
-                // Errores específicos de payment_methods
-                if (field.includes('payment_methods')) {
-                  toastManager.show(
-                    `⚠️ Opción #${index + 1}: ${error.message}`,
-                    'warning',
-                    5000
-                  );
+                  // Errores específicos de payment_methods
+                  if (field.includes('payment_methods')) {
+                    toastManager.show(
+                      `⚠️ Opción #${index + 1}: ${errorWithMessage.message}`,
+                      'warning',
+                      5000
+                    );
+                  }
                 }
-              }
-            });
-          }
-        });
+              });
+            }
+          });
+        }
       }
-    } catch (err) {
-      console.error('❌ Error procesando errores de validación:', err);
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      console.error('❌ Error procesando errores de validación:', errorMessage);
     }
   };
 

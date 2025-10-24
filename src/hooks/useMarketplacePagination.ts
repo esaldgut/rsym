@@ -49,6 +49,17 @@ interface MarketplaceFilters {
   minPrice?: number;
 }
 
+/**
+ * Filtro GraphQL para consultas de productos
+ */
+interface ProductFilterInput {
+  product_type?: string;
+  preferences?: string[];
+  maxPrice?: number;
+  minPrice?: number;
+  published?: boolean;
+}
+
 interface UseMarketplacePaginationProps {
   initialProducts?: MarketplaceProduct[];
   initialMetrics?: MarketplaceMetrics;
@@ -120,7 +131,7 @@ export function useMarketplacePagination({
       }
 
       // Build filter object (PATRÓN DE useProviderProducts.ts)
-      const graphqlFilter: any = {};
+      const graphqlFilter: ProductFilterInput = {};
 
       // Apply product type filter
       if (filter === 'circuit') {

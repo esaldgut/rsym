@@ -11,13 +11,13 @@ import { fetchAuthSession } from 'aws-amplify/auth/server';
  */
 interface GraphQLOperationOptions {
   query: string;
-  variables?: Record<string, any>;
+  variables?: Record<string, unknown>;
 }
 
 /**
  * Resultado de operación GraphQL con éxito/error
  */
-interface GraphQLOperationResult<T = any> {
+interface GraphQLOperationResult<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -27,7 +27,7 @@ interface GraphQLOperationResult<T = any> {
  * Función genérica para ejecutar operaciones GraphQL (queries y mutations)
  * Compatible con Amplify Gen 2 v6 usando fetchAuthSession y ID token correcto
  */
-export async function executeGraphQLOperation<T = any>(
+export async function executeGraphQLOperation<T = unknown>(
   options: GraphQLOperationOptions
 ): Promise<GraphQLOperationResult<T>> {
   try {

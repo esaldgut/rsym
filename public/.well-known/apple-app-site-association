@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAM_ID.com.yaan.app",
+        "appID": "JV4ARN3X8J.mx.com.yaan.yaanapp",
         "paths": [
           "/moments/*",
           "/marketplace/*",
@@ -20,9 +20,9 @@
     ]
   },
   "webcredentials": {
-    "apps": ["TEAM_ID.com.yaan.app"]
+    "apps": ["JV4ARN3X8J.mx.com.yaan.yaanapp"]
   },
   "activitycontinuation": {
-    "apps": ["TEAM_ID.com.yaan.app"]
+    "apps": ["JV4ARN3X8J.mx.com.yaan.yaanapp"]
   }
 }

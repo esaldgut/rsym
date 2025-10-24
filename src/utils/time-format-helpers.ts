@@ -4,6 +4,15 @@
  */
 
 /**
+ * Item de horario de servicio
+ */
+export interface ServiceScheduleItem {
+  day: string;
+  sd: string; // Start time in HH:MM format
+  ed: string; // End time in HH:MM format
+}
+
+/**
  * Convierte ISO date a formato HH:MM
  * Ej: "2025-08-22T15:00:00.000Z" -> "15:00"
  */
@@ -56,7 +65,7 @@ export function timeStringToISO(timeStr: string, baseDate = '2025-01-01'): strin
 /**
  * Normaliza un ServiceSchedule convirtiendo tiempos ISO a HH:MM
  */
-export function normalizeServiceSchedule(schedule: any[]): any[] {
+export function normalizeServiceSchedule(schedule: ServiceScheduleItem[]): ServiceScheduleItem[] {
   if (!Array.isArray(schedule)) return [];
 
   return schedule.map(item => ({
@@ -69,7 +78,7 @@ export function normalizeServiceSchedule(schedule: any[]): any[] {
 /**
  * Prepara ServiceSchedule para guardar en Cognito (convierte a ISO)
  */
-export function prepareServiceScheduleForSave(schedule: any[]): any[] {
+export function prepareServiceScheduleForSave(schedule: ServiceScheduleItem[]): ServiceScheduleItem[] {
   if (!Array.isArray(schedule)) return [];
 
   const baseDate = '2025-01-01'; // Fecha arbitraria para mantener consistencia

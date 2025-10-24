@@ -10,17 +10,17 @@ import { usePathname } from 'next/navigation';
  * Opción 2: Dirty tracking - Marca campos modificados individualmente
  */
 
-interface UseUnsavedChangesOptions {
+interface UseUnsavedChangesOptions<T> {
   strategy?: 'deep-compare' | 'dirty-tracking';
   enabled?: boolean;
   message?: string;
   beforeUnloadMessage?: string;
-  initialData?: any;
+  initialData?: T;
 }
 
-export function useUnsavedChanges(
-  currentData: any,
-  options: UseUnsavedChangesOptions = {}
+export function useUnsavedChanges<T = unknown>(
+  currentData: T,
+  options: UseUnsavedChangesOptions<T> = {}
 ) {
   const {
     strategy = 'deep-compare',
@@ -35,12 +35,12 @@ export function useUnsavedChanges(
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
-  const initialData = useRef<any>(null);
+  const initialData = useRef<T | null>(null);
   const dirtyFields = useRef<Set<string>>(new Set());
   const isFirstRender = useRef(true);
 
   // Opción 1: Deep Compare Strategy
-  const deepCompare = useCallback((obj1: any, obj2: any): boolean => {
+  const deepCompare = useCallback((obj1: T, obj2: T): boolean => {
     if (obj1 === obj2) return true;
     
     if (!obj1 || !obj2) return false;
@@ -171,10 +171,10 @@ export function useUnsavedChanges(
     if (strategy === 'dirty-tracking') {
       return Array.from(dirtyFields.current);
     }
-    
+
     if (strategy === 'deep-compare' && initialData.current) {
       const modified: string[] = [];
-      const findDifferences = (obj1: any, obj2: any, path = '') => {
+      const findDifferences = (obj1: unknown, obj2: unknown, path = '') => {
         Object.keys(obj1 || {}).forEach(key => {
           const currentPath = path ? `${path}.${key}` : key;
           if (typeof obj1[key] === 'object' && obj1[key] !== null) {

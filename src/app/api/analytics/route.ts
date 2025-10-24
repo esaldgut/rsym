@@ -159,9 +159,10 @@ async function sendLogsToCloudWatch(events: AnalyticsEvent[], source: string): P
       logGroupName: LOG_GROUP_NAME,
       logStreamName: logStreamName
     }));
-  } catch (error: any) {
+  } catch (error: unknown) {
     // Ignorar si ya existe
-    if (error.name !== 'ResourceAlreadyExistsException') {
+    const errorName = error instanceof Error && 'name' in error ? (error as any).name : '';
+    if (errorName !== 'ResourceAlreadyExistsException') {
       throw error;
     }
   }

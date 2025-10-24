@@ -47,9 +47,16 @@ export function sanitizeFileName(fileName: string): string {
 }
 
 /**
+ * Metadata de upload con valores dinámicos
+ */
+export interface UploadMetadata {
+  [key: string]: string | number | boolean | null | undefined;
+}
+
+/**
  * Sanitiza metadata para headers HTTP
  */
-export function sanitizeMetadata(metadata: Record<string, any>): Record<string, string> {
+export function sanitizeMetadata(metadata: UploadMetadata): Record<string, string> {
   const sanitized: Record<string, string> = {};
 
   for (const [key, value] of Object.entries(metadata)) {
@@ -81,8 +88,8 @@ export function sanitizeMetadata(metadata: Record<string, any>): Record<string, 
 export function sanitizeUploadParams(params: {
   key?: string;
   contentType?: string;
-  metadata?: Record<string, any>;
-  [key: string]: any;
+  metadata?: UploadMetadata;
+  [key: string]: unknown;
 }) {
   const sanitized = { ...params };
 

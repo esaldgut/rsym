@@ -12,6 +12,30 @@ import outputs from '../../amplify/outputs.json';
 import { getAmplifyTokensFromCookies, parseJWT, hasValidCookieSession } from './amplify-server-cookies';
 
 /**
+ * Cognito JWT Payload con campos específicos de YAAN
+ */
+export interface CognitoJWTPayload {
+  sub: string;
+  'cognito:groups'?: string[];
+  'cognito:username': string;
+  'custom:user_type'?: string;
+  'custom:provider_is_approved'?: string;
+  'custom:provider_in_group'?: string;
+  'custom:influencer_is_approved'?: string;
+  email?: string;
+  email_verified?: boolean;
+  phone_number?: string;
+  phone_number_verified?: boolean;
+  name?: string;
+  iat: number;
+  exp: number;
+  auth_time?: number;
+  token_use?: string;
+  // Campos dinámicos custom attributes
+  [key: string]: unknown;
+}
+
+/**
  * Configuración del servidor de Amplify para Next.js
  * Utiliza HTTP-only cookies para almacenamiento seguro de tokens
  */
@@ -235,7 +259,7 @@ export async function ensureValidTokens(): Promise<boolean> {
 export async function getAuthSessionFromCookies(): Promise<{
   isAuthenticated: boolean;
   idToken: JWT | null;
-  payload: Record<string, any> | null;
+  payload: CognitoJWTPayload | null;
   username: string | null;
 } | null> {
   try {

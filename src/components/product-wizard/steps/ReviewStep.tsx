@@ -101,8 +101,8 @@ export default function ReviewStep({ userId, onPrevious, onCancelClick, resetUns
       } else {
         throw new Error(result.error || 'No se recibió confirmación del servidor');
       }
-    } catch (error: any) {
-      const errorMessage = error.message || 'Error inesperado al actualizar el producto';
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Error inesperado al actualizar el producto';
       setSubmitError(errorMessage);
       toastManager.show(`❌ ${errorMessage}`, 'error', 5000);
       console.error('Submit error:', error);

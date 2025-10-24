@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   LocationClient,
-  CalculateRouteCommand
+  CalculateRouteCommand,
+  type CalculateRouteCommandOutput
 } from '@aws-sdk/client-location';
 import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-identity';
 import { CognitoIdentityClient } from '@aws-sdk/client-cognito-identity';
@@ -276,7 +277,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<RouteCalc
     });
 
     // Execute with automatic retry on token expiration
-    const calculateResponse = await executeWithRetry(calculateCommand);
+    const calculateResponse = await executeWithRetry<CalculateRouteCommandOutput>(calculateCommand);
 
     // Extract route geometry from all legs
     const routeGeometry: Array<[number, number]> = [];

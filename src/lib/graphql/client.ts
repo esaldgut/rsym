@@ -16,9 +16,9 @@ const client = generateClient({
  * Ejecuta una query GraphQL con manejo de errores
  * Verifica automáticamente que el usuario tenga un ID token válido
  */
-export async function executeQuery<T = any>(
+export async function executeQuery<T = unknown>(
   query: string,
-  variables?: Record<string, any>
+  variables?: Record<string, unknown>
 ): Promise<T | null> {
   try {
     // Verificar que el usuario tenga una sesión válida con ID token
@@ -61,9 +61,9 @@ export async function executeQuery<T = any>(
  * Ejecuta una mutation GraphQL con manejo de errores
  * Verifica automáticamente que el usuario tenga un ID token válido
  */
-export async function executeMutation<T = any>(
+export async function executeMutation<T = unknown>(
   mutation: string,
-  variables?: Record<string, any>
+  variables?: Record<string, unknown>
 ): Promise<T | null> {
   try {
     // Verificar que el usuario tenga una sesión válida con ID token

@@ -5,11 +5,56 @@ import { runWithAmplifyServerContext } from '@/utils/amplify-server-utils';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import type { YAANUserType } from '@/lib/auth/unified-auth-system';
+import type { ServiceScheduleItem } from '@/utils/time-format-helpers';
 
 /**
  * Server Actions para actualización de perfil de usuario
  * Siguiendo el patrón de Next.js 15 Server Actions
  */
+
+/**
+ * Plataforma de redes sociales
+ */
+export interface SocialMediaPlatform {
+  platform: string;
+  handle: string;
+  url?: string;
+  followers?: number;
+}
+
+/**
+ * Dirección
+ */
+export interface Address {
+  street?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  postalCode?: string;
+  coordinates?: {
+    latitude: number;
+    longitude: number;
+  };
+}
+
+/**
+ * Información de contacto
+ */
+export interface ContactInformation {
+  contact_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+}
+
+/**
+ * Ruta de documento almacenado en S3
+ */
+export interface DocumentPath {
+  path?: string;
+  filename?: string;
+  uploadedAt?: string;
+  size?: number;
+}
 
 export interface ProfileUpdateData {
   phone_number?: string;
@@ -22,18 +67,18 @@ export interface ProfileUpdateData {
 
   // Campos de influencer
   uniq_influencer_ID?: string;
-  social_media_plfms?: any[];
+  social_media_plfms?: SocialMediaPlatform[];
 
   // Campos de provider
   company_profile?: string;
   locale?: string;
-  address?: any;
-  days_of_service?: any[];
-  contact_information?: any;
-  emgcy_details?: any;
-  proofOfTaxStatusPath?: any;
-  secturPath?: any;
-  complianceOpinPath?: any;
+  address?: Address;
+  days_of_service?: ServiceScheduleItem[];
+  contact_information?: ContactInformation;
+  emgcy_details?: ContactInformation;
+  proofOfTaxStatusPath?: DocumentPath;
+  secturPath?: DocumentPath;
+  complianceOpinPath?: DocumentPath;
 }
 
 export interface ProfileUpdateResult {
