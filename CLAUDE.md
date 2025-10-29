@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **📋 Auditoría de Documentación**: Este documento fue auditado exhaustivamente el 2025-10-28. Ver [ARCHITECTURE-VALIDATION.md](docs/ARCHITECTURE-VALIDATION.md) para el reporte completo de verificación (92% de coincidencia con implementación real).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
