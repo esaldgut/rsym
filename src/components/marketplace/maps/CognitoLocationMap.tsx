@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
-import * as maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper';
-import { fetchAuthSession } from 'aws-amplify/auth';
-import outputs from '../../../../amplify/outputs.json';
+import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper'
+import { fetchAuthSession } from 'aws-amplify/auth'
+import * as maplibregl from 'maplibre-gl'
+import 'maplibre-gl/dist/maplibre-gl.css'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import outputs from '../../../../amplify/outputs.json'
 
 interface Destination {
   id?: string;
@@ -530,7 +530,7 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         drawStraightLineRoute(mapInstance, waypointPositions);
 
         // Set warning message for user (not blocking error)
-        setWarning('⚠️ Ruta aproximada con líneas rectas. La distancia total excede el límite de cálculo de 400 km.');
+        setWarning('Ruta aproximada con líneas rectas.');
         return;
       }
 
@@ -543,7 +543,7 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           console.warn('⚠️ [CognitoLocationMap] API error 500 (posible token expirado), activando fallback inmediato');
           const waypointPositions = waypoints.map(w => w.position);
           drawStraightLineRoute(mapInstance, waypointPositions);
-          setWarning('⚠️ Ruta aproximada con líneas rectas. El servicio de cálculo no está disponible temporalmente. Por favor, recarga la página.');
+          setWarning('Ruta aproximada con líneas rectas.');
           return; // Exit gracefully without throwing
         }
 
@@ -629,7 +629,7 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         console.warn('⚠️ [CognitoLocationMap] Intentando fallback con líneas rectas...');
         const waypointPositions = waypoints.map(w => w.position);
         drawStraightLineRoute(mapInstance, waypointPositions);
-        setWarning('⚠️ Ruta aproximada con líneas rectas. No se pudo calcular la ruta real.');
+        setWarning('Ruta aproximada con líneas rectas.');
       } catch (fallbackErr) {
         console.error('❌ [CognitoLocationMap] Fallback también falló:', fallbackErr);
         // Non-critical error - map still works without route
