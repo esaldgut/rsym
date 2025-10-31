@@ -8,6 +8,8 @@ import {
   validateProfileDataAction,
   revalidateProfilePages,
   type ProfileUpdateData as ProfileFormData,
+  type SocialMediaPlatform,
+  type DocumentPath,
 } from '@/lib/server/profile-settings-actions';
 import { updateUserAttributes } from 'aws-amplify/auth';
 import { uploadProfileImage } from '@/utils/storage-helpers';
@@ -24,6 +26,18 @@ import { DateInput } from '@/components/ui/DateInput';
 // Tipos para el formulario
 type UserType = 'traveler' | 'influencer' | 'provider';
 
+// Interface para contact information (formato corto y largo)
+interface ContactInformationRaw {
+  // Formato corto (nuevo)
+  n?: string;
+  p?: string;
+  e?: string;
+  // Formato largo (antiguo)
+  contact_name?: string;
+  contact_phone?: string;
+  contact_email?: string;
+}
+
 // Países disponibles para providers
 const COUNTRIES = [
   { code: 'MX', name: 'México' },
@@ -37,9 +51,10 @@ const COUNTRIES = [
 
 interface ProfileSettingsClientProps {
   initialAttributes: Record<string, string | undefined>;
+  callbackUrl?: string; // URL de callback para redirigir después de guardar (opcional)
 }
 
-export default function ProfileSettingsClient({ initialAttributes }: ProfileSettingsClientProps) {
+export default function ProfileSettingsClient({ initialAttributes, callbackUrl }: ProfileSettingsClientProps) {
   const router = useRouter();
   const { user, refreshUser } = useAuth();
   const [userType, setUserType] = useState<UserType | null>((initialAttributes['custom:user_type'] as UserType) || null);
@@ -48,6 +63,21 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isUploading, setIsUploading] = useState(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
+
+  // Guardar callbackUrl en sessionStorage si se proporciona (toma prioridad sobre sessionStorage existente)
+  useEffect(() => {
+    if (callbackUrl) {
+      console.log('[ProfileSettingsClient] 📍 Callback URL detectada desde query params:', callbackUrl);
+      sessionStorage.setItem('profileCompleteReturnUrl', callbackUrl);
+      sessionStorage.setItem('profileCompleteAction', 'complete_profile_and_return');
+    } else {
+      // Verificar si ya existe un callback en sessionStorage (desde useProfileCompletion hook)
+      const existingCallbackUrl = sessionStorage.getItem('profileCompleteReturnUrl');
+      if (existingCallbackUrl) {
+        console.log('[ProfileSettingsClient] 📍 Callback URL detectada desde sessionStorage:', existingCallbackUrl);
+      }
+    }
+  }, [callbackUrl]);
   
   // Guardar URL pre-firmada (si existe) en state separado del form
   // Esta URL NO se guarda en Cognito, solo se usa para renderizado
@@ -68,7 +98,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       
       // Campos de influencer
       uniq_influencer_ID: initialAttributes['custom:uniq_influencer_ID'] || '',
-      social_media_plfms: safeJsonParse<any[]>(
+      social_media_plfms: safeJsonParse<SocialMediaPlatform[]>(
         initialAttributes['custom:social_media_plfms'],
         []
       ).data || [],
@@ -124,7 +154,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
         ? JSON.parse(initialAttributes['custom:days_of_service'])
         : [],
       contact_information: (() => {
-        const parsed = safeJsonParse<any>(
+        const parsed = safeJsonParse<ContactInformationRaw | null>(
           initialAttributes['custom:contact_information'],
           null
         );
@@ -149,7 +179,7 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
         return { contact_name: '', contact_phone: '', contact_email: '' };
       })(),
       emgcy_details: (() => {
-        const parsed = safeJsonParse<any>(
+        const parsed = safeJsonParse<ContactInformationRaw | null>(
           initialAttributes['custom:emgcy_details'],
           null
         );
@@ -175,15 +205,15 @@ export default function ProfileSettingsClient({ initialAttributes }: ProfileSett
       })(),
       
       // Documentos
-      proofOfTaxStatusPath: safeJsonParse<any>(
+      proofOfTaxStatusPath: safeJsonParse<DocumentPath | undefined>(
         initialAttributes['custom:proofOfTaxStatusPath'],
         undefined
       ).data || undefined,
-      secturPath: safeJsonParse<any>(
+      secturPath: safeJsonParse<DocumentPath | undefined>(
         initialAttributes['custom:secturPath'],
         undefined
       ).data || undefined,
-      complianceOpinPath: safeJsonParse<any>(
+      complianceOpinPath: safeJsonParse<DocumentPath | undefined>(
         initialAttributes['custom:complianceOpinPath'],
         undefined
       ).data || undefined,

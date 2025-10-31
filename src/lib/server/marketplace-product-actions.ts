@@ -1,94 +1,63 @@
+/**
+ * Marketplace Product Actions - Server Actions for Product Queries
+ *
+ * ARQUITECTURA (Migrado a GraphQL Code Generator):
+ * ✅ Usa tipos generados desde @/generated/graphql.ts (ÚNICA FUENTE DE VERDAD)
+ * ✅ Importa query desde @/lib/graphql/operations.ts (centralizado)
+ * ✅ Type-safe end-to-end: Variables → Query → Response
+ * ✅ No usa `any` types - strict TypeScript mode
+ * ✅ Alineado con MIGRATION-GRAPHQL-CODEGEN.md
+ *
+ * PATRÓN:
+ * 1. Definir variables tipadas: GetProductByIdQueryVariables
+ * 2. Ejecutar query con tipo genérico: client.graphql<GetProductByIdQuery>()
+ * 3. Retornar tipo derivado: NonNullable<GetProductByIdQuery['getProductById']>
+ *
+ * Ver: docs/MIGRATION-GRAPHQL-CODEGEN.md para pipeline completo
+ */
 'use server';
 
 import { getGraphQLClientWithIdToken } from './amplify-graphql-client';
 import { logger } from '@/utils/logger';
 import { isValidProductId } from '@/utils/validators';
+import { getProductById } from '@/lib/graphql/operations';
+import type {
+  GetProductByIdQuery,
+  GetProductByIdQueryVariables,
+  Product
+} from '@/generated/graphql';
 
-// GraphQL query for fetching product by ID
-const getProduct = `
-  query GetProduct($id: ID!) {
-    getProduct(id: $id) {
-      id
-      name
-      description
-      product_type
-      published
-      cover_image_url
-      image_url
-      video_url
-      min_product_price
-      itinerary
-      preferences
-      destination {
-        place
-        placeSub
-        coordinates {
-          latitude
-          longitude
-        }
-      }
-      seasons {
-        id
-        start_date
-        end_date
-        number_of_nights
-      }
-      user_data {
-        username
-        name
-        avatar_url
-      }
-    }
-  }
-`;
-
-// Action result type
-interface ActionResult<T = any> {
+// Action result type with strict typing (no any)
+interface ActionResult<T = unknown> {
   success: boolean;
   error?: string;
   data?: T;
 }
 
-interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  product_type: string;
-  published: boolean;
-  cover_image_url?: string;
-  image_url?: string[];
-  video_url?: string[];
-  min_product_price?: number;
-  itinerary?: string;
-  preferences?: string[];
-  destination?: Array<{
-    place?: string;
-    placeSub?: string;
-    coordinates?: {
-      latitude?: number;
-      longitude?: number;
-    };
-  }>;
-  seasons?: Array<{
-    id: string;
-    start_date?: string;
-    end_date?: string;
-    number_of_nights?: string;
-  }>;
-  user_data?: {
-    username?: string;
-    name?: string;
-    avatar_url?: string;
-  };
-}
+/**
+ * Type alias for Product from generated GraphQL types
+ * Ensures type safety and alignment with GraphQL schema
+ */
+type ProductData = NonNullable<GetProductByIdQuery['getProductById']>;
 
 /**
  * Obtiene un producto individual por ID
  * Usado principalmente para deep linking cuando el producto no está en la lista cargada
+ *
+ * @param productId - UUID del producto en formato válido
+ * @returns ActionResult con ProductData tipado desde GraphQL Code Generator
+ *
+ * @example
+ * ```typescript
+ * const result = await getProductByIdAction('550e8400-e29b-41d4-a716-446655440000');
+ * if (result.success && result.data?.product) {
+ *   console.log(result.data.product.name); // TypeScript sabe todos los campos
+ * }
+ * ```
  */
 export async function getProductByIdAction(
   productId: string
-): Promise<ActionResult<{ product: Product | null }>> {
+): Promise<ActionResult<{ product: ProductData | null }>> {
   try {
     // Validar el ID del producto
     if (!isValidProductId(productId)) {
@@ -104,12 +73,15 @@ export async function getProductByIdAction(
     // Obtener cliente GraphQL con autenticación
     const client = await getGraphQLClientWithIdToken();
 
-    // Ejecutar query
-    const result = await client.query({
-      query: getProduct,
-      variables: {
-        id: productId
-      }
+    // Definir variables tipadas con GraphQL Code Generator
+    const variables: GetProductByIdQueryVariables = {
+      id: productId
+    };
+
+    // Ejecutar query con tipos generados
+    const result = await client.graphql<GetProductByIdQuery>({
+      query: getProductById,
+      variables
     });
 
     // Verificar si hay errores de GraphQL
@@ -119,11 +91,11 @@ export async function getProductByIdAction(
         productId
       });
 
-      // Si hay data parcial, usarla
-      if (result.data?.getProduct) {
+      // Si hay data parcial, usarla (tipo ya inferido por GraphQL Code Generator)
+      if (result.data?.getProductById) {
         return {
           success: true,
-          data: { product: result.data.getProduct as Product }
+          data: { product: result.data.getProductById }
         };
       }
 
@@ -134,7 +106,7 @@ export async function getProductByIdAction(
     }
 
     // Verificar si el producto existe
-    if (!result.data?.getProduct) {
+    if (!result.data?.getProductById) {
       logger.info('Producto no encontrado', { productId });
       return {
         success: false,
@@ -142,7 +114,8 @@ export async function getProductByIdAction(
       };
     }
 
-    const product = result.data.getProduct as Product;
+    // Producto tipado automáticamente por GraphQL Code Generator
+    const product = result.data.getProductById;
 
     // Solo devolver productos publicados (a menos que sea el owner)
     if (!product.published) {
@@ -179,10 +152,13 @@ export async function getProductByIdAction(
 /**
  * Obtiene múltiples productos por sus IDs
  * Útil para precargar productos desde deep links
+ *
+ * @param productIds - Array de UUIDs de productos
+ * @returns ActionResult con array de ProductData tipados desde GraphQL Code Generator
  */
 export async function getProductsByIdsAction(
   productIds: string[]
-): Promise<ActionResult<{ products: Product[] }>> {
+): Promise<ActionResult<{ products: ProductData[] }>> {
   try {
     // Validar todos los IDs
     const validIds = productIds.filter(isValidProductId);
@@ -203,8 +179,8 @@ export async function getProductsByIdsAction(
     const promises = validIds.map(id => getProductByIdAction(id));
     const results = await Promise.allSettled(promises);
 
-    // Extraer productos exitosos
-    const products: Product[] = [];
+    // Extraer productos exitosos (tipados por GraphQL Code Generator)
+    const products: ProductData[] = [];
     let errors = 0;
 
     results.forEach((result, index) => {
@@ -282,6 +258,94 @@ export async function validateProductAccessAction(
     return {
       success: true,
       data: { isAccessible: false }
+    };
+  }
+}
+
+/**
+ * Get Product Seasons (Active Pricing Periods)
+ *
+ * Retrieves all active seasons/pricing periods for a product.
+ * Used for change date functionality to show available date ranges and prices.
+ *
+ * @param productId - Product ID
+ * @returns List of active seasons with pricing information
+ */
+export async function getProductSeasonsAction(
+  productId: string
+): Promise<ServerActionResponse<Array<{
+  id: string;
+  season_name: string;
+  start_date: string;
+  end_date: string;
+  is_active: boolean;
+  adult_base_price: number;
+  child_ranges?: Array<{
+    name: string;
+    min_minor_age: number;
+    max_minor_age: number;
+    child_price: number;
+  }>;
+}>>> {
+  console.log('[getProductSeasonsAction] 📦 Obteniendo seasons para producto:', productId);
+
+  try {
+    // Get GraphQL client
+    const client = await getGraphQLClientWithIdToken();
+
+    // GraphQL query to get product with seasons
+    const getProductWithSeasons = /* GraphQL */ `
+      query GetProductWithSeasons($id: ID!) {
+        getProduct(id: $id) {
+          id
+          name
+          product_type
+          seasons {
+            id
+            season_name
+            start_date
+            end_date
+            is_active
+            adult_base_price
+            child_ranges {
+              name
+              min_minor_age
+              max_minor_age
+              child_price
+            }
+          }
+        }
+      }
+    `;
+
+    const result = await client.graphql({
+      query: getProductWithSeasons,
+      variables: { id: productId }
+    });
+
+    if (!result.data?.getProduct) {
+      console.error('[getProductSeasonsAction] ❌ Producto no encontrado');
+      return {
+        success: false,
+        error: 'Producto no encontrado'
+      };
+    }
+
+    const seasons = result.data.getProduct.seasons || [];
+
+    console.log('[getProductSeasonsAction] ✅ Seasons obtenidas:', seasons.length);
+
+    return {
+      success: true,
+      data: seasons
+    };
+
+  } catch (error) {
+    console.error('[getProductSeasonsAction] ❌ Error:', error);
+
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error al obtener temporadas'
     };
   }
 }

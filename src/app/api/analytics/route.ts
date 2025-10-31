@@ -52,7 +52,7 @@ interface AnalyticsEvent {
       operationTime?: number;
       apiResponseTime?: number;
     };
-    metadata?: Record<string, any>;
+    metadata?: Record<string, unknown>;
   };
 }
 
@@ -161,7 +161,7 @@ async function sendLogsToCloudWatch(events: AnalyticsEvent[], source: string): P
     }));
   } catch (error: unknown) {
     // Ignorar si ya existe
-    const errorName = error instanceof Error && 'name' in error ? (error as any).name : '';
+    const errorName = error instanceof Error && 'name' in error ? (error as Error & { name: string }).name : '';
     if (errorName !== 'ResourceAlreadyExistsException') {
       throw error;
     }

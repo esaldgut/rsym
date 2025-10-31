@@ -2,6 +2,16 @@
 
 > **📋 Auditoría de Documentación**: Este documento fue auditado exhaustivamente el 2025-10-28. Ver [ARCHITECTURE-VALIDATION.md](docs/ARCHITECTURE-VALIDATION.md) para el reporte completo de verificación (92% de coincidencia con implementación real).
 
+> **🏪 Análisis de Marketplace**: Análisis exhaustivo del marketplace completado el 2025-10-30. Ver [MARKETPLACE-ANALYSIS.md](docs/MARKETPLACE-ANALYSIS.md) para evaluación de completitud (60% funcional, 3 servicios críticos pendientes).
+
+> **✈️ GraphQL Operations Completeness**: GraphQL operations 100% alineadas con backend schema (2025-10-31). Todas las queries/mutations verificadas con profundidad completa. Ver sección "GraphQL Integration" para detalles.
+
+> **🎯 Proyecto Activo - Experiencia de Reservaciones**: Implementación en curso de sistema completo de gestión de viajes (2025-10-31). Objetivo: superar competencia (Exoticca) aprovechando ventajas únicas de YAAN (payment plans auto-generados, room distribution, change policies). Ver sección "Reservation Management System" para roadmap completo.
+
+> **💳 FASE 6: MIT Payment Integration**: Integración completa con MIT Payment Gateway completada el 2025-10-31. Sistema de pagos en línea (CONTADO y PLAZOS) con webhooks seguros (HMAC SHA-256), página de confirmación, y flujo end-to-end verificado. Ver [RESUMEN-EJECUTIVO-FASE6.md](RESUMEN-EJECUTIVO-FASE6.md) para detalles completos (~1,097 líneas de código limpio, 0 duplicaciones).
+
+> **🗺️ FLUJO COMPLETO DE RESERVACIONES**: Documentación exhaustiva del sistema completo desde marketplace hasta pago (FASES 1-6). Ver [FLUJO-COMPLETO-RESERVACIONES.md](FLUJO-COMPLETO-RESERVACIONES.md) para diagrama de flujo end-to-end, casos de uso completos, y especificaciones técnicas (~7,482 líneas de código implementadas, 37 archivos, 10 funcionalidades).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview

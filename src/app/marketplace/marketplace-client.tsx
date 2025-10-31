@@ -12,6 +12,7 @@ import { ProductDetailModal } from '@/components/marketplace/ProductDetailModal'
 import { validateDeepLinkParams } from '@/utils/validators';
 import { logger } from '@/utils/logger';
 import { getProductByIdAction } from '@/lib/server/marketplace-product-actions';
+import { generateBookingUrlAction } from '@/lib/server/booking-url-actions';
 
 // REPLICANDO LOS PATTERNS DE ProviderProductsDashboard.tsx + FeedGrid.tsx
 
@@ -82,7 +83,7 @@ export function MarketplaceClient({
     babys: 0
   });
   const [isProcessingReservation, setIsProcessingReservation] = useState(false);
-  const [isPending, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
+  const [, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
 
   // Estado para el modal de detalle de producto - ahora sincronizado con URL
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
@@ -104,7 +105,6 @@ export function MarketplaceClient({
     hasMore,
     error,
     currentFilter,
-    activeFilters,
     searchTerm,
     loadMore,
     changeFilter,
@@ -122,7 +122,6 @@ export function MarketplaceClient({
   // Validar y derivar estado del modal desde URL query parameters
   const validatedParams = validateDeepLinkParams(searchParams);
   const productIdFromUrl = validatedParams.productId;
-  const productTypeFromUrl = validatedParams.productType;
   const showProductDetail = Boolean(productIdFromUrl);
 
   // Sincronizar producto seleccionado con URL al montar o cambiar URL
@@ -225,15 +224,48 @@ export function MarketplaceClient({
     setTimeout(() => setSelectedProduct(null), 300); // Delay para animación
   };
 
-  // Manejar inicio de reserva (PATRÓN ORIGINAL MANTENIDO)
+  // Manejar inicio de reserva - Redirigir a /marketplace/booking con URL cifrada
   const handleReserveExperience = async (experience: MarketplaceProduct) => {
     checkProfile('reserve_experience', {
       experienceId: experience.id,
       title: experience.name
-    }, () => {
-      setSelectedExperience(experience);
-      setReservationForm({ adults: 1, kids: 0, babys: 0 });
-      setShowReservationModal(true);
+    }, async () => {
+      try {
+        // Generar URL cifrada para booking usando Server Action
+        console.log('🔐 [MarketplaceClient] Generando URL cifrada con Server Action...');
+
+        const result = await generateBookingUrlAction(
+          experience.id,
+          experience.name,
+          experience.product_type as 'circuit' | 'package'
+        );
+
+        if (result.success && result.url) {
+          console.log('✅ [MarketplaceClient] URL cifrada generada, redirigiendo a booking');
+          router.push(result.url);
+        } else {
+          console.error('❌ [MarketplaceClient] Error al generar URL:', result.error);
+          toastManager.error('Error al generar URL de reserva', {
+            trackingContext: {
+              feature: 'marketplace_booking',
+              error: result.error || 'url_encryption_failed',
+              productId: experience.id,
+              category: 'error_handling'
+            }
+          });
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        console.error('❌ [MarketplaceClient] Error inesperado:', errorMessage);
+        toastManager.error('Error al procesar la reserva', {
+          trackingContext: {
+            feature: 'marketplace_booking',
+            error: errorMessage,
+            productId: experience.id,
+            category: 'error_handling'
+          }
+        });
+      }
     });
   };
 
@@ -293,7 +325,8 @@ export function MarketplaceClient({
           experience_id: selectedExperience.id,
           collection_type: selectedExperience.product_type || 'product',
           reservationDate: new Date().toISOString(),
-          status: 'pending'
+          // ✅ NOTA: Campo 'status' NO se envía - backend asigna IN_PROGRESS automáticamente (secure-pricing.go:262)
+          type: 'CONTADO' // Campo obligatorio: tipo de pago (por defecto CONTADO para reservas desde marketplace)
         };
 
         // SERVER ACTION: Create reservation with payment in one transaction
@@ -354,7 +387,7 @@ export function MarketplaceClient({
 
   // Aplicar filtros locales (bridging legacy UI to new hook)
   const handleFiltersApply = () => {
-    const newFilters: any = {};
+    const newFilters: Record<string, string | number> = {};
 
     if (filters.category) {
       newFilters.category = filters.category;

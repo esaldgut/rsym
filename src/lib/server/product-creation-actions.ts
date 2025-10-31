@@ -1,7 +1,7 @@
 'use server';
 
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
-import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct } from '@/lib/graphql/operations';
+import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct, deleteProduct } from '@/lib/graphql/operations';
 import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 import type { Schema } from '@/amplify/data/resource';
@@ -601,6 +601,108 @@ export async function updateProductAction(productId: string, updateData: Record<
 
   } catch (error: unknown) {
     console.error('❌ [Server Action] Error actualizando producto:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
+    };
+  }
+}
+
+/**
+ * Server Action para eliminar (soft-delete) un producto
+ * ADDED 2025-10-31: Enables product deletion from provider dashboard
+ */
+export async function deleteProductAction(productId: string): Promise<ServerActionResponse<string>> {
+  try {
+    console.log('🗑️ [Server Action] Iniciando eliminación de producto:', productId);
+
+    // 1. Validar autenticación
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return {
+        success: false,
+        error: 'No se pudo obtener información del usuario'
+      };
+    }
+
+    console.log('✅ [Server Action] Usuario autenticado:', {
+      userId: user.userId,
+      email: user.email,
+      userType: user.userType
+    });
+
+    // 2. Validar que es un provider
+    if (user.userType !== 'provider') {
+      return {
+        success: false,
+        error: 'Solo los providers pueden eliminar productos'
+      };
+    }
+
+    // 3. Validar que el provider está aprobado
+    if (!user.isFullyApprovedProvider) {
+      return {
+        success: false,
+        error: 'Tu cuenta de provider debe estar aprobada para eliminar productos'
+      };
+    }
+
+    console.log('🔑 [Server Action] Obteniendo cliente GraphQL con ID token...');
+    const client = await getGraphQLClientWithIdToken();
+
+    // 4. Ejecutar mutación deleteProduct
+    console.log('🔄 [Server Action] Ejecutando mutación deleteProduct...');
+    const result = await client.graphql({
+      query: deleteProduct,
+      variables: { id: productId }
+    });
+
+    console.log('✅ [Server Action] Resultado de deleteProduct:', result);
+
+    // 5. Manejar errores parciales de GraphQL
+    if (result.errors && result.errors.length > 0) {
+      console.error('❌ [Server Action] GraphQL devolvió errores:', result.errors);
+
+      // Verificar si hay data a pesar de los errores (error parcial)
+      if (result.data?.deleteProduct) {
+        console.log('⚠️ [Server Action] Eliminación exitosa CON warnings');
+        return {
+          success: true,
+          data: result.data.deleteProduct,
+          hasPartialData: true,
+          warnings: result.errors.map((err: { message: string; path?: readonly (string | number)[]; extensions?: Record<string, unknown> }) => ({
+            message: err.message,
+            path: err.path,
+            extensions: err.extensions
+          }))
+        };
+      }
+
+      // Error completo sin data
+      return {
+        success: false,
+        error: result.errors[0].message
+      };
+    }
+
+    // 6. Verificar que la eliminación fue exitosa
+    if (result.data?.deleteProduct) {
+      console.log('✅ [Server Action] Producto eliminado exitosamente');
+      return {
+        success: true,
+        data: result.data.deleteProduct,
+        message: 'Producto eliminado exitosamente'
+      };
+    } else {
+      console.error('❌ [Server Action] No se recibió confirmación de la eliminación');
+      return {
+        success: false,
+        error: 'No se pudo confirmar la eliminación del producto'
+      };
+    }
+
+  } catch (error: unknown) {
+    console.error('❌ [Server Action] Error eliminando producto:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error interno del servidor'

@@ -235,20 +235,31 @@ export const toggleSave = /* GraphQL */ `
   }
 `;
 
+// ✅ REVERTIDO: Solo campos que existen en backend schema (schemas/schema-raw.graphql:472-487)
+// Backend usa patrón de dos pasos: createReservation → generatePaymentPlan
 export const createReservation = /* GraphQL */ `
   mutation CreateReservation($input: ReservationInput!) {
     createReservation(input: $input) {
       id
+      adults
       kids
       babys
-      adults
-      price_per_person
-      price_per_kid
-      total_price
+      companions {
+        birthday
+        country
+        family_name
+        gender
+        name
+        passport_number
+      }
       experience_id
       experience_type
+      price_per_kid
+      price_per_person
       reservationDate
       status
+      total_price
+      type
     }
   }
 `;
@@ -268,123 +279,89 @@ export const generatePaymentLink = /* GraphQL */ `
   }
 `;
 
-// Package Mutations
-export const createPackage = /* GraphQL */ `
-  mutation CreatePackage($input: CreatePackageInput!) {
-    createPackage(input: $input) {
+// ✅ NUEVO: PaymentPlan mutation - Paso 2 del flujo de reservación
+// Genera plan de pago con backend Secure Pricing System
+export const generatePaymentPlan = /* GraphQL */ `
+  mutation GeneratePaymentPlan($input: PaymentPlanInput!) {
+    generatePaymentPlan(input: $input) {
       id
-      name
-      description
-      cover_image_url
-      image_url
-      video_url
-      provider_id
-      destination {
-        id
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      origin {
-        id
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      startDate
-      endDate
-      included_services
-      aditional_services
-      language
-      preferences
-      categories
-      capacity
-      numberOfNights
-      prices {
-        id
-        currency
-        price
-        roomName
-      }
-      extraPrices {
-        id
-        currency
-        price
-        roomName
-      }
-      published
+      product_id
+      reservation_id
       status
+      payment_type_selected
+      currency
+      total_cost
+      travel_date
+      reservation_date
       created_at
+      updated_at
+      allows_date_change
+      change_deadline_days
+      benefits_statements {
+        stated
+      }
+      cash_discount_amount
+      cash_discount_percentage
+      cash_final_amount
+      cash_payment_deadline
+      cash_payment_methods
+      installment_down_payment_amount
+      installment_down_payment_percentage
+      installment_amount_per_payment
+      installment_number_of_payments
+      installment_frequency_days
+      installment_total_amount
+      installment_first_payment_deadline
+      installment_payment_deadline
+      installment_payment_methods
+      installment_available_days
     }
   }
 `;
 
-export const updatePackage = /* GraphQL */ `
-  mutation UpdatePackage($id: ID!, $input: UpdatePackageInput!) {
-    updatePackage(id: $id, input: $input) {
+export const updatePaymentPlan = /* GraphQL */ `
+  mutation UpdatePaymentPlan($input: UpdatePaymentPlanInput!) {
+    updatePaymentPlan(input: $input) {
       id
-      name
-      description
-      cover_image_url
-      image_url
-      video_url
-      provider_id
-      destination {
-        id
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      origin {
-        id
-        place
-        placeSub
-        coordinates
-        complementaryDescription
-      }
-      startDate
-      endDate
-      included_services
-      aditional_services
-      language
-      preferences
-      categories
-      capacity
-      numberOfNights
-      prices {
-        id
-        currency
-        price
-        roomName
-      }
-      extraPrices {
-        id
-        currency
-        price
-        roomName
-      }
-      published
+      product_id
+      reservation_id
       status
+      payment_type_selected
+      currency
+      total_cost
+      travel_date
+      reservation_date
       created_at
+      updated_at
+      allows_date_change
+      change_deadline_days
+      benefits_statements {
+        stated
+      }
+      cash_discount_amount
+      cash_discount_percentage
+      cash_final_amount
+      cash_payment_deadline
+      cash_payment_methods
+      installment_down_payment_amount
+      installment_down_payment_percentage
+      installment_amount_per_payment
+      installment_number_of_payments
+      installment_frequency_days
+      installment_total_amount
+      installment_first_payment_deadline
+      installment_payment_deadline
+      installment_payment_methods
+      installment_available_days
     }
   }
 `;
 
-export const deletePackage = /* GraphQL */ `
-  mutation DeletePackage($id: ID!) {
-    deletePackage(id: $id) {
-      id
-      name
-      status
-      created_at
-    }
-  }
-`;
-
-
+// ==================== DEPRECATED PACKAGE MUTATIONS ====================
+// REMOVED 2025-10-31: Legacy package-specific mutations replaced by unified Product mutations
+// - createPackage → use createProductOfTypePackage instead
+// - updatePackage → use updateProduct instead
+// - deletePackage → use deleteProduct instead (see line ~1639)
 
 export const updateProduct = /* GraphQL */ `
   mutation updateProduct($input: UpdateProductInput!) {
@@ -444,6 +421,9 @@ export const updateProduct = /* GraphQL */ `
               discount
               discount_type
               payment_methods
+              benefits_or_legal {
+                stated
+              }
             }
             installments {
               days_before_must_be_settled
@@ -453,6 +433,9 @@ export const updateProduct = /* GraphQL */ `
               down_payment_type
               installment_intervals
               payment_methods
+              benefits_or_legal {
+                stated
+              }
             }
           }
           description
@@ -606,6 +589,9 @@ export const getProductById = /* GraphQL */ `
               discount
               discount_type
               payment_methods
+              benefits_or_legal {
+                stated
+              }
             }
             installments {
               days_before_must_be_settled
@@ -615,6 +601,9 @@ export const getProductById = /* GraphQL */ `
               down_payment_type
               installment_intervals
               payment_methods
+              benefits_or_legal {
+                stated
+              }
             }
           }
           description
@@ -1419,7 +1408,9 @@ export const getPaymentPlan = /* GraphQL */ `
       updated_at
       allows_date_change
       change_deadline_days
-      benefits_statements
+      benefits_statements {
+        stated
+      }
       cash_discount_amount
       cash_discount_percentage
       cash_final_amount
@@ -1455,7 +1446,9 @@ export const getPaymentPlanByReservation = /* GraphQL */ `
       updated_at
       allows_date_change
       change_deadline_days
-      benefits_statements
+      benefits_statements {
+        stated
+      }
       cash_discount_amount
       cash_discount_percentage
       cash_final_amount
@@ -1471,6 +1464,157 @@ export const getPaymentPlanByReservation = /* GraphQL */ `
       installment_payment_deadline
       installment_payment_methods
       installment_available_days
+    }
+  }
+`;
+
+export const getPaymentPlanById = /* GraphQL */ `
+  query GetPaymentPlanById($id: ID!) {
+    getPaymentPlanById(id: $id) {
+      id
+      product_id
+      reservation_id
+      status
+      payment_type_selected
+      currency
+      total_cost
+      travel_date
+      reservation_date
+      created_at
+      updated_at
+      allows_date_change
+      change_deadline_days
+      benefits_statements {
+        stated
+      }
+      cash_discount_amount
+      cash_discount_percentage
+      cash_final_amount
+      cash_payment_deadline
+      cash_payment_methods
+      installment_down_payment_amount
+      installment_down_payment_percentage
+      installment_amount_per_payment
+      installment_number_of_payments
+      installment_frequency_days
+      installment_total_amount
+      installment_first_payment_deadline
+      installment_payment_deadline
+      installment_payment_methods
+      installment_available_days
+    }
+  }
+`;
+
+export const getReservationById = /* GraphQL */ `
+  query GetReservationById($id: ID!) {
+    getReservationById(id: $id) {
+      id
+      experience_id
+      experience_type
+      user_id
+      adults
+      kids
+      babys
+      companions {
+        name
+        family_name
+        birthday
+        country
+        gender
+        passport_number
+      }
+      reservation_date
+      status
+      price_per_person
+      price_per_kid
+      total_price
+      currency
+      season_id
+      price_id
+      payment_method
+      type
+    }
+  }
+`;
+
+export const getAllReservationsByUser = /* GraphQL */ `
+  query GetAllReservationsByUser(
+    $user_id: ID!
+    $limit: Int
+    $nextToken: String
+  ) {
+    getAllReservationsByUser(
+      user_id: $user_id
+      limit: $limit
+      nextToken: $nextToken
+    ) {
+      items {
+        id
+        experience_id
+        experience_type
+        user_id
+        adults
+        kids
+        babys
+        companions {
+          name
+          family_name
+          birthday
+          country
+          gender
+          passport_number
+        }
+        reservation_date
+        status
+        price_per_person
+        price_per_kid
+        total_price
+        currency
+        season_id
+        price_id
+        payment_method
+        type
+        created_at
+        updated_at
+      }
+      nextToken
+    }
+  }
+`;
+
+// ==================== MISSING MUTATIONS (ADDED 2025-10-31) ====================
+
+export const deleteProduct = /* GraphQL */ `
+  mutation DeleteProduct($id: ID!) {
+    deleteProduct(id: $id)
+  }
+`;
+
+export const updateReservation = /* GraphQL */ `
+  mutation UpdateReservation($input: UpdateReservationInput) {
+    updateReservation(input: $input) {
+      id
+      adults
+      kids
+      babys
+      companions {
+        name
+        family_name
+        birthday
+        country
+        gender
+        passport_number
+      }
+      experience_id
+      experience_type
+      payment_method
+      price_per_kid
+      price_per_person
+      reservationDate
+      status
+      total_price
+      type
     }
   }
 `;
