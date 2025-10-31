@@ -3,7 +3,7 @@
     "relation": ["delegate_permission/common.handle_all_urls"],
     "target": {
       "namespace": "android_app",
-      "package_name": "com.yaan.app",
+      "package_name": "com.yaan.mobile",
       "sha256_cert_fingerprints": [
         "0D:BB:EF:34:26:69:1F:18:8D:4F:B8:20:03:29:52:66:F4:E9:8F:3F:7C:F8:86:B2:58:DF:4E:74:7F:D9:80:F4"
       ]

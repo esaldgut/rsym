@@ -45,6 +45,22 @@ variables:
   PORT: 3000
   AWS_REGION: us-west-2
   HOSTNAME: "0.0.0.0"
+  # Variables públicas - disponibles en tiempo de build y runtime
+  NEXT_PUBLIC_BASE_URL: "https://yaan.com.mx"
+  NEXT_PUBLIC_APP_SCHEME: "yaan"
+  # MIT Payment Gateway
+  MIT_ENVIRONMENT: sandbox
+  MIT_BASE_URL: "https://sandbox.mitpaymentgateway.com"
+
+# Secretos desde AWS Secrets Manager
+# IMPORTANTE: Estos secretos deben crearse primero con scripts/setup-copilot-secrets.sh
+secrets:
+  # Secret para cifrado AES-256-GCM de URLs de booking (FASE 1)
+  URL_ENCRYPTION_SECRET: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/URL_ENCRYPTION_SECRET
+  # Secret para verificar HMAC SHA-256 de webhooks MIT (FASE 6)
+  MIT_WEBHOOK_SECRET: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/MIT_WEBHOOK_SECRET
+  # API Key para MIT Payment Gateway (FASE 6)
+  MIT_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/MIT_API_KEY
 
 # Logging habilitado
 logging:
@@ -57,3 +73,15 @@ environments:
     variables:
       LOG_LEVEL: debug
       NEXT_PUBLIC_ENV: development
+      # MIT Sandbox para desarrollo
+      MIT_ENVIRONMENT: sandbox
+      MIT_BASE_URL: "https://sandbox.mitpaymentgateway.com"
+  prod:
+    count: 2
+    variables:
+      LOG_LEVEL: info
+      NEXT_PUBLIC_ENV: production
+      NODE_ENV: production
+      # MIT Producción
+      MIT_ENVIRONMENT: production
+      MIT_BASE_URL: "https://api.mitpaymentgateway.com"
