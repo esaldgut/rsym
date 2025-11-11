@@ -432,6 +432,86 @@ git commit -m "✅ FASE 6: MIT Payment Integration - Sistema completo verificado
 
 ---
 
-**Última actualización**: 2025-10-31 (final del día)
+## 🔐 ACTUALIZACIÓN: Configuración de Variables de Entorno para Copilot
+
+**Fecha**: 2025-10-31 (continuación)
+**Status**: ✅ **CONFIGURADO Y VERIFICADO**
+
+### ✅ Tareas Completadas
+
+1. **Script Automatizado de Secretos** ✅
+   - Creado: `scripts/setup-copilot-secrets.sh`
+   - Ejecutable y probado
+   - Crea/actualiza 3 secretos en AWS Secrets Manager
+   - Lectura automática desde `.env.local`
+
+2. **Secretos Configurados en AWS** ✅
+   - `/copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET` ✅
+   - `/copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET` ✅
+   - `/copilot/yaan-dev/dev/secrets/MIT_API_KEY` ✅
+
+3. **Copilot Manifest Actualizado** ✅
+   - Archivo: `copilot/nextjs-dev/manifest.yml`
+   - Sección `secrets:` agregada con 3 secretos
+   - Variables públicas agregadas (NEXT_PUBLIC_BASE_URL, MIT_ENVIRONMENT)
+   - Configuración específica por entorno (dev/prod)
+
+4. **Documentación Completa** ✅
+   - `docs/COPILOT-ENV-SETUP.md` - Guía completa actualizada
+   - `docs/iam-secrets-policy.json` - Política IAM de referencia
+   - `ENV-CONFIG-SUMMARY.md` - Resumen ejecutivo con Quick Start
+
+### 📊 Secretos Configurados
+
+| Secret | Path en AWS | Descripción | Usado en |
+|--------|-------------|-------------|----------|
+| URL_ENCRYPTION_SECRET | `/copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET` | AES-256-GCM para URLs | FASE 1 |
+| MIT_WEBHOOK_SECRET | `/copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET` | HMAC SHA-256 webhooks | FASE 6 |
+| MIT_API_KEY | `/copilot/yaan-dev/dev/secrets/MIT_API_KEY` | MIT Payment Gateway | FASE 6 |
+
+### 🚀 Próximo Paso: Despliegue
+
+```bash
+# El manifest.yml ya está configurado con los secretos
+# Los secretos ya están en AWS Secrets Manager
+# Solo falta desplegar:
+
+./deploy-safe.sh
+```
+
+**Durante el despliegue, Copilot automáticamente**:
+1. Lee los secretos de AWS Secrets Manager
+2. Los inyecta como variables de entorno en el contenedor ECS
+3. Agrega permisos IAM al Task Role para acceder a los secretos
+4. Los hace disponibles en `process.env.*` en la aplicación
+
+### 📦 Archivos Nuevos/Modificados
+
+| Archivo | Acción | Status |
+|---------|--------|--------|
+| `scripts/setup-copilot-secrets.sh` | Creado | ✅ Ejecutado |
+| `copilot/nextjs-dev/manifest.yml` | Actualizado | ✅ Secrets agregados |
+| `docs/COPILOT-ENV-SETUP.md` | Actualizado | ✅ Quick Start agregado |
+| `docs/iam-secrets-policy.json` | Creado | ✅ Referencia IAM |
+| `ENV-CONFIG-SUMMARY.md` | Creado | ✅ Resumen completo |
+
+### ✅ Verificación
+
+```bash
+# Secretos verificados en AWS
+$ aws secretsmanager list-secrets --region us-west-2 --query 'SecretList[?contains(Name, `/copilot/yaan-dev/dev/`)].Name'
+
+[
+    "/copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET",
+    "/copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET",
+    "/copilot/yaan-dev/dev/secrets/MIT_API_KEY"
+]
+```
+
+**Status**: ✅ **LISTO PARA DESPLIEGUE**
+
+---
+
+**Última actualización**: 2025-10-31 (configuración de variables de entorno completada)
 **Verificación realizada por**: Claude (Anthropic)
-**Estado**: ✅ **COMPLETADO Y APROBADO**
+**Estado**: ✅ **COMPLETADO, CONFIGURADO Y LISTO PARA DESPLIEGUE**
