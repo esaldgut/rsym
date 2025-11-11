@@ -1,46 +1,33 @@
-# Mutation para generar PaymentPlan después de crear reservación
-# Backend calcula precios con Secure Pricing System (7 business rules)
-# Schema: schemas/schema-raw.graphql:250, 301-338, 750-756
 mutation generatePaymentPlan($input: PaymentPlanInput!) {
   generatePaymentPlan(input: $input) {
-    id
-    product_id
-    reservation_id
-    status
-    payment_type_selected
-    currency
-    total_cost
-    travel_date
-    reservation_date
-    created_at
-    updated_at
-
-    # Política de cambios
     allows_date_change
-    change_deadline_days
-
-    # Beneficios y declaraciones legales
     benefits_statements {
       stated
     }
-
-    # Opción CONTADO
     cash_discount_amount
     cash_discount_percentage
     cash_final_amount
     cash_payment_deadline
     cash_payment_methods
-
-    # Opción PLAZOS
+    change_deadline_days
+    created_at
+    currency
+    id
+    installment_amount_per_payment
+    installment_available_days
     installment_down_payment_amount
     installment_down_payment_percentage
-    installment_amount_per_payment
-    installment_number_of_payments
-    installment_frequency_days
-    installment_total_amount
     installment_first_payment_deadline
+    installment_frequency_days
+    installment_number_of_payments
     installment_payment_deadline
     installment_payment_methods
-    installment_available_days
+    installment_total_amount
+    product_id
+    reservation_date
+    reservation_id
+    total_cost
+    travel_date
+    updated_at
   }
 }

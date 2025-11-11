@@ -62,10 +62,11 @@ type CognitoUser {
   name: String
   phone_number: String
   phone_number_verified: Boolean
+  preferred_username: String
   profile_photo_path: String
   profile_preferences: String
   provider_is_approved: Boolean
-  providers_policies: Policy
+  providers_policies: [Policy]
   req_special_services: Boolean
   updated_at: AWSDateTime
   user_type: String
@@ -250,6 +251,7 @@ type Mutation {
   generatePaymentPlan(input: PaymentPlanInput!): PaymentPlan @aws_cognito_user_pools
   markMessageAsDelivered(messageId: ID!): Message! @aws_cognito_user_pools
   markMessagesAsRead(conversationId: ID!): Boolean! @aws_cognito_user_pools
+  registerDevice(deviceInfo: DeviceInfoInput, deviceToken: String!, platform: String!): UserDevice! @aws_cognito_user_pools
   rejectConnectionRequest(requestId: ID!): Friendship!
   removeConnection(connectionId: ID!): Boolean!
   sendConnectionRequest(targetUserId: ID!): Friendship!
@@ -457,6 +459,7 @@ type Query {
   getUserStats(userId: ID!): UserStats!
   #  Chat Queries
   listMyConversations(limit: Int, nextToken: String): ConversationConnection! @aws_cognito_user_pools
+  searchUsers(limit: Int, nextToken: String, searchTerm: String!): UserSearchConnection!
 }
 
 type RelationshipStatus {
@@ -518,8 +521,29 @@ type User {
   email: String
   name: String
   sub: String
+  uniq_influencer_ID: String
   user_type: String
   username: String
+}
+
+type UserDevice @aws_cognito_user_pools {
+  active: Boolean!
+  appVersion: String
+  createdAt: AWSDateTime!
+  deviceModel: String
+  deviceToken: String!
+  id: ID!
+  osVersion: String
+  pinpointEndpointId: String
+  platform: String!
+  updatedAt: AWSDateTime!
+  userId: ID!
+}
+
+type UserSearchConnection {
+  items: [CognitoUser!]!
+  nextToken: String
+  total: Int!
 }
 
 type UserStats {
@@ -675,6 +699,12 @@ input CreateProductOfTypeCircuitInput {
 
 input CreateProductOfTypePackageInput {
   name: String!
+}
+
+input DeviceInfoInput {
+  appVersion: String
+  deviceModel: String
+  osVersion: String
 }
 
 input GeneralPoliciesInput {

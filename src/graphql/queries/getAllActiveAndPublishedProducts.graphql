@@ -125,6 +125,7 @@ query getAllActiveAndPublishedProducts($filter: ProductFilterInput, $pagination:
         email
         name
         sub
+        uniq_influencer_ID
         user_type
         username
       }
