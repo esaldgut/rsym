@@ -126,7 +126,6 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
   // Initialize map with Cognito authentication
   useEffect(() => {
     if (!mapContainer.current || map.current) {
-      setIsLoading(false);
       return;
     }
 
@@ -186,17 +185,9 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           ...authHelper.getMapAuthenticationOptions(),
         });
 
-        // ✅ CAMBIO 2: Timeout de seguridad para resetear isLoading
-        const loadTimeout = setTimeout(() => {
-          console.error('[CognitoLocationMap] Timeout: evento "load" no disparó en 10s');
-          setError('El mapa tardó demasiado en cargar');
-          setIsLoading(false);
-        }, 10000); // 10 segundos
-
         // STEP 5: Wait for map to load
         mapInstance.on('load', () => {
           console.log('✅ [CognitoLocationMap] Mapa cargado exitosamente');
-          clearTimeout(loadTimeout); // Cancelar timeout si carga exitosa
           setIsLoading(false);
 
           // Add markers for all destinations
@@ -222,7 +213,6 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
         // Error handling
         mapInstance.on('error', (e) => {
-          clearTimeout(loadTimeout);
           console.error('❌ [CognitoLocationMap] Error en el mapa:', e);
           setError('Error al cargar el mapa');
           setIsLoading(false);
