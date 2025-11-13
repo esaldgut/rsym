@@ -3,6 +3,16 @@
 const nextConfig = {
   // Configuración para Docker standalone
   output: 'standalone',
+  // Transpile maplibre-gl y dependencias para Turbopack compatibility
+  transpilePackages: [
+    'maplibre-gl',
+    '@mapbox/geojson-rewind',
+    '@mapbox/point-geometry',
+    '@mapbox/tiny-sdf',
+    '@mapbox/unitbezier',
+    '@mapbox/vector-tile',
+    '@mapbox/whoots-js'
+  ],
   // Disable ESLint during build to avoid linting errors
   eslint: {
     ignoreDuringBuilds: true,

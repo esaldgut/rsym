@@ -190,22 +190,21 @@ export function MarketplaceClient({
     };
   }, [productIdFromUrl, products]);
 
-  // Manejar apertura de detalle de producto - actualiza URL
+  // Manejar apertura de detalle de producto - abre modal con deep linking
   const handleOpenProductDetail = (product: MarketplaceProduct) => {
-    logger.deepLink('Abriendo producto modal', {
+    logger.deepLink('Abriendo modal de producto', {
       productId: product.id,
       productType: product.product_type
     });
 
-    // Actualizar URL con query parameters
+    // Abrir modal (setea producto seleccionado)
+    setSelectedProduct(product);
+
+    // Actualizar URL para deep linking (sin scroll)
     const params = new URLSearchParams(searchParams.toString());
     params.set('product', product.id);
     params.set('type', product.product_type);
-
-    // Usar replace para no agregar entrada al historial
-    router.replace(`/marketplace?${params.toString()}`, { scroll: false });
-
-    setSelectedProduct(product);
+    router.push(`/marketplace?${params.toString()}`, { scroll: false });
   };
 
   // Manejar cierre de detalle de producto - limpia URL
@@ -649,8 +648,15 @@ export function MarketplaceClient({
                 product={selectedProduct}
                 onClose={handleCloseProductDetail}
                 onReserve={() => {
+                  logger.deepLink('Navegando desde modal a página de detalle completo', {
+                    productId: selectedProduct.id
+                  });
+
+                  // Cerrar modal
                   handleCloseProductDetail();
-                  handleReserveExperience(selectedProduct);
+
+                  // Navegar a página de detalle completo
+                  router.push(`/marketplace/booking/${selectedProduct.id}`);
                 }}
               />
             ) : null}
@@ -919,12 +925,12 @@ function ExperienceCard({ experience, onReserve, onOpenDetail }: ExperienceCardP
 
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Prevenir que se abra el modal al hacer clic en reservar
-              onReserve();
+              e.stopPropagation(); // Prevenir propagación del click
+              onOpenDetail?.(); // Navigate to product detail page
             }}
             className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02]"
           >
-            Reservar ahora
+            Ver detalles
           </button>
         </div>
       </div>

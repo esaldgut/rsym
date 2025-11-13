@@ -672,19 +672,39 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                 </div>
                 <p className="text-xs text-gray-500 mt-1">*Precio por persona</p>
               </div>
-              <button
-                onClick={handleReserveClick}
-                disabled={isLoading}
-                className="w-full sm:w-auto flex-shrink-0 bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
-                <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="relative z-10">Reservar ahora</span>
-              </button>
+              {/* Botones de acción */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                {/* Botón "Ver detalles completos" */}
+                <button
+                  onClick={() => {
+                    onClose(); // Cierra modal
+                    router.push(`/marketplace/booking/${product.id}`);
+                  }}
+                  className="flex-1 sm:flex-initial bg-white border-2 border-purple-600 text-purple-600 px-5 py-3 rounded-xl font-bold hover:bg-purple-50 transition-all duration-300 text-base flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>Ver detalles</span>
+                </button>
+
+                {/* Botón "Reservar ahora" */}
+                <button
+                  onClick={handleReserveClick}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-initial bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                  <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="relative z-10">Reservar ahora</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

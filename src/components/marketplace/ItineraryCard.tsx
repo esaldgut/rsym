@@ -1,94 +1,118 @@
 'use client';
 
-interface ItineraryCardProps {
+import { useState } from 'react';
+import { cn } from '@/lib/utils';
+
+/**
+ * ItineraryCard Component
+ *
+ * Displays product itinerary in a visual timeline format with expandable days.
+ */
+
+export interface ItineraryCardProps {
   itinerary: string;
-  productType: string;
+  productType: 'circuit' | 'package';
+}
+
+interface DayActivity {
+  day: number;
+  title: string;
+  activities: string[];
 }
 
 export function ItineraryCard({ itinerary, productType }: ItineraryCardProps) {
-  // Parsear el itinerario buscando patrones como "Día 1:", "Día 2:", etc.
-  const parseItinerary = (text: string): Array<{ day: number; title?: string; content: string }> => {
-    const dayPattern = /Día\s+(\d+):?\s*([^\n]*)/gi;
-    const matches = [...text.matchAll(dayPattern)];
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([1]));
 
-    if (matches.length === 0) {
-      // Si no hay formato estructurado, devolver todo el texto como un solo bloque
-      return [{ day: 0, content: text }];
+  const parseItinerary = (): DayActivity[] => {
+    if (!itinerary || itinerary.trim() === '') return [];
+
+    const days: DayActivity[] = [];
+    const lines = itinerary.split('\n').filter(line => line.trim() !== '');
+    let currentDay: DayActivity | null = null;
+
+    for (const line of lines) {
+      const dayMatch = line.match(/^(?:Día|Day)\s+(\d+)[:\s]+(.+)$/i);
+
+      if (dayMatch) {
+        if (currentDay) days.push(currentDay);
+        currentDay = { day: parseInt(dayMatch[1], 10), title: dayMatch[2].trim(), activities: [] };
+      } else if (currentDay) {
+        const activity = line.trim();
+        if (activity.startsWith('-') || activity.startsWith('•')) {
+          currentDay.activities.push(activity.substring(1).trim());
+        } else if (activity.length > 0) {
+          currentDay.activities.push(activity);
+        }
+      }
     }
 
-    const days: Array<{ day: number; title?: string; content: string }> = [];
-
-    matches.forEach((match, index) => {
-      const dayNumber = parseInt(match[1]);
-      const dayTitle = match[2]?.trim() || '';
-      const startIndex = match.index! + match[0].length;
-      const endIndex = index < matches.length - 1 ? matches[index + 1].index! : text.length;
-      const content = text.slice(startIndex, endIndex).trim();
-
-      days.push({
-        day: dayNumber,
-        title: dayTitle,
-        content
-      });
-    });
-
+    if (currentDay) days.push(currentDay);
     return days;
   };
 
-  const days = parseItinerary(itinerary);
-  const hasStructuredFormat = days.length > 1 || days[0].day !== 0;
+  const parsedDays = parseItinerary();
 
-  // Gradientes por día
-  const gradients = [
-    'from-purple-500 to-pink-500',
-    'from-blue-500 to-cyan-500',
-    'from-pink-500 to-rose-500',
-    'from-cyan-500 to-blue-500',
-    'from-rose-500 to-orange-500',
-    'from-orange-500 to-yellow-500',
-  ];
+  const getActivityIcon = (activity: string): string => {
+    const lower = activity.toLowerCase();
+    if (lower.includes('hotel')) return '🏨';
+    if (lower.includes('comida') || lower.includes('desayuno')) return '🍽️';
+    if (lower.includes('transfer') || lower.includes('transporte')) return '🚌';
+    if (lower.includes('vuelo') || lower.includes('aeropuerto')) return '✈️';
+    if (lower.includes('playa')) return '🏖️';
+    if (lower.includes('museo') || lower.includes('tour')) return '🎫';
+    return '📍';
+  };
 
-  // Si no tiene formato estructurado, mostrar como antes
-  if (!hasStructuredFormat) {
-    return (
-      <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 border border-gray-200">
-        <pre className="whitespace-pre-wrap text-gray-700 font-sans leading-relaxed text-base">
-          {itinerary}
-        </pre>
-      </div>
-    );
+  const toggleDay = (day: number) => {
+    const newExpanded = new Set(expandedDays);
+    newExpanded.has(day) ? newExpanded.delete(day) : newExpanded.add(day);
+    setExpandedDays(newExpanded);
+  };
+
+  if (parsedDays.length === 0) {
+    return <div className="text-center py-8 text-gray-500">No hay itinerario disponible</div>;
   }
 
-  // Renderizar con timeline vertical
   return (
-    <div className="relative">
-      {/* Línea vertical conectora */}
-      {days.length > 1 && (
-        <div className="absolute left-5 top-10 bottom-10 w-0.5 bg-gradient-to-b from-purple-300 via-pink-300 to-purple-300" />
-      )}
-
-      {/* Items del timeline */}
-      <div className="space-y-6">
-        {days.map((day, index) => (
-          <div key={index} className="relative pl-14">
-            {/* Número del día circular */}
-            <div className={`absolute left-0 w-10 h-10 bg-gradient-to-br ${gradients[index % gradients.length]} rounded-full flex items-center justify-center z-10 shadow-lg`}>
-              <span className="text-white font-bold text-lg">{day.day}</span>
-            </div>
-
-            {/* Card del día */}
-            <div className="bg-white rounded-xl p-5 shadow-md border border-gray-200 hover:shadow-lg transition-shadow">
-              {day.title && (
-                <h3 className="font-bold text-gray-900 mb-3 text-lg">
-                  Día {day.day} - {day.title}
-                </h3>
-              )}
-              <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {day.content}
+    <div className="space-y-4">
+      <div className="relative">
+        <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-gradient-to-b from-pink-500 to-purple-600" />
+        <div className="space-y-4">
+          {parsedDays.map((day, index) => {
+            const isExpanded = expandedDays.has(day.day);
+            return (
+              <div key={day.day} className="relative pl-16 pb-4">
+                <div className="absolute left-0 top-0">
+                  <div className="w-12 h-12 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg">
+                    {day.day}
+                  </div>
+                </div>
+                <div>
+                  <button type="button" onClick={() => toggleDay(day.day)} className="w-full text-left group">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-lg font-bold text-gray-900 group-hover:text-pink-600">
+                        📅 Día {day.day}: {day.title}
+                      </h4>
+                      <svg className={cn("w-6 h-6 text-gray-400 transition-transform", isExpanded && "rotate-180")} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                      </svg>
+                    </div>
+                  </button>
+                  {isExpanded && day.activities.length > 0 && (
+                    <ul className="space-y-2 mt-3">
+                      {day.activities.map((activity, idx) => (
+                        <li key={idx} className="flex items-start gap-3 p-3 bg-gray-50 rounded-lg">
+                          <span className="text-2xl">{getActivityIcon(activity)}</span>
+                          <span className="text-sm text-gray-700">{activity}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            );
+          })}
+        </div>
       </div>
     </div>
   );

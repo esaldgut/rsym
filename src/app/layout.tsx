@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import 'maplibre-gl/dist/maplibre-gl.css';
 // CRÍTICO: Import obligatorio para OAuth en Next.js según docs oficiales Amplify v6
 import 'aws-amplify/auth/enable-oauth-listener';
 import { ConfigureAmplifyClientSide } from './amplify-client-config';

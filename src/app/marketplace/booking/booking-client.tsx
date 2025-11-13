@@ -8,6 +8,9 @@ import { createReservationAction, generatePaymentPlanAction, checkAvailabilityAc
 import type { ReservationInput, PaymentPlan } from '@/lib/graphql/types';
 import { PaymentTypeSelector } from '@/components/booking/PaymentTypeSelector';
 import { PaymentPlanSummary } from '@/components/booking/PaymentPlanSummary';
+import { RoomTypeSelector } from '@/components/booking/RoomTypeSelector';
+import { CompanionDetailsForm } from '@/components/booking/CompanionDetailsForm';
+import { ExtraServicesSelector } from '@/components/booking/ExtraServicesSelector';
 
 /**
  * BookingClient - Multi-step Booking Wizard
@@ -141,15 +144,34 @@ interface BookingClientProps {
 
 type WizardStep = 'date' | 'travelers' | 'review' | 'payment' | 'completed';
 
-// ✅ CORREGIDO: Eliminados campos que no se usan con flujo de dos pasos
+// ✅ Interface para datos de acompañantes
+interface Companion {
+  id: string;
+  name: string;
+  family_name: string;
+  birthday: string; // YYYY-MM-DD
+  gender?: 'male' | 'female' | 'other';
+  country?: string;
+  passport_number?: string;
+  isLeadPassenger: boolean;
+}
+
+// ✅ ACTUALIZADO: Agregados campos para nuevos componentes
 interface BookingFormData {
   selectedSeasonId?: string;
   selectedDate?: string;
   selectedRoomType?: string;
+  selectedRoomPriceId?: string; // ID del price seleccionado para backend
   adults: number;
   kids: number;
   babys: number;
   paymentType: 'CONTADO' | 'PLAZOS'; // Tipo de pago
+
+  // ✅ NUEVO: Datos de acompañantes (CompanionDetailsForm)
+  companions: Companion[];
+
+  // ✅ NUEVO: Servicios extra seleccionados (ExtraServicesSelector)
+  selectedExtraServices: string[]; // Array de IDs de extra_prices
 
   // ✅ Datos generados por backend con flujo de dos pasos
   reservationId?: string; // ID de reservación (Paso 1)
@@ -175,6 +197,8 @@ export function BookingClient({ product }: BookingClientProps) {
     kids: 0,
     babys: 0,
     paymentType: 'CONTADO', // Valor por defecto: pago de contado
+    companions: [], // ✅ NUEVO: Array vacío inicialmente
+    selectedExtraServices: [], // ✅ NUEVO: Array vacío inicialmente
     // ✅ paymentPlan será populado por el backend después de createReservation
   });
 
@@ -391,8 +415,18 @@ export function BookingClient({ product }: BookingClientProps) {
             kids={formData.kids}
             babys={formData.babys}
             basePrice={product.min_product_price || 0}
+            companions={formData.companions} // ✅ NUEVO: Pasar companions
+            selectedExtraServices={formData.selectedExtraServices} // ✅ NUEVO: Pasar selected extra services
             onSelect={handleTravelersSelection}
             onBack={goToPreviousStep}
+            onUpdateCompanions={(companions) => {
+              // ✅ NUEVO: Actualizar companions en formData
+              setFormData(prev => ({ ...prev, companions }));
+            }}
+            onUpdateExtraServices={(selectedExtraServices) => {
+              // ✅ NUEVO: Actualizar extra services en formData
+              setFormData(prev => ({ ...prev, selectedExtraServices }));
+            }}
           />
         );
 
@@ -605,13 +639,14 @@ interface SelectDateStepProps {
 
 function SelectDateStep({ product, selectedSeasonId, onSelect, onCancel }: SelectDateStepProps) {
   const [selectedSeason, setSelectedSeason] = useState<string | undefined>(selectedSeasonId);
-  const [selectedRoomType, setSelectedRoomType] = useState<string | undefined>(undefined);
-  // ❌ REMOVIDO: selectedPriceId state - Ya no se necesita
+  const [selectedRoomPriceId, setSelectedRoomPriceId] = useState<string | undefined>(undefined);
 
   // Obtener temporada seleccionada
   const currentSeason = product.seasons?.find(s => s.id === selectedSeason);
 
-  // ✅ CORREGIDO: Eliminada validación de price_id
+  // Obtener room type name desde el price ID seleccionado
+  const selectedRoomType = currentSeason?.prices?.find(p => p.id === selectedRoomPriceId)?.room_name;
+
   const handleContinue = () => {
     if (!selectedSeason) {
       toastManager.error('Por favor selecciona una temporada');
@@ -697,52 +732,24 @@ function SelectDateStep({ product, selectedSeasonId, onSelect, onCancel }: Selec
       {/* ✅ Room type selector (solo visible si hay temporada seleccionada) */}
       {selectedSeason && currentSeason && currentSeason.prices && currentSeason.prices.length > 0 && (
         <div className="space-y-4 pt-4 border-t border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">2. Tipo de Habitación</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {currentSeason.prices.map(price => (
-              <button
-                key={price.id}
-                onClick={() => {
-                  setSelectedRoomType(price.room_name);
-                  // ❌ REMOVIDO: setSelectedPriceId - Backend calcula precios automáticamente
-                }}
-                disabled={currentSeason.allotment_remain === 0}
-                className={`p-4 rounded-lg border-2 transition-all duration-300 text-left ${
-                  selectedRoomType === price.room_name
-                    ? 'border-purple-600 bg-purple-50 shadow-md'
-                    : 'border-gray-200 hover:border-purple-300 hover:bg-gray-50'
-                } ${currentSeason.allotment_remain === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold text-gray-900">{price.room_name}</h4>
-                  {selectedRoomType === price.room_name && (
-                    <div className="w-6 h-6 bg-purple-600 rounded-full flex items-center justify-center text-white text-xs">
-                      ✓
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1 text-sm text-gray-600">
-                  <p>Máx. {price.max_adult} adultos, {price.max_minor} menores</p>
-                  <p className="text-lg font-bold text-purple-600">
-                    ${price.price.toLocaleString()} {price.currency}
-                  </p>
-
-                  {/* ✅ Mostrar precios de niños si existen */}
-                  {price.children && price.children.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-gray-200">
-                      <p className="text-xs font-medium text-gray-700 mb-1">Precios menores:</p>
-                      {price.children.map((child, idx) => (
-                        <div key={idx} className="text-xs text-gray-600">
-                          {child.name}: {child.min_minor_age}-{child.max_minor_age} años
-                          {child.child_price === 0 ? ' (gratis)' : ` ($${child.child_price.toLocaleString()})`}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
+          <RoomTypeSelector
+            prices={currentSeason.prices.map(p => ({
+              id: p.id,
+              room_name: p.room_name,
+              price: p.price,
+              currency: p.currency,
+              max_adult: p.max_adult,
+              max_minor: p.max_minor,
+              children: p.children
+            }))}
+            selected={selectedRoomPriceId || null}
+            onSelect={(priceId) => {
+              setSelectedRoomPriceId(priceId);
+            }}
+            adults={1} // Default value, will be set in next step
+            kids={0}
+            babys={0}
+          />
 
           {/* ✅ Servicios adicionales disponibles */}
           {currentSeason.extra_prices && currentSeason.extra_prices.length > 0 && (
@@ -796,8 +803,12 @@ interface TravelersStepProps {
   kids: number;
   babys: number;
   basePrice: number;
+  companions: Companion[]; // ✅ NUEVO: Acompañantes (CompanionDetailsForm)
+  selectedExtraServices: string[]; // ✅ NUEVO: Servicios extra seleccionados (ExtraServicesSelector)
   onSelect: (adults: number, kids: number, babys: number) => void;
   onBack: () => void;
+  onUpdateCompanions: (companions: Companion[]) => void; // ✅ NUEVO: Callback para actualizar companions
+  onUpdateExtraServices: (serviceIds: string[]) => void; // ✅ NUEVO: Callback para actualizar extra services
 }
 
 function TravelersStep({
@@ -808,8 +819,12 @@ function TravelersStep({
   kids,
   babys,
   basePrice,
+  companions,
+  selectedExtraServices,
   onSelect,
-  onBack
+  onBack,
+  onUpdateCompanions,
+  onUpdateExtraServices
 }: TravelersStepProps) {
   const [formData, setFormData] = useState({ adults, kids, babys });
 
@@ -827,6 +842,32 @@ function TravelersStep({
   const handleContinue = () => {
     if (formData.adults < 1) {
       toastManager.error('Debe haber al menos 1 adulto');
+      return;
+    }
+
+    // ✅ Validar que todos los companions estén completos
+    if (companions.length !== formData.adults) {
+      toastManager.error(`Por favor completa la información de los ${formData.adults} adultos`);
+      return;
+    }
+
+    // ✅ Validar que todos los companions tengan datos obligatorios
+    const incompleteCompanion = companions.find(c =>
+      !c.name || !c.family_name || !c.birthday
+    );
+    if (incompleteCompanion) {
+      toastManager.error('Por favor completa todos los campos obligatorios de los viajeros');
+      return;
+    }
+
+    // ✅ Validar que haya exactamente un lead passenger
+    const leadPassengers = companions.filter(c => c.isLeadPassenger);
+    if (leadPassengers.length === 0) {
+      toastManager.error('Por favor selecciona un viajero principal');
+      return;
+    }
+    if (leadPassengers.length > 1) {
+      toastManager.error('Solo puede haber un viajero principal');
       return;
     }
 
@@ -956,6 +997,55 @@ function TravelersStep({
         </div>
       </div>
 
+      {/* ✅ NUEVO: Companion Details Form */}
+      {formData.adults > 0 && (
+        <div className="space-y-4">
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Información de los viajeros</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Por favor completa la información de todos los adultos que viajarán.
+              El viajero principal recibirá todas las notificaciones y será el contacto principal.
+            </p>
+            <CompanionDetailsForm
+              companions={companions}
+              onUpdate={onUpdateCompanions}
+              totalAdults={formData.adults}
+              productType={product.product_type as 'circuit' | 'package'}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* ✅ NUEVO: Extra Services Selector */}
+      {selectedSeason?.extra_prices && selectedSeason.extra_prices.length > 0 && (
+        <div className="space-y-4">
+          <div className="border-t border-gray-200 pt-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">Servicios adicionales</h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Mejora tu experiencia con servicios opcionales. Puedes seleccionar los que desees.
+            </p>
+            <ExtraServicesSelector
+              extraServices={selectedSeason.extra_prices.map(extra => ({
+                id: extra.id,
+                service_name: extra.room_name, // Usando room_name como service_name
+                description: undefined, // Backend no provee descripción aún
+                price: extra.price,
+                currency: extra.currency,
+                icon: undefined, // Será inferido por el componente
+                recommended: false // Backend no indica recomendados
+              }))}
+              selected={selectedExtraServices}
+              onToggle={(serviceId) => {
+                const newSelected = selectedExtraServices.includes(serviceId)
+                  ? selectedExtraServices.filter(id => id !== serviceId)
+                  : [...selectedExtraServices, serviceId];
+                onUpdateExtraServices(newSelected);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
       {/* ❌ ELIMINADO: Price preview - Backend calculará precio final con Secure Pricing System
           El precio se mostrará después de createReservation en ReviewStep con PaymentPlan */}
 
@@ -1075,6 +1165,87 @@ function ReviewStep({ product, formData, onConfirm, onBack, isProcessing, onUpda
             {formData.babys > 0 && <p className="text-gray-700">{formData.babys} Bebé(s)</p>}
           </div>
         </div>
+
+        {/* ✅ NUEVO: Companions details */}
+        {formData.companions && formData.companions.length > 0 && (
+          <div className="bg-gray-50 rounded-xl p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Información de viajeros</h3>
+            <div className="space-y-4">
+              {formData.companions.map((companion, index) => (
+                <div key={companion.id} className="bg-white rounded-lg p-4 border border-gray-200">
+                  <div className="flex items-start justify-between mb-2">
+                    <div>
+                      <p className="font-medium text-gray-900">
+                        {companion.name} {companion.family_name}
+                        {companion.isLeadPassenger && (
+                          <span className="ml-2 text-xs bg-purple-100 text-purple-700 px-2 py-1 rounded-full">
+                            Viajero Principal
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-sm text-gray-600">Adulto {index + 1}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-3 text-sm">
+                    <div>
+                      <p className="text-gray-600">Fecha de nacimiento</p>
+                      <p className="text-gray-900">{new Date(companion.birthday).toLocaleDateString()}</p>
+                    </div>
+                    {companion.gender && (
+                      <div>
+                        <p className="text-gray-600">Género</p>
+                        <p className="text-gray-900 capitalize">{companion.gender === 'male' ? 'Masculino' : companion.gender === 'female' ? 'Femenino' : 'Otro'}</p>
+                      </div>
+                    )}
+                    {companion.country && (
+                      <div>
+                        <p className="text-gray-600">País</p>
+                        <p className="text-gray-900">{companion.country}</p>
+                      </div>
+                    )}
+                    {companion.passport_number && (
+                      <div>
+                        <p className="text-gray-600">Pasaporte</p>
+                        <p className="text-gray-900">{companion.passport_number}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ✅ NUEVO: Extra services */}
+        {formData.selectedExtraServices && formData.selectedExtraServices.length > 0 && (
+          <div className="bg-gray-50 rounded-xl p-6">
+            <h3 className="font-semibold text-gray-900 mb-4">Servicios adicionales</h3>
+            <div className="space-y-3">
+              {formData.selectedExtraServices.map((serviceId) => {
+                const extraService = selectedSeason?.extra_prices?.find(e => e.id === serviceId);
+                if (!extraService) return null;
+                return (
+                  <div key={serviceId} className="flex items-center justify-between bg-white rounded-lg p-4 border border-gray-200">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+                        <span className="text-lg">🎫</span>
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">{extraService.room_name}</p>
+                        <p className="text-sm text-gray-600">Servicio adicional</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">
+                        ${extraService.price.toLocaleString()} {extraService.currency}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* ✅ PaymentPlan Summary - Backend-calculated secure pricing */}
         {formData.paymentPlan ? (

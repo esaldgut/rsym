@@ -1133,6 +1133,335 @@ export const ProductGalleryHeader = forwardRef<ProductGalleryHeaderHandle, Produ
 />
 ```
 
+### Product Detail Display System - Dual Architecture
+
+**Hybrid modal + page system for displaying product details in marketplace**
+
+The product detail display system uses a dual architecture that provides both quick preview (modal) and comprehensive detail view (dedicated page), allowing users to explore products without leaving the marketplace while also supporting deep linking and SEO.
+
+#### Architecture Overview
+
+**Dual Display Strategy:**
+
+1. **ProductDetailModal** - Quick preview overlay (vista rápida)
+2. **ProductDetailClient** (page) - Comprehensive detail view (detalle completo)
+
+#### 1. ProductDetailModal - Quick Preview
+
+**File:** `src/components/marketplace/ProductDetailModal.tsx`
+**Lines:** 731 lines
+**Purpose:** Modal overlay for quick product preview without leaving marketplace
+
+**Features:**
+- ✅ Modal overlay (z-50) with backdrop
+- ✅ ProductGalleryHeader with auto-play carousel
+- ✅ FullscreenGallery integration
+- ✅ Complete product sections:
+  - Description with provider info
+  - Itinerary timeline (ItineraryCard)
+  - Seasons and pricing (SeasonCard)
+  - Hotels list
+  - Route map (HybridProductMap)
+  - Reviews (ProductReviews)
+- ✅ Lateral navigation with dots (6 sections)
+- ✅ Sticky footer with dual CTAs:
+  - "Ver detalles" → Navigate to full page
+  - "Reservar ahora" → Navigate to full page
+- ✅ Deep linking support via query params
+
+**Props Interface:**
+```typescript
+interface ProductDetailModalProps {
+  product: MarketplaceProduct;
+  onClose: () => void;
+  onReserve: () => void; // Navigates to full detail page
+}
+```
+
+**URL Pattern:**
+```
+/marketplace?product=abc123&type=circuit
+```
+
+**Usage in marketplace-client.tsx:**
+```typescript
+const handleOpenProductDetail = (product: MarketplaceProduct) => {
+  // Open modal
+  setSelectedProduct(product);
+
+  // Update URL for deep linking
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('product', product.id);
+  params.set('type', product.product_type);
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+
+// Render modal
+{selectedProduct && (
+  <ProductDetailModal
+    product={selectedProduct}
+    onClose={handleCloseProductDetail}
+    onReserve={() => {
+      handleCloseProductDetail();
+      router.push(`/marketplace/booking/${selectedProduct.id}`);
+    }}
+  />
+)}
+```
+
+#### 2. ProductDetailClient - Comprehensive Detail Page
+
+**Files:**
+- Server: `src/app/marketplace/booking/[productId]/page.tsx`
+- Client: `src/app/marketplace/booking/[productId]/product-detail-client.tsx`
+
+**Route:** `/marketplace/booking/[productId]`
+**Lines:** 362 lines (client component)
+
+**Features:**
+- ✅ Full-page layout (max-w-7xl)
+- ✅ ProductGalleryHeader with fullscreen toggle
+- ✅ FullscreenGallery integration
+- ✅ Section navigation with sticky tabs (5 sections)
+- ✅ Back button to marketplace
+- ✅ Sticky footer with "Reservar Ahora" CTA → booking wizard
+- ✅ Server-side data fetching
+- ✅ SEO metadata generation (generateMetadata)
+- ✅ Deep linking support (shareable URLs)
+
+**Sections:**
+```typescript
+const SECTIONS = [
+  { id: 'descripcion', label: 'Descripción', icon: '📝' },
+  { id: 'itinerario', label: 'Itinerario', icon: '🗺️' },
+  { id: 'temporadas', label: 'Temporadas', icon: '📅' },
+  { id: 'alojamiento', label: 'Alojamiento', icon: '🏨' },
+  { id: 'mapa', label: 'Mapa', icon: '🌍' }
+];
+```
+
+**Server Component Pattern:**
+```typescript
+// page.tsx - Server Component
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  if (!result.success || !result.data?.product) {
+    notFound();
+  }
+
+  return <ProductDetailClient product={result.data.product} />;
+}
+
+// SEO Metadata
+export async function generateMetadata({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  return {
+    title: `${product.name} | YAAN`,
+    description: product.description,
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: product.cover_image_url ? [product.cover_image_url] : []
+    }
+  };
+}
+```
+
+#### 3. Navigation Flow
+
+**User Journey:**
+
+```
+Marketplace Grid
+    │
+    ├─ Click on product card → ProductDetailModal (overlay)
+    │       │
+    │       │  [Modal displays: gallery, description, itinerary, seasons, map]
+    │       │
+    │       ├─ Button "Ver detalles" → /marketplace/booking/[id]
+    │       ├─ Button "Reservar ahora" → /marketplace/booking/[id]
+    │       └─ Close (X) → Back to /marketplace
+    │
+    └─ Deep link (shared URL) → /marketplace/booking/[id] (no modal)
+            │
+            └─ Button "Reservar ahora" → /marketplace/booking?product=[encrypted]
+                    │
+                    └─ Booking wizard
+```
+
+**Navigation Implementation:**
+
+**marketplace-client.tsx:**
+```typescript
+// Open modal with deep linking
+const handleOpenProductDetail = (product: MarketplaceProduct) => {
+  setSelectedProduct(product); // Opens modal
+
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('product', product.id);
+  params.set('type', product.product_type);
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+
+// Close modal and clean URL
+const handleCloseProductDetail = () => {
+  setSelectedProduct(null);
+
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete('product');
+  params.delete('type');
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+```
+
+#### 4. Comparison: Modal vs Page
+
+| Feature | ProductDetailModal | ProductDetailClient (Page) |
+|---------|-------------------|---------------------------|
+| **Type** | Modal overlay (z-50) | Full page |
+| **URL** | Query params only | Dedicated route |
+| **Size** | Compact (max-w-3xl) | Full width (max-w-7xl) |
+| **Navigation** | Lateral dots (6 sections) | Sticky tabs (5 sections) |
+| **Sections** | 6 (includes Reviews) | 5 (no Reviews yet) |
+| **Scroll** | Internal modal scroll | Full page scroll |
+| **Back button** | Close X (top-right) | Back arrow (top-left) |
+| **SEO** | ❌ No (JS dynamic) | ✅ Yes (generateMetadata) |
+| **Deep linking** | ⚠️ Partial (query params) | ✅ Complete (dedicated route) |
+| **Shareable** | ⚠️ Works but not SEO-friendly | ✅ Fully shareable with SEO |
+| **Use case** | Quick preview, comparison | Detailed exploration, sharing |
+| **CTA behavior** | Navigate to page | Navigate to booking wizard |
+
+#### 5. Shared Components
+
+Both modal and page use the same components for consistency:
+
+| Component | Modal | Page | Purpose |
+|-----------|-------|------|---------|
+| ProductGalleryHeader | ✅ | ✅ | Carousel with auto-play |
+| FullscreenGallery | ✅ | ✅ | Expanded image view |
+| ItineraryCard | ✅ | ✅ | Day-by-day timeline |
+| SeasonCard | ✅ | ✅ | Seasons and pricing |
+| HybridProductMap | ✅ | ✅ | Route visualization |
+| ProductReviews | ✅ | ❌ | Customer testimonials |
+
+#### 6. Deep Linking Support
+
+**Modal (Query Parameters):**
+```typescript
+// URL: /marketplace?product=abc123&type=circuit
+
+// Auto-open modal on page load
+useEffect(() => {
+  const validatedParams = validateDeepLinkParams(searchParams);
+  const productIdFromUrl = validatedParams.productId;
+
+  if (productIdFromUrl) {
+    const product = products.find(p => p.id === productIdFromUrl);
+    if (product) {
+      setSelectedProduct(product); // Opens modal automatically
+    } else {
+      // Fetch individual product if not in list
+      const result = await getProductByIdAction(productIdFromUrl);
+      setSelectedProduct(result.data.product);
+    }
+  }
+}, [productIdFromUrl, products]);
+```
+
+**Page (Dedicated Route):**
+```typescript
+// URL: /marketplace/booking/abc123
+
+// Server-side data fetching (page.tsx)
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  if (!result.success || !result.data?.product) {
+    notFound(); // 404 page
+  }
+
+  return <ProductDetailClient product={result.data.product} />;
+}
+```
+
+#### 7. When to Use Each
+
+**Use ProductDetailModal when:**
+- ✅ User is browsing multiple products in marketplace
+- ✅ Quick comparison needed without losing context
+- ✅ First impression before committing to full details
+- ✅ Fast navigation between products desired
+
+**Use ProductDetailClient (page) when:**
+- ✅ User wants comprehensive information before booking
+- ✅ Sharing product link (SEO required)
+- ✅ Deep linking from external sources (email, social media)
+- ✅ Bookmarking for later reference
+
+#### 8. Sticky Footer Pattern
+
+Both modal and page implement sticky footer with CTAs:
+
+**Modal Footer (2 buttons):**
+```typescript
+<div className="flex flex-col sm:flex-row gap-3">
+  {/* Ver detalles completos */}
+  <button
+    onClick={() => {
+      onClose();
+      router.push(`/marketplace/booking/${product.id}`);
+    }}
+    className="bg-white border-2 border-purple-600 text-purple-600 ..."
+  >
+    Ver detalles
+  </button>
+
+  {/* Reservar ahora */}
+  <button
+    onClick={onReserve} // Navigates to page
+    className="bg-gradient-to-r from-pink-500 to-purple-600 text-white ..."
+  >
+    Reservar ahora
+  </button>
+</div>
+```
+
+**Page Footer (1 button):**
+```typescript
+<div className="hidden lg:block fixed bottom-0 left-0 right-0">
+  <button
+    onClick={handleReserve} // Navigates to booking wizard
+    className="bg-gradient-to-r from-pink-500 to-purple-600 text-white ..."
+  >
+    Reservar Ahora →
+  </button>
+</div>
+```
+
+#### 9. Benefits of Dual Architecture
+
+**UX Benefits:**
+- ✅ **Fast Preview**: Users can quickly view product without leaving marketplace
+- ✅ **No Context Loss**: Modal keeps marketplace visible in background
+- ✅ **Detailed Exploration**: Page provides comprehensive information when needed
+- ✅ **Flexible Navigation**: Users choose their preferred level of detail
+
+**Technical Benefits:**
+- ✅ **SEO Optimization**: Page provides proper metadata for search engines
+- ✅ **Deep Linking**: Both query params (modal) and routes (page) supported
+- ✅ **Code Reuse**: Both use same gallery and detail components
+- ✅ **Performance**: Modal loads faster (already in marketplace bundle)
+
+**Business Benefits:**
+- ✅ **Higher Engagement**: Quick preview reduces friction
+- ✅ **Better Conversion**: Users more likely to explore multiple products
+- ✅ **Shareability**: Page URLs are shareable with full context
+- ✅ **Analytics**: Track user journey (modal → page → booking)
+
+---
+
 ### Product Wizard Architecture
 
 **Multi-step form system for creating and editing tourism products (circuits and packages)**
@@ -3058,6 +3387,15 @@ curl -I https://www.yaan.com.mx | head -1
   - `src/components/ui/CarouselDots.tsx` - Carousel navigation dots
   - `src/components/ui/S3GalleryImage.tsx` - S3 image display component for galleries
   - `src/hooks/useS3Image.ts` - S3 image loading hook
+- **Product Detail Display System** (Dual architecture: Modal + Page):
+  - `src/components/marketplace/ProductDetailModal.tsx` - Quick preview modal overlay (vista rápida)
+  - `src/app/marketplace/booking/[productId]/page.tsx` - Full detail page server component
+  - `src/app/marketplace/booking/[productId]/product-detail-client.tsx` - Full detail page client component
+  - `src/app/marketplace/marketplace-client.tsx` - Marketplace with modal integration
+  - `src/components/marketplace/ItineraryCard.tsx` - Day-by-day timeline component
+  - `src/components/booking/SeasonCard.tsx` - Season and pricing cards
+  - `src/components/marketplace/maps/HybridProductMap.tsx` - Route visualization
+  - `src/components/marketplace/ProductReviews.tsx` - Customer testimonials (modal only)
 - **GraphQL**: `src/graphql/`, `src/lib/graphql/`, `src/generated/`
 - **Server Actions**: `src/lib/server/`
 - **Components**: `src/components/`
