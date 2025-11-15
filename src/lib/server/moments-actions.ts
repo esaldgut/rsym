@@ -70,12 +70,46 @@ export async function createMomentAction(formData: FormData) {
     const tags = formData.getAll('tags') as string[];
     const preferences = formData.getAll('preferences') as string[];
 
+    // Parse locations (destination)
+    const destinations: Array<{
+      place?: string;
+      placeSub?: string;
+      coordinates?: { latitude?: number; longitude?: number };
+    }> = [];
+    let index = 0;
+    while (formData.has(`destination[${index}][place]`)) {
+      const place = formData.get(`destination[${index}][place]`) as string;
+      const placeSub = formData.get(`destination[${index}][placeSub]`) as string;
+      const latitude = formData.get(`destination[${index}][coordinates][latitude]`) as string | null;
+      const longitude = formData.get(`destination[${index}][coordinates][longitude]`) as string | null;
+
+      destinations.push({
+        place: place || undefined,
+        placeSub: placeSub || undefined,
+        coordinates: (latitude && longitude) ? {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude)
+        } : undefined
+      });
+
+      index++;
+    }
+
+    // Parse experience link
+    const experienceLink = formData.get('experienceLink') as string | null;
+
+    // Parse tagged user IDs (futureproof - backend doesn't support yet)
+    const taggedUserIds = formData.getAll('taggedUserIds').map(id => String(id)).filter(id => id.trim());
+
     console.log('[createMomentAction] 📝 Datos del formulario:', {
       description,
       mediaFile: mediaFile ? `${mediaFile.name} (${mediaFile.size} bytes)` : 'null',
       existingMediaUrls,
       tags,
-      preferences
+      preferences,
+      destinations: destinations.length,
+      experienceLink,
+      taggedUserIds: taggedUserIds.length
     });
 
     if (!description?.trim()) {
@@ -143,7 +177,13 @@ export async function createMomentAction(formData: FormData) {
       resourceType,
       resourceUrl: resourceUrls.length > 0 ? resourceUrls : undefined,
       tags: tags.filter(t => t.trim()),
-      preferences: preferences.filter(p => p.trim())
+      preferences: preferences.filter(p => p.trim()),
+      destination: destinations.length > 0 ? destinations : undefined,
+      experienceLink: experienceLink || undefined,
+      // Futureproof - send taggedUserIds even though backend doesn't support yet
+      ...(taggedUserIds.length > 0 && {
+        taggedUserIds: taggedUserIds as any
+      })
     };
 
     console.log('[createMomentAction] 📊 Input para GraphQL:', JSON.stringify(input, null, 2));

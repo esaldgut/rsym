@@ -11,7 +11,10 @@ const nextConfig = {
     '@mapbox/tiny-sdf',
     '@mapbox/unitbezier',
     '@mapbox/vector-tile',
-    '@mapbox/whoots-js'
+    '@mapbox/whoots-js',
+    // CE.SDK (Creative Editor SDK) para edición de imágenes y videos
+    '@cesdk/cesdk-js',
+    '@cesdk/engine'
   ],
   // Disable ESLint during build to avoid linting errors
   eslint: {
