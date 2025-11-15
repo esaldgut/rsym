@@ -5,7 +5,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { MediaUploader } from '@/components/media/MediaUploader';
 import { createMomentAction } from '@/lib/server/moments-actions';
-import type { Moment } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Moment } from '@/generated/graphql';
 
 interface CreatePostCardProps {
   onPostCreated?: (post: Moment) => void;

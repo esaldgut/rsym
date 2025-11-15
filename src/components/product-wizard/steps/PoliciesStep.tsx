@@ -8,14 +8,14 @@ import type { StepProps } from '@/types/wizard'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm, type Control, type UseFormRegister } from 'react-hook-form'
 
-// Importar tipos desde types.ts que ahora re-exporta desde GraphQL
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
 import type {
   GeneralPoliciesInput,
   PaymentPolicyInput as GraphQLPaymentPolicyInput,
   InputMaybe,
   PaymentOptionInput,
   PaymentType
-} from '@/lib/graphql/types'
+} from '@/generated/graphql'
 
 // Usar el tipo inferido del schema de Zod
 type PoliciesFormData = PoliciesSchemaType;

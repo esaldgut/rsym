@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Message } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Message } from '@/generated/graphql';
 
 interface ChatWindowProps {
   conversationId: string;

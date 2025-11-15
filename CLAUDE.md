@@ -482,6 +482,79 @@ User type stored in Cognito custom attribute `custom:user_type` and validated in
 - Mutations: `src/graphql/mutations/*.graphql`
 - Generated operations: `src/lib/graphql/operations.ts`
 
+**GraphQL File Loading Pattern (Next.js 15.5.4):**
+
+YAAN uses a **webpack asset/source loader** to import `.graphql` files as strings. This is the recommended approach for AWS Amplify.
+
+**Architecture:**
+```javascript
+// next.config.mjs (webpack configuration)
+webpack: (config) => {
+  config.module.rules.push({
+    test: /\.graphql$/,
+    type: 'asset/source'  // ✅ Built-in Webpack 5 loader
+  });
+  return config;
+}
+```
+
+```typescript
+// src/types/graphql.d.ts (TypeScript declarations - REQUIRED)
+declare module '*.graphql' {
+  const content: string;  // ← Loaded as string
+  export default content;
+}
+```
+
+**Why `asset/source` instead of `graphql-tag/loader`?**
+
+| Aspect | asset/source (YAAN) | graphql-tag/loader |
+|--------|---------------------|-------------------|
+| Output | Plain string | DocumentNode AST |
+| Dependencies | ✅ Built-in (Webpack 5+) | ❌ Requires graphql-tag |
+| AWS Amplify | ✅ Accepts strings | ✅ Accepts both |
+| Compile-time validation | ❌ No | ✅ Yes |
+| Bundle size | ✅ Smaller | ⚠️ Larger (includes AST) |
+| Simplicity | ✅ Simpler | ⚠️ More complex |
+
+**Usage Example:**
+```typescript
+// Import .graphql file as string
+import createProduct from '@/graphql/mutations/createProduct.graphql';
+
+// Use with AWS Amplify client
+const result = await client.graphql({
+  query: createProduct,  // ← String containing GraphQL mutation
+  variables: { input: { name: 'Product' } }
+});
+```
+
+**Critical Files:**
+- ⚠️ **DO NOT DELETE**: `src/types/graphql.d.ts` (required for TypeScript)
+- Configuration: `next.config.mjs` (webpack loader)
+- TypeScript config: `tsconfig.json` (includes `src/types/**/*.d.ts`)
+
+**Common Issues:**
+
+1. **"Module parse failed: Unexpected token"**
+   - Cause: Missing `src/types/graphql.d.ts` file
+   - Fix: Ensure file exists and is committed to git
+   - Verify: `tsconfig.json` includes `src/types/**/*.d.ts`
+
+2. **TypeScript can't find module '*.graphql'**
+   - Cause: `tsconfig.json` not including type declarations
+   - Fix: Add `"src/types/**/*.d.ts"` to `include` array
+
+3. **Warning: "Unrecognized key(s) in object: 'turbo'"**
+   - Cause: Using deprecated `turbo: false` in Next.js 15.5+
+   - Fix: Remove the line (webpack config is sufficient)
+   - Note: Next.js 15.5.4 uses webpack by default when custom config exists
+
+**Future Migration (Turbopack):**
+- When Next.js forces Turbopack (possibly Next.js 16+), this pattern will need updating
+- Turbopack doesn't support custom webpack loaders yet
+- Alternatives: Stay on webpack mode, or import GraphQL as template strings
+
 ### Server Actions Pattern
 
 **Standard pattern for all Server Actions** (see `src/lib/server/product-creation-actions.ts`):

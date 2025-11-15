@@ -8,7 +8,8 @@ import {
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ChatInput } from '@/components/chat/ChatInput';
-import type { Conversation, Message } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Conversation, Message } from '@/generated/graphql';
 
 // No cachear para mostrar mensajes en tiempo real
 export const revalidate = 0;

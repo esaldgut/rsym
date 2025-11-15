@@ -18,36 +18,41 @@ export async function POST(request: NextRequest) {
   console.log('📤 [AWS Route Handler] Procesando archivo multimedia...');
   
   try {
-    // 1. Verificar autenticación (reutilizando lógica existente)
-    const user = await getAuthenticatedUser();
-    if (!user || user.userType !== 'provider') {
-      return NextResponse.json(
-        { error: 'Solo providers autenticados pueden subir archivos' },
-        { status: 401 }
-      );
-    }
-
-    // 1.5 Verificar que el provider esté completamente aprobado
-    if (!user.isFullyApprovedProvider) {
-      return NextResponse.json(
-        { 
-          error: 'Provider no aprobado. Se requiere aprobación del equipo YAAN y asignación al grupo providers.',
-          details: {
-            isApproved: user.isProviderApproved,
-            inGroup: user.cognitoGroups?.includes('providers')
-          }
-        },
-        { status: 403 }
-      );
-    }
-
-    // 2. Obtener archivo del FormData
+    // 1. Obtener archivo del FormData PRIMERO (necesitamos contentType para validación)
     const formData = await request.formData();
     const file = formData.get('file') as File;
     const folder = formData.get('folder') as string || 'images';
     const productId = formData.get('productId') as string;
     const contentType = formData.get('contentType') as string || 'product'; // 'product' | 'moment'
     const momentId = formData.get('momentId') as string; // Para contenido social
+
+    // 2. Verificar autenticación (permitir traveler, influencer, provider)
+    const user = await getAuthenticatedUser();
+    const allowedUserTypes = ['traveler', 'influencer', 'provider'];
+
+    if (!user || !allowedUserTypes.includes(user.userType)) {
+      return NextResponse.json(
+        { error: 'Debes estar autenticado para subir archivos' },
+        { status: 401 }
+      );
+    }
+
+    // 2.5 Verificar aprobación de provider SOLO para contenido de productos
+    // Para moments, cualquier usuario autenticado puede subir
+    if (contentType === 'product' && user.userType === 'provider') {
+      if (!user.isFullyApprovedProvider) {
+        return NextResponse.json(
+          {
+            error: 'Provider no aprobado. Se requiere aprobación del equipo YAAN y asignación al grupo providers.',
+            details: {
+              isApproved: user.isProviderApproved,
+              inGroup: user.cognitoGroups?.includes('providers')
+            }
+          },
+          { status: 403 }
+        );
+      }
+    }
 
     if (!file) {
       return NextResponse.json(

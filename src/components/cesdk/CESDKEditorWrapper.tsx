@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import CreativeEditorSDK from '@cesdk/cesdk-js';
-import type { Configuration } from '@cesdk/cesdk-js';
+import type { Configuration, DesignBlockTypeLonghand, ImageMimeType } from '@cesdk/cesdk-js';
 import { applyYaanTheme } from '@/config/cesdk/ThemeConfigYAAN';
 
 // ============================================================================
@@ -36,6 +36,9 @@ import { applyYaanTheme } from '@/config/cesdk/ThemeConfigYAAN';
 // ============================================================================
 
 export interface CESDKEditorWrapperProps {
+  /** User ID for CE.SDK licensing and tracking */
+  userId: string;
+
   /** Initial media URL to load (image or video) */
   initialMediaUrl?: string;
 
@@ -77,6 +80,7 @@ export interface ExportMetadata {
 // ============================================================================
 
 export function CESDKEditorWrapper({
+  userId,
   initialMediaUrl,
   mediaType,
   onExport,
@@ -123,7 +127,7 @@ export function CESDKEditorWrapper({
         // CE.SDK configuration with YAAN theming
         const config: Configuration = {
           license: licenseKey,
-          userId: 'yaan-moments-user', // TODO: Replace with actual user ID
+          userId: userId, // User ID from props for licensing and tracking
           baseURL,
           role: 'Creator' // Full editing capabilities
         };
@@ -198,14 +202,61 @@ export function CESDKEditorWrapper({
     try {
       console.log('[CESDKEditorWrapper] 📥 Loading initial media:', mediaUrl);
 
-      // TODO: Implement media loading after CE.SDK is fully integrated
-      // For now, users will manually add media through the CE.SDK UI
+      // Get the current page/scene
+      const engine = cesdk.engine;
+      const scene = engine.scene.get();
 
-      console.log('[CESDKEditorWrapper] ⚠️ Auto-loading initial media not yet implemented');
+      if (!scene) {
+        console.warn('[CESDKEditorWrapper] No active scene found');
+        return;
+      }
+
+      // Get all pages in the scene
+      const pages = engine.block.findByType('page');
+
+      if (pages.length === 0) {
+        console.warn('[CESDKEditorWrapper] No pages found in scene');
+        return;
+      }
+
+      const pageId = pages[0]; // Use first page
+
+      // Create and add media block based on type
+      let blockId: number;
+
+      if (type === 'video') {
+        // Create video block
+        blockId = engine.block.create('//ly.img.ubq/video' as DesignBlockTypeLonghand);
+        engine.block.setString(blockId, 'video/fileURI', mediaUrl);
+        engine.block.appendChild(pageId, blockId);
+        console.log('[CESDKEditorWrapper] ✅ Video block created and added to page');
+      } else {
+        // Create image block (default)
+        blockId = engine.block.create('//ly.img.ubq/graphic');
+        const imageFill = engine.block.createFill('//ly.img.ubq/fill/image');
+        engine.block.setString(imageFill, 'fill/image/imageFileURI', mediaUrl);
+        engine.block.setFill(blockId, imageFill);
+        engine.block.appendChild(pageId, blockId);
+        console.log('[CESDKEditorWrapper] ✅ Image block created and added to page');
+      }
+
+      // Fit block to page bounds
+      const pageWidth = engine.block.getWidth(pageId);
+      const pageHeight = engine.block.getHeight(pageId);
+
+      engine.block.setWidth(blockId, pageWidth);
+      engine.block.setHeight(blockId, pageHeight);
+      engine.block.setPositionX(blockId, pageWidth / 2);
+      engine.block.setPositionY(blockId, pageHeight / 2);
+
+      // Set as background or main content layer
+      engine.block.sendToBack(blockId);
+
+      console.log('[CESDKEditorWrapper] ✅ Initial media loaded successfully');
 
     } catch (err) {
       console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
-      // Non-critical - user can still add media manually
+      // Non-critical - user can still add media manually through CE.SDK UI
     }
   };
 
@@ -225,24 +276,68 @@ export function CESDKEditorWrapper({
       console.log('[CESDKEditorWrapper] 📤 Exporting edited media...');
 
       const cesdk = cesdkRef.current;
+      const engine = cesdk.engine;
 
-      // TODO: Implement proper export using CE.SDK export APIs
-      // For now, create a placeholder blob
-      const placeholderBlob = new Blob(['placeholder'], { type: 'image/jpeg' });
+      // Get the current scene
+      const scene = engine.scene.get();
 
-      // Metadata
+      if (!scene) {
+        throw new Error('No active scene found for export');
+      }
+
+      // Determine export format and options based on media type
+      let exportBlob: Blob;
+      let mimeType: string;
+      let fileExtension: string;
+
+      if (mediaType === 'video') {
+        // Export video
+        mimeType = 'video/mp4';
+        fileExtension = 'mp4';
+
+        // CE.SDK video export
+        exportBlob = await engine.block.export(scene, mimeType as ImageMimeType, {
+          targetWidth: 1920,  // Full HD
+          targetHeight: 1080,
+          jpegQuality: 0.95
+        });
+
+        console.log('[CESDKEditorWrapper] ✅ Video exported:', {
+          size: exportBlob.size,
+          type: exportBlob.type
+        });
+
+      } else {
+        // Export image (default to JPEG for better file size, can be changed to PNG)
+        mimeType = 'image/jpeg';
+        fileExtension = 'jpg';
+
+        // CE.SDK image export with high quality
+        exportBlob = await engine.block.export(scene, mimeType as ImageMimeType, {
+          targetWidth: 2048,   // High resolution for social media
+          targetHeight: 2048,
+          jpegQuality: 0.95    // 95% quality
+        });
+
+        console.log('[CESDKEditorWrapper] ✅ Image exported:', {
+          size: exportBlob.size,
+          type: exportBlob.type
+        });
+      }
+
+      // Build metadata
       const metadata: ExportMetadata = {
-        filename: `yaan-moment-${Date.now()}.${mediaType === 'video' ? 'mp4' : 'jpg'}`,
-        mimeType: mediaType === 'video' ? 'video/mp4' : 'image/jpeg',
-        size: placeholderBlob.size,
-        format: (mediaType === 'video' ? 'video/mp4' : 'image/jpeg') as ExportMetadata['format'],
+        filename: `yaan-moment-${Date.now()}.${fileExtension}`,
+        mimeType: mimeType,
+        size: exportBlob.size,
+        format: mimeType as ExportMetadata['format'],
         quality: 0.95
       };
 
-      console.log('[CESDKEditorWrapper] ⚠️ Using placeholder export - full export not yet implemented');
+      console.log('[CESDKEditorWrapper] 📦 Export metadata:', metadata);
 
-      // Call parent's export handler
-      await onExport(placeholderBlob, metadata);
+      // Call parent's export handler with real blob
+      await onExport(exportBlob, metadata);
 
     } catch (err) {
       console.error('[CESDKEditorWrapper] ❌ Export failed:', err);

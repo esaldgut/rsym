@@ -4,12 +4,11 @@ import type {
   CreateProductOfTypeCircuitInput,
   CreateProductOfTypePackageInput,
   LocationInput,
-  ProductCircuitSeasonInput,
-  ProductPackageSeasonInput,
+  ProductSeasonInput,
   PaymentPolicyInput,
   GuaranteedDeparturesInput,
   Product
-} from '@/lib/graphql/types';
+} from '@/generated/graphql';
 
 export interface FormStep {
   id: string;
@@ -47,7 +46,7 @@ export interface ProductFormData {
   departures?: GuaranteedDeparturesInput[];
 
   // Temporadas (dinámicas según tipo)
-  seasons?: Array<ProductCircuitSeasonInput | ProductPackageSeasonInput>;
+  seasons?: ProductSeasonInput[];
   planned_hotels_or_similar?: string[];
 
   // Campos específicos de paquetes
@@ -62,7 +61,6 @@ export interface ProductFormData {
 
   // Metadatos del wizard
   productType: 'circuit' | 'package';
-  productId?: string;
   currentStep: number;
   isSubmitting: boolean;
 

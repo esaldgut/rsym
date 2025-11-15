@@ -203,13 +203,8 @@ export function MomentPublishScreen({
       if (result.success) {
         console.log('[MomentPublishScreen] ✅ Moment published successfully:', result.data);
 
-        // Show success message
-        setShowSuccessMessage(true);
-
-        // Redirect after 2 seconds
-        setTimeout(() => {
-          onPublishSuccess();
-        }, 2000);
+        // Call success callback (parent handles toast/redirect)
+        onPublishSuccess();
       } else {
         console.error('[MomentPublishScreen] ❌ Error:', result.error);
         setPublishError(result.error || 'Error al publicar momento');

@@ -27,7 +27,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { generateClient } from 'aws-amplify/data';
 import { useAmplifyAuth } from '@/hooks/useAmplifyAuth';
-import type { User, FriendshipConnection } from '@/graphql/operations';
+import type { User, Friendship } from '@/graphql/operations';
 import { getMyConnections } from '@/graphql/operations';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 
@@ -126,8 +126,8 @@ export function FriendsTagging({
 
         // Transform GraphQL response to FriendData format
         const friendsData: FriendData[] = data.getMyConnections.items
-          ?.filter(friendship => friendship?.friend) // Filter out null/undefined
-          .map(friendship => ({
+          ?.filter((friendship: Friendship) => friendship?.friend) // Filter out null/undefined
+          .map((friendship: Friendship) => ({
             sub: friendship.friend!.sub || '',
             username: friendship.friend!.username || null,
             name: friendship.friend!.name || null,

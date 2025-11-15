@@ -3,7 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import type { PaymentPlan } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { PaymentPlan } from '@/generated/graphql';
 
 /**
  * ReservationsClient - Client Component para lista de reservaciones

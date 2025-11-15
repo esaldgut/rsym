@@ -10,7 +10,10 @@ import { GuaranteedDeparturesSelector } from '../components/GuaranteedDepartures
 import { SaveDraftButton } from '@/components/product-wizard/SaveDraftButton';
 import { toastManager } from '@/components/ui/Toast';
 import type { StepProps } from '@/types/wizard';
-import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput } from '@/lib/graphql/types';
+// ✅ Migrado: Tipos de GraphQL schema generado
+import type { ProductSeasonInput, GuaranteedDeparturesInput, LocationInput } from '@/generated/graphql';
+// ✅ Migrado: Tipos custom de frontend para departures
+import type { RegularDepartureInput, SpecificDepartureInput } from '@/types/departures';
 
 // Tipo interno para mantener la compatibilidad con el frontend
 interface InternalDeparturesData {

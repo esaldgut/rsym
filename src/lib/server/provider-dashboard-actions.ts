@@ -1,12 +1,13 @@
 'use server';
 
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
 import {
   getReservationsBySUB,
   getProvidersPoliciesBySub,
   getPaymentPlan,
   getPaymentPlanByReservation
-} from '@/lib/graphql/operations';
+} from '@/graphql/operations';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 import type {
   Reservation,

@@ -5,7 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProfileImage } from '../../components/ui/ProfileImage';
 import { useRequireCompleteProfile } from '../../components/guards/ProfileCompletionGuard';
 import { createReservationWithPaymentAction, checkAvailabilityAction } from '@/lib/server/reservation-actions';
-import type { ReservationInput } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { ReservationInput } from '@/generated/graphql';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import { useMarketplacePagination } from '@/hooks/useMarketplacePagination';
 import { ProductDetailModal } from '@/components/marketplace/ProductDetailModal';

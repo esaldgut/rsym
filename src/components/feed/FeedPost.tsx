@@ -7,7 +7,8 @@ import { SocialInteractions } from '@/components/social/SocialInteractions';
 import { formatDistanceToNow } from '@/utils/date-helpers';
 import { deleteMomentAction } from '@/lib/server/moments-actions';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
-import type { Moment } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Moment } from '@/generated/graphql';
 
 interface FeedPostProps {
   post: Moment;

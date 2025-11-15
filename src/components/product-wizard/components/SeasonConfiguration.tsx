@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { ProductSeasonInput, ProductPriceInput, ChildRangeInput } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { ProductSeasonInput, ProductPriceInput, ChildRangeInput } from '@/generated/graphql';
 
 interface SeasonConfigurationProps {
   seasons: ProductSeasonInput[];

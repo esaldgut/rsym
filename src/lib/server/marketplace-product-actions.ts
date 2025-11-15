@@ -3,7 +3,7 @@
  *
  * ARQUITECTURA (Migrado a GraphQL Code Generator):
  * ✅ Usa tipos generados desde @/generated/graphql.ts (ÚNICA FUENTE DE VERDAD)
- * ✅ Importa query desde @/lib/graphql/operations.ts (centralizado)
+ * ✅ Importa query desde @/graphql/operations.ts (CORRECTO - exports .graphql files)
  * ✅ Type-safe end-to-end: Variables → Query → Response
  * ✅ No usa `any` types - strict TypeScript mode
  * ✅ Alineado con MIGRATION-GRAPHQL-CODEGEN.md
@@ -20,7 +20,8 @@
 import { getGraphQLClientWithIdToken } from './amplify-graphql-client';
 import { logger } from '@/utils/logger';
 import { isValidProductId } from '@/utils/validators';
-import { getProductById } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { getProductById } from '@/graphql/operations';
 import type {
   GetProductByIdQuery,
   GetProductByIdQueryVariables,

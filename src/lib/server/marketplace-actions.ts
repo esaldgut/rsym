@@ -1,6 +1,7 @@
 'use server';
 
-import { getAllActiveAndPublishedProducts, getProductById, createReservation, generatePaymentLink } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { getAllActiveAndPublishedProducts, getProductById, createReservation, generatePaymentLink } from '@/graphql/operations';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
 import { revalidateTag, unstable_cache } from 'next/cache';

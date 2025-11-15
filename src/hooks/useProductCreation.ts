@@ -2,7 +2,8 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { generateClient } from 'aws-amplify/api';
-import { createProductOfTypeCircuit, createProductOfTypePackage } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { createProductOfTypeCircuit, createProductOfTypePackage } from '@/graphql/operations';
 import { toastManager } from '@/components/ui/Toast';
 
 const client = generateClient();

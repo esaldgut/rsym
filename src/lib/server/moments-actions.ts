@@ -7,9 +7,10 @@ import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/ap
 import { cookies } from 'next/headers';
 import outputs from '../../../amplify/outputs.json';
 import type { Schema } from '@/amplify/data/resource';
-import type { CreateMomentInput } from '@/lib/graphql/types';
-import * as mutations from '@/lib/graphql/operations';
-import * as queries from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import type { CreateMomentInput } from '@/generated/graphql';
+import * as mutations from '@/graphql/operations';
+import * as queries from '@/graphql/operations';
 
 // Tipos para media
 export type MediaType = 'image' | 'video' | 'text';

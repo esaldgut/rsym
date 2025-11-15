@@ -15,7 +15,8 @@
  */
 'use client';
 
-import type { PaymentPlan } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { PaymentPlan } from '@/generated/graphql';
 
 export interface PaymentPlanSummaryProps {
   paymentPlan: PaymentPlan;

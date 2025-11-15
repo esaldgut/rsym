@@ -104,7 +104,7 @@ export function ExperienceSelector({
         }
 
         // Filter out invalid reservations (missing required fields)
-        const validReservations = data.getReservationsBySUB.filter(reservation =>
+        const validReservations = data.getReservationsBySUB.filter((reservation: Reservation) =>
           reservation.id &&
           reservation.experience_id &&
           reservation.reservationDate

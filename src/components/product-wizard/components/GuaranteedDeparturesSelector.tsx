@@ -3,7 +3,10 @@
 import { useState, useCallback, useEffect } from 'react';
 import { LocationMultiSelector } from '@/components/location/LocationMultiSelector';
 import { DateRangeInput } from '@/components/ui/DateRangeInput';
-import type { GuaranteedDeparturesInput, LocationInput, RegularDepartureInput, SpecificDepartureInput, DateRangeInput as DateRangeType } from '@/lib/graphql/types';
+// ✅ Migrado: Tipos de GraphQL schema generado
+import type { GuaranteedDeparturesInput, LocationInput } from '@/generated/graphql';
+// ✅ Migrado: Tipos custom de frontend para departures
+import type { RegularDepartureInput, SpecificDepartureInput, DateRangeInput as DateRangeType } from '@/types/departures';
 
 // Tipo interno para mantener la lógica del frontend
 interface InternalDeparturesData {

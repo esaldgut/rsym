@@ -5,7 +5,7 @@ import { fromCognitoIdentityPool } from '@aws-sdk/credential-provider-cognito-id
 import { CognitoIdentityClient } from '@aws-sdk/client-cognito-identity';
 import { getAuthenticatedUser, getIdTokenServer } from '@/utils/amplify-server-utils';
 import { v4 as uuidv4 } from 'uuid';
-import config from '../../../../../../amplify/outputs.json';
+import amplifyConfig from '../../../../../../amplify/outputs.json';
 
 /**
  * Route Handler Mejorado con Streaming para Archivos Grandes
@@ -111,12 +111,12 @@ export async function POST(request: NextRequest) {
     }
 
     const s3Client = new S3Client({
-      region: config.storage.aws_region,
+      region: amplifyConfig.storage.aws_region,
       credentials: fromCognitoIdentityPool({
-        client: new CognitoIdentityClient({ region: config.storage.aws_region }),
-        identityPoolId: config.auth.identity_pool_id,
+        client: new CognitoIdentityClient({ region: amplifyConfig.storage.aws_region }),
+        identityPoolId: amplifyConfig.auth.identity_pool_id,
         logins: {
-          [`cognito-idp.${config.auth.aws_region}.amazonaws.com/${config.auth.user_pool_id}`]: idToken
+          [`cognito-idp.${amplifyConfig.auth.aws_region}.amazonaws.com/${amplifyConfig.auth.user_pool_id}`]: idToken
         }
       })
     });
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       const parallelUploads = new Upload({
         client: s3Client,
         params: {
-          Bucket: config.storage.bucket_name,
+          Bucket: amplifyConfig.storage.bucket_name,
           Key: s3Key,
           Body: stream,
           ContentType: file.type,
@@ -173,7 +173,7 @@ export async function POST(request: NextRequest) {
       const buffer = Buffer.from(arrayBuffer);
       
       const putCommand = new PutObjectCommand({
-        Bucket: config.storage.bucket_name,
+        Bucket: amplifyConfig.storage.bucket_name,
         Key: s3Key,
         Body: buffer,
         ContentType: file.type,
@@ -191,7 +191,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 8. Generar URL pública
-    const publicUrl = `https://${config.storage.bucket_name}.s3.${config.storage.aws_region}.amazonaws.com/${s3Key}`;
+    const publicUrl = `https://${amplifyConfig.storage.bucket_name}.s3.${amplifyConfig.storage.aws_region}.amazonaws.com/${s3Key}`;
     
     const uploadTime = Date.now() - startTime;
     const uploadSpeed = (file.size / uploadTime / 1024).toFixed(2); // KB/s

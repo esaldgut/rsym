@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ProductGalleryHeader } from '@/components/marketplace/ProductGalleryHeader';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import { createReservationAction, generatePaymentPlanAction, checkAvailabilityAction } from '@/lib/server/reservation-actions';
-import type { ReservationInput, PaymentPlan } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { ReservationInput, PaymentPlan } from '@/generated/graphql';
 import { PaymentTypeSelector } from '@/components/booking/PaymentTypeSelector';
 import { PaymentPlanSummary } from '@/components/booking/PaymentPlanSummary';
 import { RoomTypeSelector } from '@/components/booking/RoomTypeSelector';

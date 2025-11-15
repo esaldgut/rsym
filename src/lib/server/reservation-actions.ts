@@ -1,14 +1,14 @@
 'use server';
 
-import { createReservation, generatePaymentLink, generatePaymentPlan, updatePaymentPlan, updateReservation, getProductById, getPaymentPlanById, getReservationById, getReservationsBySUB, getPaymentPlanByReservation, getAllReservationsByUser } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { createReservation, generatePaymentLink, generatePaymentPlan, updatePaymentPlan, updateReservation, getProductById, getPaymentPlan, getReservationsBySUB, getPaymentPlanByReservation } from '@/graphql/operations';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
 import { revalidatePath, revalidateTag } from 'next/cache';
 import outputs from '../../../amplify/outputs.json';
 import { getServerSession, getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import type { Schema } from '@/amplify/data/resource';
-import type { ReservationInput, PaymentInput, PaymentPlanInput, UpdatePaymentPlanInput, PaymentPlan } from '@/lib/graphql/types';
-import type { ProductSeason, ProductPrice } from '@/generated/graphql';
+import type { ReservationInput, PaymentInput, PaymentPlanInput, UpdatePaymentPlanInput, PaymentPlan, ProductSeason, ProductPrice } from '@/generated/graphql';
 import {
   createReservationSchema,
   generatePaymentPlanSchema,
@@ -23,6 +23,46 @@ import {
  * - generateServerClientUsingCookies para auth automática
  * - Revalidación de cache después de mutaciones
  */
+
+/**
+ * ⚠️ TEMPORAL: Helper para obtener una reservación por ID
+ *
+ * El schema de AWS AppSync NO tiene una query getReservation(id: ID!)
+ * Solo existe getReservationsBySUB que retorna todas las reservaciones del usuario.
+ *
+ * Esta función obtiene todas las reservaciones y filtra por ID.
+ * TODO: Solicitar al backend agregar query getReservation(id: ID!): Reservation
+ */
+async function getReservationByIdHelper(
+  client: ReturnType<typeof generateServerClientUsingCookies>,
+  reservationId: string
+) {
+  const result = await client.graphql({
+    query: getReservationsBySUB
+  });
+
+  if (result.errors || !result.data?.getReservationsBySUB) {
+    return {
+      data: null,
+      errors: result.errors
+    };
+  }
+
+  const reservations = result.data.getReservationsBySUB;
+  const reservation = reservations.find(r => r?.id === reservationId);
+
+  if (!reservation) {
+    return {
+      data: null,
+      errors: [{ message: 'Reservación no encontrada' }]
+    };
+  }
+
+  return {
+    data: { getReservation: reservation },
+    errors: null
+  };
+}
 
 interface ServerActionResponse<T = unknown> {
   success: boolean;
@@ -1093,12 +1133,9 @@ export async function getReservationWithDetailsAction(
 
     // 3. Obtener reservación
     console.log('📋 [Reservation Detail] Obteniendo reservación...');
-    const reservationResult = await client.graphql({
-      query: getReservationById,
-      variables: { id: reservationId }
-    });
+    const reservationResult = await getReservationByIdHelper(client, reservationId);
 
-    if (reservationResult.errors || !reservationResult.data?.getReservationById) {
+    if (reservationResult.errors || !reservationResult.data?.getReservation) {
       console.error('❌ [Reservation Detail] Error obteniendo reservación:', reservationResult.errors);
       return {
         success: false,
@@ -1106,7 +1143,7 @@ export async function getReservationWithDetailsAction(
       };
     }
 
-    const reservation = reservationResult.data.getReservationById;
+    const reservation = reservationResult.data.getReservation;
     console.log('✅ [Reservation Detail] Reservación obtenida:', reservation.id);
 
     // 4. Obtener producto
@@ -1241,23 +1278,13 @@ export async function getAllReservationsByUserAction(options?: {
       cookies
     });
 
-    // 3. Query reservations with pagination
-    const limit = options?.limit || 20;
-    const nextToken = options?.nextToken;
-
-    console.log('🔍 [getAllReservationsByUserAction] Consultando reservaciones:', {
-      userId: user.userId,
-      limit,
-      hasNextToken: !!nextToken
-    });
+    // 3. Query reservations
+    // ⚠️ NOTA: getReservationsBySUB NO soporta paginación en el schema actual
+    // Retorna todas las reservaciones del usuario autenticado
+    console.log('🔍 [getAllReservationsByUserAction] Consultando reservaciones...');
 
     const result = await client.graphql({
-      query: getAllReservationsByUser,
-      variables: {
-        user_id: user.userId,
-        limit,
-        nextToken
-      }
+      query: getReservationsBySUB
     });
 
     // 4. Handle errors
@@ -1269,7 +1296,7 @@ export async function getAllReservationsByUserAction(options?: {
       };
     }
 
-    if (!result.data?.getAllReservationsByUser) {
+    if (!result.data?.getReservationsBySUB) {
       console.error('❌ [getAllReservationsByUserAction] Sin datos en respuesta');
       return {
         success: false,
@@ -1277,17 +1304,19 @@ export async function getAllReservationsByUserAction(options?: {
       };
     }
 
-    const reservationsData = result.data.getAllReservationsByUser;
-    const items = reservationsData.items || [];
-    const responseNextToken = reservationsData.nextToken;
+    const reservations = result.data.getReservationsBySUB;
 
     console.log('✅ [getAllReservationsByUserAction] Reservaciones obtenidas:', {
-      count: items.length,
-      hasMore: !!responseNextToken
+      count: reservations.length
     });
 
-    // 5. Map to ReservationData type
-    const mappedItems: ReservationData[] = items.map(item => ({
+    // 5. Apply client-side pagination (since schema doesn't support it)
+    const limit = options?.limit || 20;
+    const offset = 0; // TODO: Implement offset-based pagination if needed
+    const paginatedReservations = reservations.slice(offset, offset + limit);
+
+    // 6. Map to ReservationData type
+    const mappedItems: ReservationData[] = paginatedReservations.map(item => ({
       id: item.id,
       experience_id: item.experience_id,
       experience_type: item.experience_type || undefined,
@@ -1319,8 +1348,8 @@ export async function getAllReservationsByUserAction(options?: {
       success: true,
       data: {
         items: mappedItems,
-        nextToken: responseNextToken || undefined,
-        total: mappedItems.length
+        nextToken: undefined, // ⚠️ Schema doesn't support pagination
+        total: reservations.length // Total count from server
       }
     };
 
@@ -1380,10 +1409,7 @@ export async function updateCompanionsAction(
     });
 
     // STEP 3: Verify reservation belongs to user
-    const existingReservation = await client.graphql({
-      query: getReservationById,
-      variables: { id: reservationId }
-    });
+    const existingReservation = await getReservationByIdHelper(client, reservationId);
 
     if (!existingReservation.data?.getReservation) {
       return {
@@ -1548,10 +1574,7 @@ export async function changeReservationDateAction(input: {
     const client = generateServerClientUsingCookies({ config: outputs, cookies });
 
     // STEP 3: Get existing reservation to verify ownership
-    const existingReservation = await client.graphql({
-      query: getReservationById,
-      variables: { id: input.reservationId }
-    });
+    const existingReservation = await getReservationByIdHelper(client, input.reservationId);
 
     if (!existingReservation.data?.getReservation) {
       console.error('❌ [changeReservationDateAction] Reservación no encontrada');
@@ -1770,10 +1793,7 @@ export async function cancelReservationAction(input: {
     const client = generateServerClientUsingCookies({ config: outputs, cookies });
 
     // STEP 3: Get existing reservation to verify ownership and status
-    const existingReservation = await client.graphql({
-      query: getReservationById,
-      variables: { id: input.reservationId }
-    });
+    const existingReservation = await getReservationByIdHelper(client, input.reservationId);
 
     if (!existingReservation.data?.getReservation) {
       console.error('❌ [cancelReservationAction] Reservación no encontrada');
@@ -1807,7 +1827,7 @@ export async function cancelReservationAction(input: {
 
     // STEP 5: Get payment plan to check cancellation policy
     const paymentPlanResult = await client.graphql({
-      query: getPaymentPlanById,
+      query: getPaymentPlan,
       variables: { id: input.paymentPlanId }
     });
 
@@ -1992,10 +2012,7 @@ export async function initiateMITPaymentAction(input: {
     const client = generateServerClientUsingCookies({ config: outputs, cookies });
 
     // STEP 3: Get reservation to verify ownership
-    const reservationResult = await client.graphql({
-      query: getReservationById,
-      variables: { id: input.reservationId }
-    });
+    const reservationResult = await getReservationByIdHelper(client, input.reservationId);
 
     if (!reservationResult.data?.getReservation) {
       console.error('❌ [initiateMITPaymentAction] Reservación no encontrada');
@@ -2020,7 +2037,7 @@ export async function initiateMITPaymentAction(input: {
 
     // STEP 5: Get payment plan
     const paymentPlanResult = await client.graphql({
-      query: getPaymentPlanById,
+      query: getPaymentPlan,
       variables: { id: input.paymentPlanId }
     });
 

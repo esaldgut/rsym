@@ -1,7 +1,8 @@
 'use server';
 
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
-import { getAllActiveProductsByProvider, getProductById } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { getAllActiveProductsByProvider, getProductById } from '@/graphql/operations';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 import type {
   Product,
