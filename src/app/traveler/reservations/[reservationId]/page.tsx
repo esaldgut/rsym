@@ -4,9 +4,9 @@ import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import ReservationDetailClient from './reservation-detail-client';
 
 interface ReservationDetailPageProps {
-  params: {
+  params: Promise<{
     reservationId: string;
-  };
+  }>;
 }
 
 /**
@@ -22,6 +22,9 @@ interface ReservationDetailPageProps {
 export default async function ReservationDetailPage({
   params
 }: ReservationDetailPageProps) {
+  // Next.js 16: params is now async
+  const resolvedParams = await params;
+
   console.log('🔐 [ReservationDetailPage] Validando autenticación...');
 
   // 1. Validate authentication
@@ -29,7 +32,7 @@ export default async function ReservationDetailPage({
 
   if (!user) {
     console.log('❌ [ReservationDetailPage] Usuario no autenticado, redirigiendo a /auth');
-    redirect('/auth?redirect=/traveler/reservations/' + params.reservationId);
+    redirect('/auth?redirect=/traveler/reservations/' + resolvedParams.reservationId);
   }
 
   console.log('✅ [ReservationDetailPage] Usuario autenticado:', {
@@ -38,9 +41,9 @@ export default async function ReservationDetailPage({
   });
 
   // 2. Fetch reservation with complete details
-  console.log('📋 [ReservationDetailPage] Obteniendo detalles de reservación:', params.reservationId);
+  console.log('📋 [ReservationDetailPage] Obteniendo detalles de reservación:', resolvedParams.reservationId);
 
-  const result = await getReservationWithDetailsAction(params.reservationId);
+  const result = await getReservationWithDetailsAction(resolvedParams.reservationId);
 
   // 3. Handle errors
   if (!result.success) {
@@ -83,7 +86,9 @@ export default async function ReservationDetailPage({
 export async function generateMetadata({
   params
 }: ReservationDetailPageProps) {
-  const result = await getReservationWithDetailsAction(params.reservationId);
+  // Next.js 16: params is now async
+  const resolvedParams = await params;
+  const result = await getReservationWithDetailsAction(resolvedParams.reservationId);
 
   if (!result.success || !result.data) {
     return {

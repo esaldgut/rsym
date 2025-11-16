@@ -18,8 +18,11 @@ import { getProfileImageUrlServer } from '@/lib/server/storage-server-actions';
 export default async function ProfileSettingsPage({
   searchParams,
 }: {
-  searchParams?: { [key: string]: string | string[] | undefined };
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  // Next.js 16: searchParams is now async
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+
   // Proteger ruta con autenticación usando UnifiedAuthSystem
   // Solo requiere autenticación básica ya que cualquier usuario puede editar su perfil
   const authResult = await UnifiedAuthSystem.requireAuthentication('/settings/profile');
@@ -106,7 +109,7 @@ export default async function ProfileSettingsPage({
   // Extraer callbackUrl de searchParams si existe
   // Este parámetro se usa cuando el usuario es redirigido a completar su perfil
   // antes de realizar una acción (ej: reservar un producto)
-  const callbackUrl = searchParams?.callbackUrl as string | undefined;
+  const callbackUrl = resolvedSearchParams?.callbackUrl as string | undefined;
 
   console.log('🔗 [Profile Settings Page] Callback URL detectada:', {
     hasCallbackUrl: !!callbackUrl,

@@ -14,13 +14,16 @@ import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 export default async function ProviderProductsPage({
   searchParams
 }: {
-  searchParams: { filter?: string }
+  searchParams: Promise<{ filter?: string }>;
 }) {
+  // Next.js 16: searchParams is now async
+  const resolvedParams = await searchParams;
+
   // Validar que el provider esté completamente aprobado
   const auth = await RouteProtectionWrapper.protectProvider(true);
 
   // Extract and validate filter from URL query parameters
-  const urlFilter = searchParams.filter as 'circuit' | 'package' | 'draft' | 'published' | undefined;
+  const urlFilter = resolvedParams.filter as 'circuit' | 'package' | 'draft' | 'published' | undefined;
   const validFilters = ['circuit', 'package', 'draft', 'published'];
   const initialFilter = urlFilter && validFilters.includes(urlFilter)
     ? urlFilter
@@ -39,7 +42,7 @@ export default async function ProviderProductsPage({
   }
 
   console.log('🔗 [ProviderProductsPage] URL filter:', {
-    urlParam: searchParams.filter,
+    urlParam: resolvedParams.filter,
     validated: initialFilter,
     graphqlFilter: initialGraphqlFilter
   });

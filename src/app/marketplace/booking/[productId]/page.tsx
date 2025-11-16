@@ -3,12 +3,12 @@ import { getProductByIdAction } from '@/lib/server/marketplace-product-actions';
 import { ProductDetailClient } from './product-detail-client';
 
 interface ProductDetailPageProps {
-  params: {
+  params: Promise<{
     productId: string;
-  };
-  searchParams: {
+  }>;
+  searchParams: Promise<{
     [key: string]: string | string[] | undefined;
-  };
+  }>;
 }
 
 /**
@@ -30,12 +30,15 @@ export default async function ProductDetailPage({
   params,
   searchParams
 }: ProductDetailPageProps) {
+  // Next.js 16: params and searchParams are now async
+  const resolvedParams = await params;
+
   console.log('[ProductDetailPage] 📦 Loading product detail page:', {
-    productId: params.productId
+    productId: resolvedParams.productId
   });
 
   // Fetch product data server-side
-  const result = await getProductByIdAction(params.productId);
+  const result = await getProductByIdAction(resolvedParams.productId);
 
   // Handle errors
   if (!result.success || !result.data?.product) {
@@ -47,7 +50,7 @@ export default async function ProductDetailPage({
 
   // Additional validation - ensure product is published
   if (!product.published) {
-    console.warn('[ProductDetailPage] ⚠️ Product not published:', params.productId);
+    console.warn('[ProductDetailPage] ⚠️ Product not published:', resolvedParams.productId);
     redirect('/marketplace');
   }
 
@@ -62,10 +65,12 @@ export default async function ProductDetailPage({
 }
 
 /**
- * Generate metadata for SEO (Next.js 15 App Router)
+ * Generate metadata for SEO (Next.js 16 App Router)
  */
 export async function generateMetadata({ params }: ProductDetailPageProps) {
-  const result = await getProductByIdAction(params.productId);
+  // Next.js 16: params is now async
+  const resolvedParams = await params;
+  const result = await getProductByIdAction(resolvedParams.productId);
 
   if (!result.success || !result.data?.product) {
     return {

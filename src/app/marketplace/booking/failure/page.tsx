@@ -19,15 +19,18 @@ export const metadata = {
 };
 
 interface BookingFailurePageProps {
-  searchParams: {
+  searchParams: Promise<{
     reservation_id?: string;
     reason?: string;
-  };
+  }>;
 }
 
 export default async function BookingFailurePage({
   searchParams
 }: BookingFailurePageProps) {
+  // Next.js 16: searchParams is now async
+  const resolvedParams = await searchParams;
+
   // STEP 1: Validate authentication
   const user = await getAuthenticatedUser();
   if (!user) {
@@ -35,7 +38,7 @@ export default async function BookingFailurePage({
   }
 
   // STEP 2: Validate reservation_id parameter
-  const reservationId = searchParams.reservation_id;
+  const reservationId = resolvedParams.reservation_id;
   if (!reservationId) {
     console.error('[BookingFailurePage] ❌ Missing reservation_id parameter');
     redirect('/traveler/reservations');
@@ -58,7 +61,7 @@ export default async function BookingFailurePage({
   }
 
   // STEP 5: Get failure reason
-  const failureReason = searchParams.reason || 'unknown';
+  const failureReason = resolvedParams.reason || 'unknown';
 
   // STEP 6: Render failure page with reservation data
   return (

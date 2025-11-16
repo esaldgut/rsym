@@ -16,11 +16,7 @@ const nextConfig = {
     '@cesdk/cesdk-js',
     '@cesdk/engine'
   ],
-  // Disable ESLint during build to avoid linting errors
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  // Configuración específica para Amplify v6 + Next.js 15.3.4
+  // Configuración específica para Amplify v6 + Next.js 16.0.2
   experimental: {
     // Habilitar server actions para auth y uploads
     serverActions: {

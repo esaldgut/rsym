@@ -19,14 +19,17 @@ export const metadata = {
 };
 
 interface BookingSuccessPageProps {
-  searchParams: {
+  searchParams: Promise<{
     reservation_id?: string;
-  };
+  }>;
 }
 
 export default async function BookingSuccessPage({
   searchParams
 }: BookingSuccessPageProps) {
+  // Next.js 16: searchParams is now async
+  const resolvedParams = await searchParams;
+
   // STEP 1: Validate authentication
   const user = await getAuthenticatedUser();
   if (!user) {
@@ -34,7 +37,7 @@ export default async function BookingSuccessPage({
   }
 
   // STEP 2: Validate reservation_id parameter
-  const reservationId = searchParams.reservation_id;
+  const reservationId = resolvedParams.reservation_id;
   if (!reservationId) {
     console.error('[BookingSuccessPage] ❌ Missing reservation_id parameter');
     redirect('/traveler/reservations');

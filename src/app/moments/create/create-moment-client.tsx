@@ -30,11 +30,29 @@
 
 import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { MomentMediaUpload } from '@/components/moments/MomentMediaUpload';
-import { CESDKEditorWrapper, type ExportMetadata } from '@/components/cesdk/CESDKEditorWrapper';
+import type { ExportMetadata } from '@/components/cesdk/CESDKEditorWrapper';
 import { MomentPublishScreen } from '@/components/moments/publish/MomentPublishScreen';
 import type { MediaFile } from '@/components/media/MediaPreview';
 import { toastManager } from '@/components/ui/Toast';
+
+// CRITICAL: CE.SDK requires browser APIs (window, document)
+// Must use dynamic import with { ssr: false } to avoid SSR errors
+const CESDKEditorWrapper = dynamic(
+  () => import('@/components/cesdk/CESDKEditorWrapper').then(mod => ({ default: mod.CESDKEditorWrapper })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center min-h-screen bg-gray-900">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-pink-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-white text-lg">Cargando editor...</p>
+        </div>
+      </div>
+    )
+  }
+);
 
 // ============================================================================
 // TYPES
