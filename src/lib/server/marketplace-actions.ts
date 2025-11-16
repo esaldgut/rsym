@@ -9,6 +9,8 @@ import outputs from '../../../amplify/outputs.json';
 import { getServerSession } from '@/utils/amplify-server-utils';
 import type { Schema } from '@/amplify/data/resource';
 import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
+// PASO 2: Importar tipos Result desde el nuevo archivo
+import type { VoidResult } from '@/types/server-actions';
 
 // SIGUIENDO EXACTAMENTE EL PATTERN DE provider-products-actions.ts
 interface ServerActionResponse<T = any> {
@@ -431,8 +433,10 @@ export async function getMarketplaceProductAction(
 /**
  * Server Action para revalidar cache del marketplace
  * Útil después de actualizaciones de productos
+ *
+ * PASO 2: Migrada a Result Type (VoidResult) ✅
  */
-export async function revalidateMarketplaceAction(): Promise<ServerActionResponse> {
+export async function revalidateMarketplaceAction(): Promise<VoidResult> {
   try {
     console.log('🔄 [SERVER ACTION] revalidateMarketplaceAction');
 
@@ -441,6 +445,7 @@ export async function revalidateMarketplaceAction(): Promise<ServerActionRespons
 
     return {
       success: true,
+      data: undefined, // void - operación sin datos de retorno
       message: 'Cache del marketplace revalidado exitosamente'
     };
 
