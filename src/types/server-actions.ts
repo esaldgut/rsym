@@ -56,21 +56,17 @@ export type PartialResult<T, E = string> = Result<T, E> & {
 export type ProductResult = Result<Product>;
 export type ProductListResult = Result<Product[]>;
 
-// Create product mutations return specific types
-export type CreateCircuitResult = Result<{
-  id: string;
-  name: string;
-}>;
+// Create/Update product operations - estructura específica para product wizard
+export interface ProductCreationData {
+  productId: string;
+  productName: string;
+}
 
-export type CreatePackageResult = Result<{
-  id: string;
-  name: string;
-}>;
+export type CreateProductResult = Result<ProductCreationData>;
+export type UpdateProductResultData = Result<ProductCreationData>;
 
-export type UpdateProductResult = Result<{
-  id: string;
-  name: string;
-}>;
+// Delete product operation
+export type DeleteProductResult = Result<string>; // Retorna ID del producto eliminado
 
 // --- Marketplace ---
 export interface MarketplaceConnection {

@@ -13,33 +13,18 @@ import type {
   UpdateProductInput
 } from '@/generated/graphql';
 
-// COPIANDO EXACTAMENTE EL PATTERN DE package-actions.ts QUE FUNCIONA
-// EXTENDED: Soporte para errores parciales de GraphQL
-interface ServerActionResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  validationErrors?: Record<string, string>;
-  // Warnings para errores parciales de GraphQL (data exists pero con errores)
-  warnings?: Array<{
-    message: string;
-    path?: readonly (string | number)[];
-    extensions?: Record<string, unknown>;
-  }>;
-  hasPartialData?: boolean;
-}
-
-interface CreateProductResult {
-  success: boolean;
-  productId?: string;
-  productName?: string;
-  error?: string;
-}
+// ✅ Importar tipos Result desde archivo centralizado
+import type {
+  CreateProductResult,
+  UpdateProductResultData,
+  DeleteProductResult
+} from '@/types/server-actions';
 
 /**
  * Server Action para crear un producto de tipo Circuit
  * COPIANDO EXACTAMENTE EL PATRÓN DE createPackageAction QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
 export async function createCircuitProductAction(name: string): Promise<CreateProductResult> {
   try {
@@ -105,8 +90,10 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
         console.log('✅ [Server Action] Circuito creado con warnings:', newProduct.id);
         return {
           success: true,
-          productId: newProduct.id,
-          productName: newProduct.name
+          data: {
+            productId: newProduct.id,
+            productName: newProduct.name
+          }
         };
       }
 
@@ -123,8 +110,10 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
       console.log('✅ [Server Action] Circuito creado:', newProduct.id);
       return {
         success: true,
-        productId: newProduct.id,
-        productName: newProduct.name
+        data: {
+          productId: newProduct.id,
+          productName: newProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió ID del producto');
@@ -146,6 +135,8 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
 /**
  * Server Action para crear un producto de tipo Package
  * COPIANDO EXACTAMENTE EL PATRÓN DE createPackageAction QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
 export async function createPackageProductAction(name: string): Promise<CreateProductResult> {
   try {
@@ -211,8 +202,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
         console.log('✅ [Server Action] Paquete creado con warnings:', newProduct.id);
         return {
           success: true,
-          productId: newProduct.id,
-          productName: newProduct.name
+          data: {
+            productId: newProduct.id,
+            productName: newProduct.name
+          }
         };
       }
 
@@ -229,8 +222,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
       console.log('✅ [Server Action] Paquete creado:', newProduct.id);
       return {
         success: true,
-        productId: newProduct.id,
-        productName: newProduct.name
+        data: {
+          productId: newProduct.id,
+          productName: newProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió ID del producto');
@@ -252,8 +247,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
 /**
  * Server Action para actualizar un producto existente
  * COPIANDO EXACTAMENTE EL PATRÓN QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
-export async function updateProductAction(productId: string, updateData: Record<string, unknown>): Promise<CreateProductResult> {
+export async function updateProductAction(productId: string, updateData: Record<string, unknown>): Promise<UpdateProductResultData> {
   try {
     // 1. Validar autenticación
     const user = await getAuthenticatedUser();
@@ -571,8 +568,10 @@ export async function updateProductAction(productId: string, updateData: Record<
         console.log('✅ [Server Action] Producto actualizado con warnings:', updatedProduct.id);
         return {
           success: true,
-          productId: updatedProduct.id,
-          productName: updatedProduct.name
+          data: {
+            productId: updatedProduct.id,
+            productName: updatedProduct.name
+          }
         };
       }
 
@@ -589,8 +588,10 @@ export async function updateProductAction(productId: string, updateData: Record<
       console.log('✅ [Server Action] Producto actualizado:', updatedProduct.id);
       return {
         success: true,
-        productId: updatedProduct.id,
-        productName: updatedProduct.name
+        data: {
+          productId: updatedProduct.id,
+          productName: updatedProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió confirmación del update');
@@ -612,8 +613,10 @@ export async function updateProductAction(productId: string, updateData: Record<
 /**
  * Server Action para eliminar (soft-delete) un producto
  * ADDED 2025-10-31: Enables product deletion from provider dashboard
+ *
+ * ✅ Migrado a Result Type pattern
  */
-export async function deleteProductAction(productId: string): Promise<ServerActionResponse<string>> {
+export async function deleteProductAction(productId: string): Promise<DeleteProductResult> {
   try {
     console.log('🗑️ [Server Action] Iniciando eliminación de producto:', productId);
 
@@ -669,13 +672,7 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
         console.log('⚠️ [Server Action] Eliminación exitosa CON warnings');
         return {
           success: true,
-          data: result.data.deleteProduct,
-          hasPartialData: true,
-          warnings: result.errors.map((err: { message: string; path?: readonly (string | number)[]; extensions?: Record<string, unknown> }) => ({
-            message: err.message,
-            path: err.path,
-            extensions: err.extensions
-          }))
+          data: result.data.deleteProduct // ID del producto eliminado
         };
       }
 
@@ -691,7 +688,7 @@ export async function deleteProductAction(productId: string): Promise<ServerActi
       console.log('✅ [Server Action] Producto eliminado exitosamente');
       return {
         success: true,
-        data: result.data.deleteProduct,
+        data: result.data.deleteProduct, // ID del producto eliminado
         message: 'Producto eliminado exitosamente'
       };
     } else {
