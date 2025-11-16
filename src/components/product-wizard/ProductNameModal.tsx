@@ -60,9 +60,10 @@ export default function ProductNameModal({
         result = await createPackageProductAction(data.name.trim());
       }
 
-      if (result.success && result.productId) {
-        console.log('✅ Producto creado con ID:', result.productId);
-        
+      // ✅ Type narrowing automático: después de verificar success, data garantizado
+      if (result.success) {
+        console.log('✅ Producto creado con ID:', result.data.productId);
+
         toastManager.show(
           `🎉 ${productType === 'circuit' ? 'Circuito' : 'Paquete'} "${data.name}" creado exitosamente`,
           'success',
@@ -70,13 +71,14 @@ export default function ProductNameModal({
         );
 
         // Guardar en localStorage para persistencia
-        localStorage.setItem('yaan-current-product-id', result.productId);
+        localStorage.setItem('yaan-current-product-id', result.data.productId);
         localStorage.setItem('yaan-current-product-type', productType);
 
-        onProductCreated(result.productId, data.name.trim());
+        onProductCreated(result.data.productId, data.name.trim());
         reset();
       } else {
-        throw new Error(result.error || 'No se recibió confirmación del servidor');
+        // TypeScript garantiza que result.error existe aquí
+        throw new Error(result.error);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Error al crear el producto';

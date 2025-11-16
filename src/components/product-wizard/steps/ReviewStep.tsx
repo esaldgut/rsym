@@ -65,6 +65,7 @@ export default function ReviewStep({ userId, onPrevious, onCancelClick, resetUns
 
       const result = await updateProductAction(productId, updateData);
 
+      // ✅ Type narrowing automático: discriminated union garantiza tipos correctos
       if (result.success) {
         setSubmitSuccess(true);
 
@@ -99,7 +100,8 @@ export default function ReviewStep({ userId, onPrevious, onCancelClick, resetUns
           router.push('/provider/products');
         }, 3000);
       } else {
-        throw new Error(result.error || 'No se recibió confirmación del servidor');
+        // TypeScript garantiza que result.error existe aquí
+        throw new Error(result.error);
       }
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Error inesperado al actualizar el producto';
