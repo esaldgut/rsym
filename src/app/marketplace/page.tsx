@@ -48,18 +48,22 @@ export default async function MarketplacePage() {
     getMarketplaceMetricsAction()
   ]);
 
-  // 2. Extract data safely
-  const initialProducts = productsResult.status === 'fulfilled' && productsResult.value.success
-    ? productsResult.value.data?.items || []
-    : [];
+  // 2. Extract data safely con type narrowing automático
+  // ✅ Discriminated union: después de verificar success, TypeScript garantiza que data existe
+  const initialProducts =
+    productsResult.status === 'fulfilled' && productsResult.value.success
+      ? productsResult.value.data.items  // No need for optional chaining - data guaranteed to exist
+      : [];
 
-  const initialNextToken = productsResult.status === 'fulfilled' && productsResult.value.success
-    ? productsResult.value.data?.nextToken
-    : undefined;
+  const initialNextToken =
+    productsResult.status === 'fulfilled' && productsResult.value.success
+      ? productsResult.value.data.nextToken
+      : undefined;
 
-  const initialMetrics = metricsResult.status === 'fulfilled' && metricsResult.value.success
-    ? metricsResult.value.data
-    : undefined;
+  const initialMetrics =
+    metricsResult.status === 'fulfilled' && metricsResult.value.success
+      ? metricsResult.value.data
+      : undefined;
 
   console.log('📊 [SSR DATA]:', {
     products: initialProducts.length,
