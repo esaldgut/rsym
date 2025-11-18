@@ -79,9 +79,9 @@ export async function middleware(request: NextRequest) {
     // Patrón híbrido: lee cookies creadas por client-side sin runWithAmplifyServerContext
     const session = await getAuthSessionFromCookies();
 
-    const authenticated = session?.isAuthenticated || false;
-
-    if (!authenticated) {
+    // Verificar que la sesión existe y está autenticada
+    // TypeScript ahora puede inferir que session no es null después de este bloque
+    if (!session || !session.isAuthenticated) {
       console.log('🔒 [Middleware] Usuario no autenticado, redirigiendo a /auth');
       console.log('   - Ruta solicitada:', request.nextUrl.pathname);
 
@@ -91,6 +91,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(redirectUrl);
     }
 
+    // TypeScript ahora sabe que session definitivamente no es null aquí
     console.log('✅ [Middleware] Usuario autenticado:', {
       username: session.username,
       userType: session.payload?.['custom:user_type'],

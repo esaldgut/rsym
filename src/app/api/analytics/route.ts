@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
+import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { CloudWatchLogsClient, PutLogEventsCommand, CreateLogStreamCommand } from '@aws-sdk/client-cloudwatch-logs';
 
 /**
@@ -122,7 +122,7 @@ async function sendMetricsToCloudWatch(events: AnalyticsEvent[]): Promise<void> 
   const metrics = events.map(event => ({
     MetricName: event.eventType,
     Value: 1,
-    Unit: 'Count',
+    Unit: StandardUnit.Count, // AWS SDK enum for type safety
     Timestamp: new Date(event.timestamp),
     Dimensions: [
       { Name: 'Feature', Value: event.context.feature },

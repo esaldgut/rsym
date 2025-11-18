@@ -1,5 +1,4 @@
 import { createServerRunner } from '@aws-amplify/adapter-nextjs';
-import { ResourcesConfig } from 'aws-amplify';
 import outputs from '../../amplify/outputs.json';
 
 /**
@@ -22,5 +21,9 @@ export const { runWithAmplifyServerContext } = createServerRunner({
  * - auth.identity_pool_id ← CRÍTICO para Storage operations
  * - storage.bucket_name
  * - data.url (AppSync GraphQL)
+ *
+ * NOTA: Amplify Gen 2 usa outputs.json directamente
+ * No se requiere tipar como ResourcesConfig (Gen 1)
+ * TypeScript infiere el tipo correcto automáticamente
  */
-export const amplifyConfig: ResourcesConfig = outputs;
+export const amplifyConfig = outputs;
