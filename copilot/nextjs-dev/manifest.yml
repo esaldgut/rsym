@@ -20,9 +20,9 @@ http:
     - 'www.yaan.com.mx'
   certificate: 'arn:aws:acm:us-west-2:288761749126:certificate/777f93fa-5315-472e-9df3-94b41098ac4f'
 
-# Imagen de desarrollo
+# Imagen de producción optimizada (Next.js 16.0.2 oficial)
 image:
-  build: Dockerfile.dev
+  build: Dockerfile
   port: 3000
 
 # Recursos escalados para performance con imagen grande
