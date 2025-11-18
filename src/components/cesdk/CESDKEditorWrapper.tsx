@@ -117,18 +117,19 @@ export function CESDKEditorWrapper({
 
         // Get configuration from environment
         const licenseKey = process.env.NEXT_PUBLIC_CESDK_LICENSE_KEY || '';
-        const baseURL = process.env.NEXT_PUBLIC_CESDK_BASE_URL ||
-          'https://cdn.img.ly/packages/imgly/cesdk-js/latest/assets';
+        const baseURL = process.env.NEXT_PUBLIC_CESDK_BASE_URL; // Optional - defaults to local assets
 
         if (!licenseKey) {
           console.warn('[CESDKEditorWrapper] ⚠️ No license key found - watermark will be shown on exports');
         }
 
+        console.log('[CESDKEditorWrapper] 📦 Using assets:', baseURL || 'local (node_modules/@cesdk/cesdk-js/assets/)');
+
         // CE.SDK configuration with YAAN theming
         const config: Configuration = {
           license: licenseKey,
           userId: userId, // User ID from props for licensing and tracking
-          baseURL,
+          ...(baseURL && { baseURL }), // Only include baseURL if explicitly set
           role: 'Creator' // Full editing capabilities
         };
 

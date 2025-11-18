@@ -104,9 +104,15 @@ export function MomentCard({
   // para mostrar el contador de guardados
 
   // ✅ Detectar si el momento tiene video
-  const hasVideo = moment.resourceUrl?.some(url =>
-    url.toLowerCase().match(/\.(mp4|webm|mov|ogg)$/i)
-  );
+  // Mejorado para manejar signed URLs con query params (ej: video.mp4?X-Amz-...)
+  const hasVideo = moment.resourceUrl?.some(url => {
+    const urlLower = url.toLowerCase();
+    // Check por extensión (ignora query params)
+    const hasVideoExtension = urlLower.match(/\.(mp4|webm|mov|ogg)(\?|$)/i);
+    // Check por resourceType si está disponible
+    const hasVideoType = moment.resourceType === 'video';
+    return hasVideoExtension || hasVideoType;
+  });
 
   const { videoRef, isPlaying, toggle, isMuted, unmute } = useVideoAutoplay({
     threshold: 0.7,

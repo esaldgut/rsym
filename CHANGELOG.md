@@ -2,6 +2,57 @@
 
 Todas las modificaciones importantes del proyecto están documentadas en este archivo.
 
+## [2.3.1] - 2025-11-17
+
+### 🐛 Fixed
+
+#### CE.SDK - Errores 404 del CDN (CRITICAL FIX)
+- **FIXED:** CE.SDK no podía inicializar debido a errores 404 del CDN de IMG.LY
+- **ROOT CAUSE:** La URL `https://cdn.img.ly/packages/imgly/cesdk-js/latest/assets` devuelve 404
+- **SOLUTION:** Removido `baseURL` del config para usar assets locales del paquete npm
+- **LOCATION:** `node_modules/@cesdk/cesdk-js/assets/` (empaquetados con el SDK)
+- **IMPACT:** Editor de momentos (`/moments/create`) ahora funciona correctamente
+
+**Archivos Modificados:**
+- `.env.local` (línea 69): Comentada `NEXT_PUBLIC_CESDK_BASE_URL`
+- `src/components/cesdk/CESDKEditorWrapper.tsx` (líneas 120-133): Actualizado config para omitir baseURL
+
+**Logs de Debug Agregados:**
+```typescript
+console.log('[CESDKEditorWrapper] 📦 Using assets:', baseURL || 'local (node_modules/@cesdk/cesdk-js/assets/)');
+```
+
+#### Moments Video Detection - Improved Regex (ENHANCEMENT)
+- **IMPROVED:** Detección de videos más robusta para manejar signed URLs con query params
+- **PROBLEM:** Regex `/\.(mp4|webm|mov|ogg)$/i` fallaba con URLs como `video.mp4?X-Amz-Algorithm=...`
+- **SOLUTION:** Actualizado regex a `/\.(mp4|webm|mov|ogg)(\?|$)/i` para ignorar query params
+- **FALLBACK:** Agregado check adicional usando `moment.resourceType === 'video'`
+
+**Archivos Modificados:**
+- `src/components/moments/MomentCard.tsx` (líneas 108-115): Mejorada detección de video
+
+**Detección Dual:**
+```typescript
+const hasVideo = moment.resourceUrl?.some(url => {
+  const hasVideoExtension = url.toLowerCase().match(/\.(mp4|webm|mov|ogg)(\?|$)/i);
+  const hasVideoType = moment.resourceType === 'video';
+  return hasVideoExtension || hasVideoType;
+});
+```
+
+### ✅ Verified
+
+#### AWS S3 CORS Configuration
+- **STATUS:** ✅ Configuración correcta verificada
+- **ALLOWED ORIGINS:** `http://localhost:3000`, `http://localhost:3001`, `https://yaan.com.mx`, `https://www.yaan.com.mx`, `https://*.yaan.com.mx`
+- **ALLOWED METHODS:** `GET`, `HEAD`, `PUT`, `POST`, `DELETE`
+- **EXPOSE HEADERS:** `ETag`, `Content-Length`, `Content-Type`, `Accept-Ranges`, `Content-Range`
+- **MAX AGE:** 3600 segundos
+
+No se requieren cambios en CORS - la configuración es óptima.
+
+---
+
 ## [2.3.0] - 2025-01-17
 
 ### 🐳 Docker Production Image Refactoring (MAJOR OPTIMIZATION)
@@ -110,16 +161,25 @@ Stage 3: runner (Minimal runtime - node server.js)
 - ✅ .dockerignore optimizado (127 líneas)
 - ✅ Documentación actualizada (CLAUDE.md +200 líneas)
 - ✅ **Testing local EXITOSO** (333MB, 34ms startup, todos endpoints OK)
-- ⏳ Update de `copilot/nextjs-dev/manifest.yml` pendiente (cambiar a `dockerfile: Dockerfile`)
-- ⏳ Deployment a AWS ECS pendiente
+- ✅ **copilot/nextjs-dev/manifest.yml actualizado** (usando `dockerfile: Dockerfile`)
+- ✅ **AWS ECS Deployment EXITOSO** (2025-01-17)
+  - Task Definition 49 desplegado y HEALTHY
+  - Imagen: 333MB (reducción 88% vs 2.83GB)
+  - Startup: 34ms cold start
+  - SSM Secrets Manager configurado
+  - IAM Execution Role actualizado con permisos SSM
 
-#### Breaking Changes
+#### Post-Deployment Updates (2025-01-17)
 
-**⚠️ CRITICAL - Copilot Configuration:**
-- **Current State**: `copilot/nextjs-dev/manifest.yml` apunta a `Dockerfile.dev`
-- **Required Action**: Cambiar a `dockerfile: Dockerfile` antes de deployment
-- **Impact**: Producción seguirá usando imagen de desarrollo (2.83GB) hasta el cambio
-- **Mitigation**: Testing local completado, cambio seguro cuando se apruebe
+**✅ RESOLVED - Production Deployment Completed:**
+- **Previous State**: `copilot/nextjs-dev/manifest.yml` apuntaba a `Dockerfile.dev` (2.83GB)
+- **Current State**: Actualizado a `dockerfile: Dockerfile` (333MB optimizado)
+- **Actions Taken**:
+  - Creado SSM parameter `/copilot/yaan-dev/dev/secrets/CESDK_LICENSE_KEY`
+  - Actualizado IAM Execution Role con política `AllowReadCESDKSecret`
+  - Desplegado Task Definition 49 con imagen optimizada
+  - Verificados endpoints: https://yaan.com.mx, https://www.yaan.com.mx
+- **Result**: Production ahora corre imagen optimizada con 88% reducción de tamaño
 
 #### References
 

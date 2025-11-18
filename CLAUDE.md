@@ -3931,34 +3931,30 @@ FROM base AS runner              # Stage 3: Minimal production runtime
 | **Hot Reload** | ❌ No | ✅ Sí |
 | **Uso** | **LISTO para AWS ECS** ✅ | Testing local solamente |
 
-**⚠️ CRITICAL WARNING - Copilot Configuration:**
+**Production Copilot Configuration:**
 
-Actualmente (2025-01-15), `copilot/nextjs-dev/manifest.yml` apunta a `Dockerfile.dev`:
+**Current Status (2025-01-17):** ✅ **DEPLOYED TO AWS ECS**
+
+`copilot/nextjs-dev/manifest.yml` is correctly configured for production:
 
 ```yaml
-# INCORRECTO (estado actual)
-build:
-  dockerfile: Dockerfile.dev
-
-# CORRECTO (después de testing exitoso del nuevo Dockerfile)
-build:
-  dockerfile: Dockerfile
+# ✅ CORRECTO (Actualmente en producción)
+image:
+  build: Dockerfile  # Multi-stage production image
+  port: 3000
 ```
 
-**Consecuencias del estado actual:**
-- Producción corre `yarn dev` (servidor de desarrollo)
-- Imagen de 2.83GB (debería ser ~400MB)
-- No está optimizada (no usa standalone mode)
-- Sharp no compilado correctamente
+**Production Deployment Details:**
+- **Task Definition**: 49 (currently running)
+- **Service Status**: ACTIVE (1 task HEALTHY)
+- **Image Size**: 333MB (verified in ECR)
+- **Startup Time**: 34ms cold start
+- **Endpoints**:
+  - ✅ https://yaan.com.mx
+  - ✅ https://www.yaan.com.mx
+  - ✅ https://yaan.com.mx/api/health
 
-**Pasos para Corregir:**
-1. Probar nuevo Dockerfile localmente: `docker build -t yaan-web:test .`
-2. Verificar tamaño: `docker images yaan-web:test` (~300-400MB esperado)
-3. Probar contenedor: `docker run -p 3000:3000 yaan-web:test`
-4. Si funciona: actualizar `copilot/nextjs-dev/manifest.yml` → `dockerfile: Dockerfile`
-5. Deploy con `./deploy-safe.sh`
-
-**Testing Local:**
+**Testing Local (Historical Reference):**
 
 ```bash
 # Build (VERIFICADO 2025-01-17)
@@ -4059,8 +4055,99 @@ El script `./deploy-safe.sh` usa este Dockerfile automáticamente:
   - Startup time: **34ms** (mejora del 98%)
   - Endpoints: ✅ `/api/health` 200 OK, ✅ `/` 200 OK
   - 42 rutas compiladas correctamente (todas Dynamic)
-- ⏳ Update de `copilot/nextjs-dev/manifest.yml` pendiente (cambiar a `dockerfile: Dockerfile`)
-- ⏳ Deployment a AWS pendiente
+- ✅ **copilot/nextjs-dev/manifest.yml actualizado** (usando `dockerfile: Dockerfile`)
+- ✅ **AWS ECS Deployment EXITOSO** (2025-01-17)
+  - Task Definition: 49 (actualmente ejecutando)
+  - Service Status: ACTIVE (1 task HEALTHY)
+  - SSM Secrets Manager configurado: `CESDK_LICENSE_KEY`
+  - IAM Execution Role actualizado con permisos SSM
+  - Endpoints verificados: ✅ https://yaan.com.mx, ✅ https://www.yaan.com.mx
+
+**AWS SSM Secrets Manager Integration:**
+
+El proyecto utiliza AWS Systems Manager Parameter Store para almacenar secretos de forma segura como SecureString.
+
+**SSM Parameters Configurados** (desde `copilot/nextjs-dev/manifest.yml`):
+
+```yaml
+secrets:
+  # Secret para cifrado AES-256-GCM de URLs de booking (FASE 1)
+  URL_ENCRYPTION_SECRET: /copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET
+
+  # Secret para verificar HMAC SHA-256 de webhooks MIT (FASE 6)
+  MIT_WEBHOOK_SECRET: /copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET
+
+  # API Key para MIT Payment Gateway (FASE 6)
+  MIT_API_KEY: /copilot/yaan-dev/dev/secrets/MIT_API_KEY
+
+  # CE.SDK License Key para IMG.LY Creative Editor (YAAN Moments)
+  NEXT_PUBLIC_CESDK_LICENSE_KEY: /copilot/yaan-dev/dev/secrets/CESDK_LICENSE_KEY
+```
+
+**IAM Execution Role Configuration:**
+
+El ECS Execution Role (`yaan-dev-dev-nextjs-dev-ExecutionRole-LrOIDMiZOU0Q`) tiene una política inline `AllowReadCESDKSecret` que otorga permisos para leer los secretos:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-west-2:288761749126:parameter/copilot/yaan-dev/dev/secrets/*"
+      ]
+    }
+  ]
+}
+```
+
+**Crear Nuevo Secret (Ejemplo):**
+
+```bash
+# Crear SSM parameter
+aws ssm put-parameter \
+  --name "/copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME" \
+  --value "secret-value-here" \
+  --type "SecureString" \
+  --description "Description of the secret"
+
+# Verificar creación
+aws ssm get-parameter \
+  --name "/copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME" \
+  --with-decryption
+```
+
+**Agregar Secret al Manifest:**
+
+1. Editar `copilot/nextjs-dev/manifest.yml`
+2. Agregar bajo la sección `secrets:`:
+   ```yaml
+   NEW_ENV_VAR_NAME: /copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME
+   ```
+3. Deploy con `./deploy-safe.sh`
+
+**Troubleshooting:**
+
+Si el deployment falla con `ResourceInitializationError: unable to retrieve secrets from ssm`:
+
+1. Verificar que el SSM parameter existe:
+   ```bash
+   aws ssm get-parameter --name "/copilot/yaan-dev/dev/secrets/SECRET_NAME"
+   ```
+
+2. Verificar permisos del Execution Role:
+   ```bash
+   aws iam get-role-policy \
+     --role-name yaan-dev-dev-nextjs-dev-ExecutionRole-LrOIDMiZOU0Q \
+     --policy-name AllowReadCESDKSecret
+   ```
+
+3. Si falta el permiso, actualizar la política inline para incluir el nuevo ARN del secret.
 
 **References:**
 

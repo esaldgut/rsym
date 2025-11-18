@@ -223,6 +223,104 @@ echo $MIT_API_KEY
 
 ---
 
+## 🐳 Docker Production Configuration
+
+**Status**: ✅ **DEPLOYED TO AWS ECS** (2025-01-17)
+
+### **Production Image Details**
+
+| Métrica | Valor | Comparación |
+|---------|-------|-------------|
+| **Dockerfile** | `Dockerfile` (multi-stage) | ✅ Optimizado para producción |
+| **Image Size** | **333 MB** | ⬇️ 88% reducción vs 2.83GB |
+| **Startup Time** | **34ms** | ⬇️ 98% mejora vs ~2-3s |
+| **Task Definition** | TD49 (HEALTHY) | ✅ Actualmente ejecutando |
+| **Command** | `node server.js` | ✅ Production (standalone mode) |
+| **Routes Compiled** | 42 Dynamic | ✅ Todos compilados correctamente |
+| **Static Pages** | 10 | ✅ Pre-generadas |
+
+### **Build Architecture**
+
+```
+FROM node:20-alpine AS base      # System dependencies
+    ↓
+FROM base AS deps                # Production node_modules only
+    ↓
+FROM base AS builder             # Build Next.js app
+    ↓
+FROM base AS runner              # Minimal production runtime (333MB)
+```
+
+### **Key Optimizations**
+
+- ✅ **Standalone Output Mode**: `.next/standalone/` con servidor self-contained
+- ✅ **Sharp Compiled**: Image optimization nativa para Alpine Linux
+- ✅ **Amplify Gen 2**: `amplify/outputs.json` copiado (no env vars)
+- ✅ **Deep Linking Files**: Android/iOS Universal Links incluidos
+- ✅ **Security**: Usuario no-root (nextjs:nodejs, uid 1001)
+- ✅ **Read-only Filesystem**: Previene escritura no autorizada
+- ✅ **No Build Args Credentials**: Configuración via outputs.json
+
+### **SSM Secrets Integration**
+
+El deployment actual (TD49) tiene configurados 4 secretos en AWS Systems Manager Parameter Store:
+
+```yaml
+secrets:
+  URL_ENCRYPTION_SECRET: /copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET
+  MIT_WEBHOOK_SECRET: /copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET
+  MIT_API_KEY: /copilot/yaan-dev/dev/secrets/MIT_API_KEY
+  NEXT_PUBLIC_CESDK_LICENSE_KEY: /copilot/yaan-dev/dev/secrets/CESDK_LICENSE_KEY  # ✅ Agregado 2025-01-17
+```
+
+**IAM Execution Role** (`yaan-dev-dev-nextjs-dev-ExecutionRole-LrOIDMiZOU0Q`):
+- ✅ Política inline `AllowReadCESDKSecret` adjunta
+- ✅ Permisos `ssm:GetParameter` y `ssm:GetParameters` otorgados
+- ✅ Scope: `/copilot/yaan-dev/dev/secrets/*`
+
+### **Deployment Verification Commands**
+
+```bash
+# Verificar imagen actual
+aws ecs describe-task-definition \
+  --task-definition $(aws ecs describe-services \
+    --cluster yaan-dev-dev-Cluster \
+    --services yaan-dev-dev-nextjs-dev-Service \
+    --query 'services[0].taskDefinition' --output text) \
+  --query 'taskDefinition.{Family:family,Revision:revision,Image:containerDefinitions[0].image}' \
+  --region us-west-2
+
+# Verificar endpoints
+curl -I https://yaan.com.mx/api/health
+curl -I https://www.yaan.com.mx
+
+# Ver logs de producción
+~/bin/copilot svc logs --name nextjs-dev --env dev --follow
+```
+
+### **Local Testing (Historical Reference)**
+
+```bash
+# Build production image
+docker build -t yaan-web:test .
+
+# Run container
+docker run -d -p 3000:3000 --name yaan-web-test yaan-web:test
+
+# Verify size
+docker images yaan-web:test
+# Expected: 333MB
+
+# Test endpoints
+curl http://localhost:3000/api/health  # Should return 200 OK
+curl http://localhost:3000/            # Should return 200 OK
+
+# Cleanup
+docker stop yaan-web-test && docker rm yaan-web-test
+```
+
+---
+
 ## 🎯 Próximos Pasos
 
 1. **Ejecutar el script**:
