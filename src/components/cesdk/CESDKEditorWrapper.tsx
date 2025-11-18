@@ -488,6 +488,13 @@ export function CESDKEditorWrapper({
             console.log(`[CESDKEditorWrapper] Browser: ${browserInfo.name} ${browserInfo.version} on ${browserInfo.os}`);
             await cesdkInstance.createVideoScene();
 
+            // CRITICAL FIX v2.7.2: Load initial media IMMEDIATELY after createVideoScene()
+            // This ensures scene is ready when loadInitialMedia executes
+            // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921 show immediate pattern)
+            if (initialMediaUrl && mediaType === 'video') {
+              await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+            }
+
             // Register custom handler for unsupported browsers (fallback safety)
             // CE.SDK calls this when WebCodecs API is not available
             cesdkInstance.actions.register('onUnsupportedBrowser', () => {
@@ -532,9 +539,19 @@ export function CESDKEditorWrapper({
             // Fallback to design scene (image editing)
             // This allows CE.SDK engine (WASM) to load successfully for image editing
             await cesdkInstance.createDesignScene();
+
+            // Load initial media for image editing (if available)
+            if (initialMediaUrl) {
+              await loadInitialMedia(cesdkInstance, initialMediaUrl, 'image');
+            }
           }
         } else {
           await cesdkInstance.createDesignScene();
+
+          // CRITICAL FIX v2.7.2: Load initial media IMMEDIATELY after createDesignScene()
+          if (initialMediaUrl) {
+            await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+          }
         }
 
         // ============================================================================
@@ -1016,10 +1033,10 @@ export function CESDKEditorWrapper({
           console.log('[CESDKEditorWrapper] 🧹 Event API subscriptions cleaned up');
         };
 
-        // Load initial media if provided
-        if (initialMediaUrl) {
-          await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
-        }
+        // NOTE: loadInitialMedia() was moved to execute IMMEDIATELY after
+        // createVideoScene/createDesignScene (lines 494-495, 544-545, 552-553)
+        // This fixes scene initialization timing issue where engine.scene.get()
+        // was returning null due to code executing between scene creation and media loading
 
         cesdkRef.current = cesdkInstance;
         setIsInitialized(true);
@@ -1068,23 +1085,14 @@ export function CESDKEditorWrapper({
 
       const engine = cesdk.engine;
 
-      // CRITICAL FIX v2.7.1: Wait for scene to be ready
-      // createVideoScene() is asynchronous - scene may not be immediately available
-      let scene = engine.scene.get();
-      let retries = 0;
-      const maxRetries = 10;
-      const retryDelay = 100; // milliseconds
-
-      while (!scene && retries < maxRetries) {
-        retries++;
-        console.log(`[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt ${retries}/${maxRetries})...`);
-        await new Promise(resolve => setTimeout(resolve, retryDelay));
-        scene = engine.scene.get();
-      }
+      // CRITICAL FIX v2.7.2: Scene is immediately available after await createVideoScene/createDesignScene
+      // This function is now called IMMEDIATELY after scene creation (lines 494-495, 544-545, 552-553)
+      // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921 show scene is ready immediately)
+      const scene = engine.scene.get();
 
       if (!scene) {
-        console.error('[CESDKEditorWrapper] ❌ Scene not ready after', maxRetries, 'retries (', maxRetries * retryDelay, 'ms)');
-        console.error('[CESDKEditorWrapper] 💡 Hint: createVideoScene() may have failed or is taking longer than expected');
+        console.error('[CESDKEditorWrapper] ❌ No active scene found');
+        console.error('[CESDKEditorWrapper] 💡 This should not happen - scene should exist after createVideoScene/createDesignScene');
         return;
       }
 
