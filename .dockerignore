@@ -1,18 +1,127 @@
-Dockerfile
-.dockerignore
-node_modules
-npm-debug.log
-README.md
-.next
+# ============================================================================
+# .dockerignore - Next.js 16.0.2 Optimized
+# ============================================================================
+# Excluye archivos innecesarios para reducir contexto de build y tamaño de imagen
+# - Reduce tiempo de COPY (menos archivos a copiar)
+# - Reduce tamaño de imagen final
+# - Previene copiar archivos sensibles
+# ============================================================================
+
+# Git
 .git
 .gitignore
+.gitattributes
+
+# Docker
+Dockerfile
+Dockerfile.dev
+Dockerfile.backup
+.dockerignore
+docker-compose.yml
+
+# Next.js
+.next/
+out/
+build/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.coverage
+.nyc_output
+*.test.js
+*.test.ts
+*.spec.js
+*.spec.ts
+__tests__/
+__mocks__/
+
+# Environment files (CRITICAL - never copy to image)
 .env
 .env.*
 !.env.example
-coverage
-.coverage
-.nyc_output
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
 .DS_Store
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 *.log
-.vscode
-.idea
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+!public/*.md
+docs/
+documentation/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+.travis.yml
+azure-pipelines.yml
+
+# AWS
+.aws/
+copilot/
+
+# Amplify backend (build artifacts, not configuration)
+amplify/.config/
+amplify/backend/
+amplify/team-provider-info.json
+amplify/#current-cloud-backend/
+.amplify-hosting/
+
+# Scripts (solo para dev/deployment local)
+scripts/
+deploy-safe.sh
+*.sh
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+# Vercel (si se usó anteriormente)
+.vercel
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS
+Thumbs.db
+
+# ============================================================================
+# IMPORTANTE: NO EXCLUIR
+# ============================================================================
+# Los siguientes archivos/directorios SON necesarios en la imagen:
+# - amplify/outputs.json (configuración Amplify Gen 2)
+# - public/ (assets estáticos incluyendo .well-known/)
+# - src/ (código fuente)
+# - next.config.mjs (configuración Next.js)
+# - package.json (metadata del proyecto)
+# - yarn.lock (lockfile para reproducibilidad)
+# - tailwind.config.ts (configuración de estilos)
+# - postcss.config.mjs (configuración de PostCSS)
+# - tsconfig.json (configuración TypeScript)
+# ============================================================================
