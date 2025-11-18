@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData, remove } from 'aws-amplify/storage';
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
@@ -214,8 +214,40 @@ export async function createMomentAction(formData: FormData) {
 
       // Si falló GraphQL y subimos archivos nuevos, limpiar archivos de S3
       if (mediaFile && resourceUrls.length > 0) {
-        // TODO: Implementar cleanup de S3
-        console.warn('[createMomentAction] ⚠️ Failed to create moment, S3 files not cleaned:', resourceUrls);
+        console.warn('[createMomentAction] 🧹 Limpiando archivos de S3 subidos...', resourceUrls);
+
+        // Cleanup de archivos S3 en paralelo
+        const cleanupResults = await Promise.allSettled(
+          resourceUrls.map(async (path) => {
+            try {
+              console.log('[createMomentAction] 🗑️ Eliminando archivo S3:', path);
+              await remove({ path });
+              console.log('[createMomentAction] ✅ Archivo eliminado:', path);
+              return { path, success: true };
+            } catch (cleanupError: unknown) {
+              const errorMessage = cleanupError instanceof Error
+                ? cleanupError.message
+                : 'Unknown cleanup error';
+              console.error('[createMomentAction] ❌ Error eliminando archivo:', path, errorMessage);
+              return { path, success: false, error: errorMessage };
+            }
+          })
+        );
+
+        // Log resumen de cleanup
+        const successCount = cleanupResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        const failureCount = cleanupResults.length - successCount;
+
+        console.log('[createMomentAction] 📊 Cleanup completado:', {
+          total: resourceUrls.length,
+          success: successCount,
+          failed: failureCount
+        });
+
+        // Si algún cleanup falló, log advertencia pero no bloquear el error principal
+        if (failureCount > 0) {
+          console.warn('[createMomentAction] ⚠️ Algunos archivos no pudieron ser eliminados. Revisar manualmente.');
+        }
       }
 
       throw new Error('Failed to create moment in database');
