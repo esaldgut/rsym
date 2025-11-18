@@ -216,10 +216,30 @@ export async function isAudioCodecSupported(codec: string): Promise<boolean> {
       bitrate: 128000
     };
 
+    console.log('[browser-detection] 🔍 Validando soporte de audio codec:', {
+      codec,
+      config
+    });
+
     const result = await (window as any).AudioEncoder.isConfigSupported(config);
+
+    console.log('[browser-detection] ✅ Resultado de validación de audio:', {
+      codec,
+      supported: result.supported,
+      fullResult: result
+    });
+
     return result.supported === true;
   } catch (error) {
-    console.warn('[browser-detection] Error checking audio codec support:', error);
+    // Log detailed error information
+    console.error('[browser-detection] ❌ Error crítico validando audio codec:', {
+      codec,
+      error: error instanceof Error ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      } : error
+    });
     return false;
   }
 }
@@ -237,13 +257,35 @@ export async function isVideoCodecSupported(codec: string): Promise<boolean> {
       width: 1920,
       height: 1080,
       bitrate: 5000000,
-      framerate: 30
+      framerate: 30,
+      hardwareAcceleration: 'prefer-hardware' as 'prefer-hardware', // Try to use HW acceleration
+      latencyMode: 'quality' as 'quality' // Prioritize quality over latency
     };
 
+    console.log('[browser-detection] 🔍 Validando soporte de video codec:', {
+      codec,
+      config
+    });
+
     const result = await (window as any).VideoEncoder.isConfigSupported(config);
+
+    console.log('[browser-detection] ✅ Resultado de validación de video:', {
+      codec,
+      supported: result.supported,
+      fullResult: result
+    });
+
     return result.supported === true;
   } catch (error) {
-    console.warn('[browser-detection] Error checking video codec support:', error);
+    // Log detailed error information
+    console.error('[browser-detection] ❌ Error crítico validando video codec:', {
+      codec,
+      error: error instanceof Error ? {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      } : error
+    });
     return false;
   }
 }
@@ -251,6 +293,31 @@ export async function isVideoCodecSupported(codec: string): Promise<boolean> {
 /**
  * Comprehensive check for CE.SDK video editing support
  * Combines user agent detection with runtime WebCodecs API check
+ *
+ * @deprecated Since v2.7.0 - For CE.SDK video validation, use the official function instead:
+ *
+ * ```typescript
+ * import { supportsVideo } from '@cesdk/cesdk-js';
+ *
+ * const videoSupported = supportsVideo(); // Official CE.SDK function (recommended)
+ * ```
+ *
+ * **Why deprecated:**
+ * - CE.SDK provides official `supportsVideo()` function (lines 12823, 29311, 54777 in docs)
+ * - Custom validation is more strict than necessary
+ * - `hardwareAcceleration: 'prefer-hardware'` causes false negatives
+ * - CE.SDK supports multiple codecs (VP8, VP9, AV1, H.264, H.265), not just H.264/AAC
+ *
+ * **This function can still be used for:**
+ * - Proactive UX warnings (show message before user tries to upload)
+ * - Browser information display (name, version, OS)
+ * - Non-CE.SDK contexts where you need detailed codec validation
+ *
+ * **Do NOT use for:**
+ * - CE.SDK editor initialization (use `supportsVideo()` from '@cesdk/cesdk-js')
+ * - Production validation logic (too strict, causes false negatives in Chrome 142+)
+ *
+ * See: CHANGELOG.md [2.7.0] for details on the production fix.
  */
 export async function canEditVideos(): Promise<{
   supported: boolean;
@@ -278,18 +345,55 @@ export async function canEditVideos(): Promise<{
   }
 
   // Third check: Specific codec support (AAC for audio, H.264 for video)
-  const [aacSupported, h264Supported] = await Promise.all([
-    isAudioCodecSupported('mp4a.40.02'), // AAC
-    isVideoCodecSupported('avc1.42001E')  // H.264
-  ]);
+  // Try multiple H.264 profiles for maximum compatibility
+  const h264Profiles = [
+    'avc1.42001E', // H.264 Baseline Profile (nivel 3.0) - Most compatible
+    'avc1.4D001E', // H.264 Main Profile (nivel 3.0)
+    'avc1.64001F'  // H.264 High Profile (nivel 3.1) - Highest quality
+  ];
+
+  console.log('[browser-detection] 🔍 Iniciando validación completa de codecs...');
+
+  const aacSupported = await isAudioCodecSupported('mp4a.40.02'); // AAC
+  console.log('[browser-detection] AAC support:', aacSupported ? '✅' : '❌');
+
+  // Try all H.264 profiles until one succeeds
+  let h264Supported = false;
+  let supportedProfile = '';
+
+  for (const profile of h264Profiles) {
+    const supported = await isVideoCodecSupported(profile);
+    if (supported) {
+      h264Supported = true;
+      supportedProfile = profile;
+      console.log(`[browser-detection] ✅ H.264 profile ${profile} soportado`);
+      break;
+    } else {
+      console.log(`[browser-detection] ❌ H.264 profile ${profile} NO soportado`);
+    }
+  }
 
   if (!aacSupported || !h264Supported) {
+    const reason = `Codecs no soportados: ${!aacSupported ? 'AAC' : ''} ${!h264Supported ? 'H.264' : ''}`.trim();
+
+    console.error('[browser-detection] ❌ Validación completa falló:', {
+      aacSupported,
+      h264Supported,
+      testedProfiles: h264Profiles,
+      reason
+    });
+
     return {
       supported: false,
-      reason: `Codecs no soportados: ${!aacSupported ? 'AAC' : ''} ${!h264Supported ? 'H.264' : ''}`,
+      reason,
       browserInfo
     };
   }
+
+  console.log('[browser-detection] ✅ Validación completa exitosa:', {
+    aac: 'mp4a.40.02',
+    h264: supportedProfile
+  });
 
   return {
     supported: true,
@@ -344,4 +448,93 @@ export function logBrowserInfo(): void {
     hasWebCodecsAPI: hasAPI,
     reason: info.reason
   });
+}
+
+/**
+ * Runs comprehensive diagnostics and outputs detailed report to console
+ *
+ * Usage in browser console:
+ * ```javascript
+ * import('@/utils/browser-detection').then(m => m.runWebCodecsDiagnostics())
+ * ```
+ *
+ * This function tests all video and audio codecs and provides a complete
+ * report of what's supported in the current browser.
+ */
+export async function runWebCodecsDiagnostics(): Promise<void> {
+  console.log('\n🏥 ===== WebCodecs Diagnostics =====\n');
+
+  // 1. Browser Info
+  const browserInfo = detectBrowser();
+  console.log('📊 Browser Information:');
+  console.log(`  Name: ${browserInfo.name} ${browserInfo.version}`);
+  console.log(`  OS: ${browserInfo.os}`);
+  console.log(`  Mobile: ${browserInfo.isMobile ? 'Yes' : 'No'}`);
+  console.log(`  Supports Video Editing (UA): ${browserInfo.supportsVideoEditing ? '✅' : '❌'}`);
+  if (browserInfo.reason) {
+    console.log(`  Reason: ${browserInfo.reason}`);
+  }
+
+  // 2. API Availability
+  console.log('\n🔧 WebCodecs API Availability:');
+  console.log(`  VideoEncoder: ${'VideoEncoder' in window ? '✅ Available' : '❌ Not Available'}`);
+  console.log(`  VideoDecoder: ${'VideoDecoder' in window ? '✅ Available' : '❌ Not Available'}`);
+  console.log(`  AudioEncoder: ${'AudioEncoder' in window ? '✅ Available' : '❌ Not Available'}`);
+  console.log(`  AudioDecoder: ${'AudioDecoder' in window ? '✅ Available' : '❌ Not Available'}`);
+
+  // 3. Video Codec Support
+  console.log('\n🎬 Video Codec Support:');
+  const videoCodecs = [
+    { name: 'H.264 Baseline Profile', codec: 'avc1.42001E' },
+    { name: 'H.264 Main Profile', codec: 'avc1.4D001E' },
+    { name: 'H.264 High Profile', codec: 'avc1.64001F' },
+    { name: 'VP8', codec: 'vp8' },
+    { name: 'VP9', codec: 'vp09.00.10.08' },
+    { name: 'AV1', codec: 'av01.0.05M.08' }
+  ];
+
+  for (const { name, codec } of videoCodecs) {
+    const supported = await isVideoCodecSupported(codec);
+    console.log(`  ${name} (${codec}): ${supported ? '✅ Supported' : '❌ Not Supported'}`);
+  }
+
+  // 4. Audio Codec Support
+  console.log('\n🎵 Audio Codec Support:');
+  const audioCodecs = [
+    { name: 'AAC (CE.SDK Required)', codec: 'mp4a.40.02' },
+    { name: 'AAC Low Complexity', codec: 'mp4a.40.2' },
+    { name: 'Opus', codec: 'opus' },
+    { name: 'Vorbis', codec: 'vorbis' }
+  ];
+
+  for (const { name, codec } of audioCodecs) {
+    const supported = await isAudioCodecSupported(codec);
+    console.log(`  ${name} (${codec}): ${supported ? '✅ Supported' : '❌ Not Supported'}`);
+  }
+
+  // 5. Final Result (CE.SDK Compatibility)
+  console.log('\n🎯 CE.SDK Video Editing Compatibility:');
+  const result = await canEditVideos();
+  console.log(`  Can Edit Videos: ${result.supported ? '✅ YES' : '❌ NO'}`);
+  if (result.reason) {
+    console.log(`  Reason: ${result.reason}`);
+  }
+
+  // 6. Recommendations
+  console.log('\n💡 Recommendations:');
+  if (!result.supported) {
+    console.log('  • Use a compatible browser:');
+    console.log('    - Google Chrome 114+ (Windows, macOS)');
+    console.log('    - Microsoft Edge 114+');
+    console.log('    - Safari 26.0+ (macOS Sequoia 15.3+)');
+    console.log('  • Check Chrome flags: chrome://flags/#enable-webcodecs should be "Default" or "Enabled"');
+    console.log('  • Check hardware acceleration: chrome://gpu/ should show "Hardware accelerated" for video decode');
+    console.log('  • Try restarting the browser');
+  } else {
+    console.log('  ✅ Your browser is fully compatible with CE.SDK video editing!');
+    console.log('  • Video editing features are available');
+    console.log('  • Hardware acceleration is recommended for best performance');
+  }
+
+  console.log('\n🏥 ===== End Diagnostics =====\n');
 }

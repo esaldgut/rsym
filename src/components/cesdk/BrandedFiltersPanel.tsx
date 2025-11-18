@@ -9,9 +9,15 @@
  * Features:
  * - Basic Adjustments (brightness, contrast, saturation, exposure, temperature)
  * - YAAN Branded Filter Presets (Vibrant, Dreamy, Sunset, etc.)
+ * - Effect Stack Manager with drag & drop reordering (FASE C.3)
  * - Real-time preview with CE.SDK
  * - Pink-to-purple gradient UI matching YAAN theme
  * - Reset functionality
+ *
+ * FASE C.3 (2025-11-18):
+ * - Added tabbed interface (Filtros | Efectos)
+ * - Integrated EffectStackManager for advanced effect stacking
+ * - Maintained backward compatibility with existing adjustment controls
  *
  * @example
  * ```tsx
@@ -24,6 +30,10 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
+import { EffectStackManager } from './EffectStackManager';
+import { MomentTemplateLibrary } from './MomentTemplateLibrary';
+import { TemplateVariableEditor } from './TemplateVariableEditor';
+import type { MomentTemplate } from './MomentTemplateLibrary';
 
 // ============================================================================
 // TYPES
@@ -179,6 +189,59 @@ export function BrandedFiltersPanel({
   const [adjustments, setAdjustments] = useState<FilterAdjustments>(DEFAULT_ADJUSTMENTS);
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [effectBlockId, setEffectBlockId] = useState<string | null>(null);
+
+  // FASE C.3: Tab state for Filters vs Effects
+  // FASE D: Added 'templates' tab for moment templates
+  const [activeTab, setActiveTab] = useState<'filtros' | 'efectos' | 'templates'>('filtros');
+
+  // FASE D: Template state
+  const [selectedTemplate, setSelectedTemplate] = useState<MomentTemplate | null>(null);
+  const [showVariableEditor, setShowVariableEditor] = useState(false);
+
+  // ============================================================================
+  // MEMORY MANAGEMENT (FASE B.1 FIX - 2025-11-18)
+  // ============================================================================
+
+  /**
+   * Cleanup effect when selectedBlockId changes
+   *
+   * CRITICAL FIX: Prevent memory leak by destroying effect when user selects
+   * a different block. Without this, effects accumulate in memory causing
+   * gradual performance degradation and potential crashes.
+   *
+   * Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (Memory Management Best Practices)
+   */
+  useEffect(() => {
+    // Cleanup function runs BEFORE next effect or on unmount
+    return () => {
+      if (effectBlockId && cesdkInstance) {
+        try {
+          const engine = cesdkInstance.engine;
+          if (engine.block.isValid(effectBlockId)) {
+            console.log('[BrandedFiltersPanel] 🧹 Cleaning up effect on block change:', effectBlockId);
+            engine.block.destroy(effectBlockId);
+          }
+        } catch (error) {
+          console.warn('[BrandedFiltersPanel] ⚠️ Error cleaning up effect:', error);
+        }
+      }
+    };
+  }, [selectedBlockId, effectBlockId, cesdkInstance]);
+
+  /**
+   * Reset adjustments when selectedBlockId changes
+   *
+   * BEST PRACTICE: New block should start with default adjustments,
+   * not carry over adjustments from previous block.
+   */
+  useEffect(() => {
+    if (selectedBlockId) {
+      setAdjustments(DEFAULT_ADJUSTMENTS);
+      setActivePreset(null);
+      setEffectBlockId(null);
+      console.log('[BrandedFiltersPanel] 🔄 Reset adjustments for new block:', selectedBlockId);
+    }
+  }, [selectedBlockId]);
 
   // ============================================================================
   // EFFECT APPLICATION
@@ -426,6 +489,50 @@ export function BrandedFiltersPanel({
         </button>
       </div>
 
+      {/* FASE C.3 & D: Tab Navigation */}
+      <div className="flex gap-2 border-b-2 border-gray-200 dark:border-gray-700 pb-px">
+        <button
+          onClick={() => setActiveTab('filtros')}
+          className={`
+            px-4 py-2 font-medium text-sm transition-all
+            ${activeTab === 'filtros'
+              ? 'text-pink-600 dark:text-pink-400 border-b-2 border-pink-600 dark:border-pink-400 -mb-0.5'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }
+          `}
+        >
+          🎨 Filtros
+        </button>
+        <button
+          onClick={() => setActiveTab('efectos')}
+          className={`
+            px-4 py-2 font-medium text-sm transition-all
+            ${activeTab === 'efectos'
+              ? 'text-purple-600 dark:text-purple-400 border-b-2 border-purple-600 dark:border-purple-400 -mb-0.5'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }
+          `}
+        >
+          ✨ Efectos
+        </button>
+        <button
+          onClick={() => setActiveTab('templates')}
+          className={`
+            px-4 py-2 font-medium text-sm transition-all
+            ${activeTab === 'templates'
+              ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400 -mb-0.5'
+              : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+            }
+          `}
+        >
+          📋 Templates
+        </button>
+      </div>
+
+      {/* Tab Content - Filtros */}
+      {activeTab === 'filtros' && (
+        <div className="space-y-6">
+
       {/* YAAN Filter Presets */}
       <div className="space-y-3">
         <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
@@ -498,6 +605,50 @@ export function BrandedFiltersPanel({
             </span>
           </div>
         </div>
+      )}
+        </div>
+      )}
+
+      {/* Tab Content - Efectos (FASE C.3) */}
+      {activeTab === 'efectos' && (
+        <EffectStackManager
+          cesdkInstance={cesdkInstance}
+          selectedBlockId={selectedBlockId as number | null}
+          onEffectChange={() => {
+            console.log('[BrandedFiltersPanel] Effect stack changed from EffectStackManager');
+          }}
+        />
+      )}
+
+      {/* Tab Content - Templates (FASE D) */}
+      {activeTab === 'templates' && (
+        showVariableEditor && selectedTemplate ? (
+          <TemplateVariableEditor
+            cesdkInstance={cesdkInstance}
+            template={selectedTemplate}
+            onSave={(values) => {
+              console.log('[BrandedFiltersPanel] 💾 Template variables saved:', values);
+              setShowVariableEditor(false);
+            }}
+            onCancel={() => {
+              console.log('[BrandedFiltersPanel] ❌ Template variable editing cancelled');
+              setShowVariableEditor(false);
+            }}
+          />
+        ) : (
+          <MomentTemplateLibrary
+            cesdkInstance={cesdkInstance}
+            onTemplateApply={(template) => {
+              console.log('[BrandedFiltersPanel] 📋 Template applied:', template.name);
+              setSelectedTemplate(template);
+              setShowVariableEditor(true);
+            }}
+            onClose={() => {
+              console.log('[BrandedFiltersPanel] 🔙 Template library closed');
+              setActiveTab('filtros');
+            }}
+          />
+        )
       )}
     </div>
   );
