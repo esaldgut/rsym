@@ -309,20 +309,27 @@ export function CESDKEditorWrapper({
         try {
           await Promise.all([
             // Load default asset sources (stickers, filters, effects, fonts, etc.)
-            cesdkInstance.addDefaultAssetSources().then(() => {
-              console.log('[CESDKEditorWrapper] ✅ Default asset sources loaded');
+            // FIX v2.7.4: Use IMG.LY CDN for asset sources (eliminates 404 errors)
+            // CDN: https://cdn.img.ly/assets/v4
+            cesdkInstance.addDefaultAssetSources({
+              baseURL: 'https://cdn.img.ly/assets/v4'
+            }).then(() => {
+              console.log('[CESDKEditorWrapper] ✅ Default asset sources loaded from CDN');
             }),
 
             // Load demo asset sources (templates, upload, samples)
+            // FIX v2.7.4: Use IMG.LY CDN for demo assets
+            // CDN: https://cdn.img.ly/assets/demo/v1
             cesdkInstance.addDemoAssetSources({
               sceneMode: mediaType === 'video' ? 'Video' : 'Design',
-              withUploadAssetSources: true  // Enable image/video upload in UI
+              withUploadAssetSources: true,  // Enable image/video upload in UI
+              baseURL: 'https://cdn.img.ly/assets/demo/v1'
             }).then(() => {
-              console.log('[CESDKEditorWrapper] ✅ Demo asset sources loaded');
+              console.log('[CESDKEditorWrapper] ✅ Demo asset sources loaded from CDN');
             })
           ]);
 
-          console.log('[CESDKEditorWrapper] 🎉 All asset sources loaded successfully');
+          console.log('[CESDKEditorWrapper] 🎉 All asset sources loaded successfully from CDN');
 
         } catch (assetError) {
           // Non-fatal: Continue even if asset loading fails
@@ -488,12 +495,9 @@ export function CESDKEditorWrapper({
             console.log(`[CESDKEditorWrapper] Browser: ${browserInfo.name} ${browserInfo.version} on ${browserInfo.os}`);
             await cesdkInstance.createVideoScene();
 
-            // CRITICAL FIX v2.7.2: Load initial media IMMEDIATELY after createVideoScene()
-            // This ensures scene is ready when loadInitialMedia executes
-            // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921 show immediate pattern)
-            if (initialMediaUrl && mediaType === 'video') {
-              await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
-            }
+            // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
+            // This prevents re-initialization when initialMediaUrl changes
+            // Scene is ready here, media will be loaded by dedicated useEffect
 
             // Register custom handler for unsupported browsers (fallback safety)
             // CE.SDK calls this when WebCodecs API is not available
@@ -540,18 +544,12 @@ export function CESDKEditorWrapper({
             // This allows CE.SDK engine (WASM) to load successfully for image editing
             await cesdkInstance.createDesignScene();
 
-            // Load initial media for image editing (if available)
-            if (initialMediaUrl) {
-              await loadInitialMedia(cesdkInstance, initialMediaUrl, 'image');
-            }
+            // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
           }
         } else {
           await cesdkInstance.createDesignScene();
 
-          // CRITICAL FIX v2.7.2: Load initial media IMMEDIATELY after createDesignScene()
-          if (initialMediaUrl) {
-            await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
-          }
+          // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
         }
 
         // ============================================================================
@@ -1066,12 +1064,57 @@ export function CESDKEditorWrapper({
         cesdkInstance.dispose();
       }
     };
-  }, [initialMediaUrl, mediaType, userId]); // Added userId to dependencies
+  }, [mediaType, userId]); // CRITICAL FIX v2.7.3: Removed initialMediaUrl to prevent re-initialization
+
+  // ============================================================================
+  // FIX v2.7.3: SEPARATE EFFECT FOR MEDIA LOADING (2025-11-18)
+  // ============================================================================
+  // PROBLEM IDENTIFIED:
+  // - Previous code had initialMediaUrl in main useEffect dependencies
+  // - This caused ENTIRE re-initialization when user uploaded video
+  // - CreativeEditorSDK.create() was called MULTIPLE times (memory leak + state corruption)
+  // - Scene became null because we were accessing wrong instance
+  //
+  // SOLUTION:
+  // - Main useEffect (above) initializes CE.SDK ONCE (no initialMediaUrl dependency)
+  // - This separate useEffect detects initialMediaUrl changes and loads media
+  // - Uses cesdkRef.current to access existing instance (no re-initialization)
+  //
+  // Reference: React Best Practices - Separate initialization from dynamic updates
+  // ============================================================================
+
+  useEffect(() => {
+    // Only load media if:
+    // 1. CE.SDK is initialized (cesdkRef.current exists)
+    // 2. We have a media URL to load
+    // 3. Component is still mounted (isInitialized is true)
+    if (!cesdkRef.current || !initialMediaUrl || !isInitialized) {
+      return;
+    }
+
+    console.log('[CESDKEditorWrapper] 🔄 initialMediaUrl changed, loading media...');
+    console.log('[CESDKEditorWrapper] 📥 New media URL:', initialMediaUrl);
+    console.log('[CESDKEditorWrapper] 📝 Media type:', mediaType);
+
+    // Load media using existing CE.SDK instance (no re-initialization)
+    loadInitialMedia(cesdkRef.current, initialMediaUrl, mediaType);
+
+  }, [initialMediaUrl]); // Only depend on initialMediaUrl (not mediaType or userId)
 
   // Note: applyYaanTheme is imported from @/config/cesdk/ThemeConfigYAAN
 
   // ============================================================================
   // LOAD INITIAL MEDIA
+  // ============================================================================
+  // FIX v2.7.3: This function is now called by dedicated useEffect (lines 1088-1104)
+  // - Triggered automatically when initialMediaUrl changes
+  // - Uses existing CE.SDK instance (cesdkRef.current)
+  // - No re-initialization of CE.SDK
+  //
+  // Previous issues fixed:
+  // - v2.7.1: Added retry logic (over-engineered, removed in v2.7.2)
+  // - v2.7.2: Moved to execute immediately after createScene (caused re-initialization bug)
+  // - v2.7.3: Separated to dedicated useEffect (correct React pattern)
   // ============================================================================
 
   const loadInitialMedia = async (
@@ -1085,14 +1128,20 @@ export function CESDKEditorWrapper({
 
       const engine = cesdk.engine;
 
-      // CRITICAL FIX v2.7.2: Scene is immediately available after await createVideoScene/createDesignScene
-      // This function is now called IMMEDIATELY after scene creation (lines 494-495, 544-545, 552-553)
-      // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921 show scene is ready immediately)
+      // Scene is ready because:
+      // 1. Main useEffect already called createVideoScene/createDesignScene
+      // 2. This function is called AFTER initialization completes (isInitialized === true)
+      // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921)
       const scene = engine.scene.get();
 
       if (!scene) {
         console.error('[CESDKEditorWrapper] ❌ No active scene found');
-        console.error('[CESDKEditorWrapper] 💡 This should not happen - scene should exist after createVideoScene/createDesignScene');
+        console.error('[CESDKEditorWrapper] 💡 Scene should exist - CE.SDK was initialized');
+        console.error('[CESDKEditorWrapper] 🔍 Debug info:', {
+          hasEngine: !!engine,
+          isInitialized,
+          mediaType: type
+        });
         return;
       }
 
