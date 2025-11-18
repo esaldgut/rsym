@@ -2216,10 +2216,140 @@ await applyYaanTheme(cesdkInstance);  // Apply YAAN pink-purple branding
 
 if (mediaType === 'video') {
   await cesdkInstance.createVideoScene();
+
+  // Register custom handler for unsupported browsers (video editing)
+  cesdkInstance.actions.register('onUnsupportedBrowser', () => {
+    // Custom Spanish error message
+    setError('Video editing not available in this browser...');
+  });
 } else {
   await cesdkInstance.createDesignScene();
 }
 ```
+
+##### 1.1. CE.SDK Browser Requirements & WebCodecs API
+
+**CRITICAL**: CE.SDK video editing requires WebCodecs API, which is **NOT universally supported**.
+
+**Supported Browsers for Video Editing:**
+
+| Browser | Minimum Version | Platform | Status |
+|---------|----------------|----------|--------|
+| **Chrome Desktop** | 114+ | Windows, macOS | ✅ Fully supported |
+| **Edge Desktop** | 114+ | Windows, macOS | ✅ Fully supported |
+| **Safari Desktop** | 26.0+ | macOS Sequoia 15.3+ | ✅ Fully supported |
+| **Chrome on Linux** | Any | Linux | ❌ Lacks AAC encoder (licensing) |
+| **Firefox** | Any | All platforms | ❌ No WebCodecs API support |
+| **All mobile browsers** | Any | iOS, Android | ❌ Technical limitations |
+| **Safari** | <26.0 | macOS | ❌ Incomplete WebCodecs API |
+
+**Why Video Editing Fails:**
+
+1. **WebCodecs API Required**: CE.SDK uses `VideoEncoder`, `VideoDecoder`, `AudioEncoder`, `AudioDecoder` for real-time video editing
+2. **Codec Dependencies**: Browser AND operating system must support specific codecs:
+   - Audio: AAC (mp4a.40.02)
+   - Video: H.264 (avc1.42001E)
+3. **Platform Limitations**:
+   - Linux: Chrome lacks H.264/AAC encoders due to licensing
+   - Mobile: Performance and API limitations
+   - Chromium standalone: No codecs included
+
+**Error Handling Implementation:**
+
+**File:** `src/utils/browser-detection.ts`
+
+Comprehensive browser detection and WebCodecs API checks:
+
+```typescript
+// Detect browser capabilities
+export function detectBrowser(): BrowserInfo {
+  // Returns: name, version, os, isMobile, supportsVideoEditing, reason
+}
+
+// Runtime API check
+export function hasWebCodecsAPI(): boolean {
+  return (
+    'VideoEncoder' in window &&
+    'VideoDecoder' in window &&
+    'AudioEncoder' in window &&
+    'AudioDecoder' in window
+  );
+}
+
+// Comprehensive check with codec support
+export async function canEditVideos(): Promise<{
+  supported: boolean;
+  reason?: string;
+  browserInfo: BrowserInfo;
+}> {
+  // Checks: user agent, WebCodecs API, AAC codec, H.264 codec
+}
+```
+
+**UX Improvements:**
+
+1. **Custom Error Handler** (`CESDKEditorWrapper.tsx:163-180`):
+   - Spanish error message when browser doesn't support video editing
+   - Lists compatible browsers
+   - Suggests alternative (use images instead)
+
+2. **Proactive Detection** (`MomentMediaUpload.tsx:39-50`):
+   - Detects browser capabilities on component mount
+   - Shows warning banner if video editing not supported
+   - Conditional UI elements based on browser support
+
+3. **User-Friendly Messages**:
+   - ⚠️ "Solo imágenes disponibles en tu navegador"
+   - Explains specific limitation (e.g., "Chrome en Linux carece de encoder AAC")
+   - Expandable details with browser requirements
+   - Alternative suggestion: "Puedes crear momentos con imágenes"
+
+**Expected User Experience:**
+
+**Supported Browser (Chrome 114+, Edge 114+, Safari 26.0+)**:
+```
+1. User uploads video → ✅ CE.SDK loads successfully
+2. User edits video → ✅ All tools available
+3. User exports → ✅ High-quality MP4 output
+```
+
+**Unsupported Browser (Firefox, mobile, Chrome on Linux)**:
+```
+1. Component mount → Detects incompatibility
+2. Shows amber banner: "⚠️ Solo imágenes disponibles en tu navegador"
+3. Helper text updated: "⚠️ Videos no disponibles en este navegador"
+4. If user tries video anyway → CE.SDK shows custom Spanish error
+5. User can still create moments with images ✅
+```
+
+**Debugging Commands:**
+
+```typescript
+// In browser console
+import { logBrowserInfo, canEditVideos } from '@/utils/browser-detection';
+
+// Log current browser capabilities
+logBrowserInfo();
+// Output: { name: 'Chrome', version: '120.0', supportsVideoEditing: true, ... }
+
+// Check comprehensive video editing support
+const result = await canEditVideos();
+// Output: { supported: true, browserInfo: {...} }
+```
+
+**Common Error Messages:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `AudioEncoder NotSupportedError` | Browser lacks AAC encoder | Use supported browser (Chrome 114+, Edge 114+, Safari 26.0+) |
+| `VideoEncoder NotSupportedError` | Browser lacks H.264 encoder | Use supported browser |
+| `WebCodecs API not available` | Browser doesn't support WebCodecs | Update browser or switch to Chrome/Edge |
+| Video editing no disponible | Mobile browser or Firefox | Use desktop Chrome, Edge, or Safari 26.0+ |
+
+**Reference Documentation:**
+- Local: `docs/CESDK_NEXTJS_LLMS_FULL.txt` (complete CE.SDK documentation)
+- Online: https://img.ly/docs/cesdk/faq/browser-support/
+- WebCodecs API: https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API
 
 ##### 2. ThemeConfigYAAN - YAAN Brand Theme
 

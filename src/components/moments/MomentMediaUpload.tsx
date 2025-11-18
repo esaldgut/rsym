@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import MediaUploadZone from '@/components/media/MediaUploadZone';
 import MediaPreview, { type MediaFile } from '@/components/media/MediaPreview';
 import { mediaUploadService } from '@/lib/services/media-upload-service';
 import { toastManager } from '@/components/ui/Toast';
 import { cn } from '@/lib/utils';
+import { detectBrowser, hasWebCodecsAPI } from '@/utils/browser-detection';
 
 interface MomentMediaUploadProps {
   momentId?: string;
@@ -31,6 +32,22 @@ export function MomentMediaUpload({
   disabled = false
 }: MomentMediaUploadProps) {
   const [mediaFiles, setMediaFiles] = useState<MediaFile[]>([]);
+  const [browserSupportsVideo, setBrowserSupportsVideo] = useState(true);
+  const [browserInfo, setBrowserInfo] = useState<string>('');
+
+  // Detect browser video editing support on mount
+  useEffect(() => {
+    const info = detectBrowser();
+    const hasAPI = hasWebCodecsAPI();
+
+    const supportsVideo = info.supportsVideoEditing && hasAPI;
+    setBrowserSupportsVideo(supportsVideo);
+
+    if (!supportsVideo && info.reason) {
+      setBrowserInfo(info.reason);
+      console.warn('[MomentMediaUpload] ⚠️ Video editing not supported:', info.reason);
+    }
+  }, []);
 
   // Configuración para INFLUENCERS PROFESIONALES - iPhone + Cámaras Profesionales
   const momentsConfig = useMemo(() => ({
@@ -158,6 +175,36 @@ export function MomentMediaUpload({
 
   return (
     <div className={cn("space-y-4", className)}>
+      {/* Browser Video Support Warning */}
+      {!browserSupportsVideo && (
+        <div className="bg-amber-50 border-l-4 border-amber-500 rounded-lg p-4">
+          <div className="flex items-start space-x-3">
+            <span className="text-2xl">⚠️</span>
+            <div className="flex-1">
+              <h3 className="font-semibold text-amber-900 mb-1">
+                Solo imágenes disponibles en tu navegador
+              </h3>
+              <p className="text-sm text-amber-800 mb-2">
+                {browserInfo || 'Tu navegador no soporta edición de videos.'}
+              </p>
+              <details className="text-xs text-amber-700">
+                <summary className="cursor-pointer hover:text-amber-900 font-medium">
+                  Ver navegadores compatibles para videos
+                </summary>
+                <ul className="mt-2 ml-4 space-y-1 list-disc">
+                  <li>Google Chrome 114+ (Windows, macOS)</li>
+                  <li>Microsoft Edge 114+</li>
+                  <li>Safari 26.0+ (macOS Sequoia 15.3+)</li>
+                </ul>
+                <p className="mt-2 italic">
+                  💡 Mientras tanto, puedes compartir momentos con fotos
+                </p>
+              </details>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Upload Statistics - Solo mostrar si hay archivos */}
       {hasFiles && (
         <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-lg p-4 border border-pink-200">
@@ -227,8 +274,14 @@ export function MomentMediaUpload({
 
         <div className="flex justify-center flex-wrap gap-3">
           <span className="bg-purple-50 px-2 py-1 rounded">📷 Fotos hasta 100MB</span>
-          <span className="bg-pink-50 px-2 py-1 rounded">🎬 Videos hasta 1GB</span>
-          <span className="bg-blue-50 px-2 py-1 rounded">📱 iPhone ProRes/ProRAW</span>
+          {browserSupportsVideo ? (
+            <>
+              <span className="bg-pink-50 px-2 py-1 rounded">🎬 Videos hasta 1GB</span>
+              <span className="bg-blue-50 px-2 py-1 rounded">📱 iPhone ProRes/ProRAW</span>
+            </>
+          ) : (
+            <span className="bg-amber-50 px-2 py-1 rounded text-amber-800">⚠️ Videos no disponibles en este navegador</span>
+          )}
         </div>
 
         <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg p-3 mt-2">

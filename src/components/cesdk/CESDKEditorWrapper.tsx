@@ -157,6 +157,27 @@ export function CESDKEditorWrapper({
         // Create scene based on media type
         if (mediaType === 'video') {
           await cesdkInstance.createVideoScene();
+
+          // Register custom handler for unsupported browsers (video editing)
+          // CE.SDK calls this when WebCodecs API is not available
+          cesdkInstance.actions.register('onUnsupportedBrowser', () => {
+            console.warn('[CESDKEditorWrapper] ⚠️ Video editing no soportado en este navegador');
+
+            setError(
+              `⚠️ Edición de video no disponible\n\n` +
+              `Tu navegador no soporta las tecnologías necesarias para editar videos (WebCodecs API).\n\n` +
+              `Navegadores compatibles:\n` +
+              `• Google Chrome 114+ (Windows, macOS)\n` +
+              `• Microsoft Edge 114+\n` +
+              `• Safari 26.0+ (macOS Sequoia 15.3+)\n\n` +
+              `Razones comunes:\n` +
+              `• Navegador móvil (no soportados)\n` +
+              `• Firefox (no soportado)\n` +
+              `• Chrome en Linux (carece de encoder AAC)\n` +
+              `• Safari anterior a 26.0\n\n` +
+              `Alternativa: Puedes crear momentos con imágenes.`
+            );
+          });
         } else {
           await cesdkInstance.createDesignScene();
         }

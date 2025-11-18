@@ -40,6 +40,77 @@ const hasVideo = moment.resourceUrl?.some(url => {
 });
 ```
 
+#### CE.SDK Browser Compatibility - UX Improvements (ENHANCEMENT)
+- **ENHANCED:** Mejoras UX para navegadores que no soportan edición de video (WebCodecs API)
+- **PROBLEM:** Usuarios en navegadores no soportados reciben mensaje genérico en inglés de CE.SDK
+- **SOLUTION:** Sistema completo de detección de navegador y mensajes personalizados en español
+- **SCOPE:** WebCodecs API requerida solo disponible en Chrome 114+, Edge 114+, Safari 26.0+
+
+**Archivos Agregados:**
+- `src/utils/browser-detection.ts` (363 líneas): Utilidades de detección de navegador y WebCodecs API
+  - `detectBrowser()`: Detecta nombre, versión, OS, soporte de video editing
+  - `hasWebCodecsAPI()`: Runtime check de VideoEncoder/AudioEncoder APIs
+  - `canEditVideos()`: Verificación completa de soporte (user agent + runtime + codecs)
+  - `getUnsupportedBrowserMessage()`: Mensaje de error en español
+
+**Archivos Modificados:**
+- `src/components/cesdk/CESDKEditorWrapper.tsx` (líneas 161-180):
+  - Agregado handler `onUnsupportedBrowser` personalizado en español
+  - Mensaje detallado con navegadores compatibles y alternativas
+  - Razones técnicas específicas (ej: "Chrome en Linux carece de encoder AAC")
+
+- `src/components/moments/MomentMediaUpload.tsx` (líneas 35-50, 178-206, 277-284):
+  - Detección de capacidades del navegador en mount
+  - Banner de advertencia amber si video no soportado
+  - UI condicional según soporte (badges, helper text)
+  - Mensaje expandible con lista de navegadores compatibles
+
+**Mejoras UX Implementadas:**
+
+1. **Detección Preventiva** (antes de intentar editar):
+   - Banner: "⚠️ Solo imágenes disponibles en tu navegador"
+   - Razón específica: "Chrome en Linux carece de encoder AAC debido a licenciamiento"
+   - Lista de navegadores compatibles (expandible)
+
+2. **Error Handling Personalizado** (cuando usuario intenta editar video):
+   - Mensaje CE.SDK en español (reemplaza mensaje genérico en inglés)
+   - Contexto técnico: "No soporta WebCodecs API"
+   - Sugerencia constructiva: "Puedes crear momentos con imágenes"
+
+3. **Navegadores No Soportados Detectados**:
+   - ❌ Firefox (cualquier versión) - No WebCodecs API
+   - ❌ Chrome en Linux - Carece de AAC/H.264 encoders
+   - ❌ Navegadores móviles (iOS, Android) - Limitaciones técnicas
+   - ❌ Safari <26.0 - WebCodecs API incompleta
+   - ❌ Chromium standalone - Sin codecs (licensing)
+
+4. **Navegadores Soportados** (mensaje de éxito):
+   - ✅ Chrome Desktop 114+ (Windows, macOS)
+   - ✅ Edge Desktop 114+
+   - ✅ Safari Desktop 26.0+ (macOS Sequoia 15.3+)
+
+**Debugging Capabilities:**
+```typescript
+// Console commands para troubleshooting
+import { logBrowserInfo, canEditVideos } from '@/utils/browser-detection';
+
+logBrowserInfo();  // { name: 'Chrome', version: '120.0', supportsVideoEditing: true, ... }
+const result = await canEditVideos();  // { supported: true/false, reason: '...', ... }
+```
+
+**Impacto:**
+- ✅ Usuarios comprenden por qué no pueden editar videos (mensaje en español)
+- ✅ Frustración reducida (alternativa clara: usar imágenes)
+- ✅ Soporte técnico minimizado (mensajes auto-explicativos)
+- ✅ Experiencia profesional mantenida (detección proactiva)
+
+**Documentación Actualizada:**
+- `CLAUDE.md` (líneas 2230-2353): Nueva sección "CE.SDK Browser Requirements & WebCodecs API"
+  - Tabla completa de compatibilidad de navegadores
+  - Explicación técnica de WebCodecs API
+  - Guía de troubleshooting
+  - Comandos de debugging
+
 ### ✅ Verified
 
 #### AWS S3 CORS Configuration
