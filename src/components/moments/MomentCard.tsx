@@ -461,14 +461,18 @@ function MomentMedia({
   toggle,
   unmute
 }: MomentMediaProps) {
+  // ✅ CRITICAL: Todos los hooks PRIMERO, antes de conditional returns (React Hooks Rule #1)
+  // Usar hook para obtener URL firmada de S3
+  const { url, isLoading, error } = useStorageUrl(resourceUrl);
+
+  // ✅ Estado de error para videos (FIX v2.8.0 + v2.10.0 - movido antes de conditional returns)
+  const [videoError, setVideoError] = useState<string | null>(null);
+
   console.log('[MomentMedia] 📦 Props recibidas:', {
     resourceUrl,
     hasVideo,
     description: description?.substring(0, 50)
   });
-
-  // Usar hook para obtener URL firmada de S3
-  const { url, isLoading, error } = useStorageUrl(resourceUrl);
 
   console.log('[MomentMedia] 🔗 Estado de useStorageUrl:', {
     url: url?.substring(0, 100),
@@ -476,6 +480,7 @@ function MomentMedia({
     error: error?.message
   });
 
+  // ✅ Ahora sí podemos hacer early returns (después de TODOS los hooks)
   // Si está cargando, mostrar skeleton
   if (isLoading) {
     return (
@@ -503,9 +508,6 @@ function MomentMedia({
       </div>
     );
   }
-
-  // ✅ Estado de error para videos (FIX v2.8.0)
-  const [videoError, setVideoError] = useState<string | null>(null);
 
   // Renderizar video o imagen según el tipo
   if (hasVideo && videoRef) {
