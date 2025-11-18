@@ -212,6 +212,117 @@ export function CESDKEditorWrapper({
   }, [clearDrafts]);
 
   // ============================================================================
+  // LOAD INITIAL MEDIA FUNCTION
+  // ============================================================================
+  // FIX v2.13.0: Moved BEFORE main useEffect so it can be called synchronously
+  // - Called immediately after createVideoScene/createDesignScene
+  // - No longer depends on separate useEffect with race condition
+  // - Executes in same execution context as scene creation (eliminates destruction window)
+  //
+  // Previous issues fixed:
+  // - v2.7.1: Added retry logic (over-engineered, removed in v2.7.2)
+  // - v2.7.2: Moved to execute immediately after createScene (caused re-initialization bug)
+  // - v2.7.3: Separated to dedicated useEffect (correct React pattern, but had race condition)
+  // - v2.12.0: Added isInitialized to dependencies (fixed race condition, but scene was still destroyed)
+  // - v2.13.0: Moved back to synchronous execution in main useEffect (eliminates destruction window)
+  // ============================================================================
+
+  const loadInitialMedia = async (
+    cesdk: CreativeEditorSDK,
+    mediaUrl: string,
+    type: 'image' | 'video'
+  ) => {
+    try {
+      console.log('[CESDKEditorWrapper] 📥 Loading initial media:', mediaUrl);
+      console.log('[CESDKEditorWrapper] 📝 Media type:', type);
+
+      const engine = cesdk.engine;
+
+      // FIX v2.13.0: Scene is ready because we're calling this IMMEDIATELY after createScene
+      // No time window for scene to be destroyed/null
+      const scene = engine.scene.get();
+
+      if (!scene) {
+        console.error('[CESDKEditorWrapper] ❌ No active scene found');
+        console.error('[CESDKEditorWrapper] 💡 Scene should exist - CE.SDK was initialized');
+        console.error('[CESDKEditorWrapper] 🔍 Debug info:', {
+          hasEngine: !!engine,
+          mediaType: type
+        });
+        return;
+      }
+
+      console.log('[CESDKEditorWrapper] ✅ Scene ready:', scene);
+
+      // Get all pages in the scene
+      const pages = engine.block.findByType('page');
+
+      if (pages.length === 0) {
+        console.error('[CESDKEditorWrapper] ❌ No pages found in scene');
+        return;
+      }
+
+      const pageId = pages[0]; // Use first page
+      console.log('[CESDKEditorWrapper] 📄 Using page:', pageId);
+
+      // Get page dimensions for sizing
+      const pageWidth = engine.block.getWidth(pageId);
+      const pageHeight = engine.block.getHeight(pageId);
+      console.log('[CESDKEditorWrapper] 📐 Page dimensions:', { width: pageWidth, height: pageHeight });
+
+      // Create and add media block based on type
+      let blockId: number;
+
+      if (type === 'video') {
+        // RECOMMENDED APPROACH: Use official addVideo() API (CE.SDK docs lines 43477-43506)
+        console.log('[CESDKEditorWrapper] 🎬 Adding video using official addVideo() API...');
+
+        blockId = await engine.block.addVideo(
+          mediaUrl,
+          pageWidth,
+          pageHeight,
+          {
+            sizeMode: 'Absolute',
+            positionMode: 'Absolute',
+            x: pageWidth / 2,
+            y: pageHeight / 2
+          }
+        );
+
+        console.log('[CESDKEditorWrapper] ✅ Video block created and added:', blockId);
+      } else {
+        // ✅ FIX v2.11.0: Use official addImage() API instead of manual pattern
+        // RECOMMENDED APPROACH: Use official addImage() API (CE.SDK docs line 8270)
+        // This ensures CE.SDK's automatic rendering logic is triggered
+        console.log('[CESDKEditorWrapper] 🖼️ Adding image using official addImage() API...');
+
+        blockId = await engine.block.addImage(mediaUrl, {
+          size: { width: pageWidth, height: pageHeight }
+        });
+
+        engine.block.appendChild(pageId, blockId);
+        engine.block.setPositionX(blockId, pageWidth / 2);
+        engine.block.setPositionY(blockId, pageHeight / 2);
+
+        // Set as background or main content layer
+        engine.block.sendToBack(blockId);
+
+        console.log('[CESDKEditorWrapper] ✅ Image block created and added using addImage() API:', blockId);
+      }
+
+      console.log('[CESDKEditorWrapper] 🎉 Initial media loaded successfully');
+
+    } catch (err) {
+      console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
+      console.error('[CESDKEditorWrapper] 📋 Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
+      // Non-critical - user can still add media manually through CE.SDK UI
+    }
+  };
+
+  // ============================================================================
   // CESDK INITIALIZATION
   // ============================================================================
 
@@ -495,9 +606,13 @@ export function CESDKEditorWrapper({
             console.log(`[CESDKEditorWrapper] Browser: ${browserInfo.name} ${browserInfo.version} on ${browserInfo.os}`);
             await cesdkInstance.createVideoScene();
 
-            // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
-            // This prevents re-initialization when initialMediaUrl changes
-            // Scene is ready here, media will be loaded by dedicated useEffect
+            // FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
+            // This prevents scene from being destroyed/null before media loads
+            // CRITICAL: Must happen synchronously in same execution context
+            if (initialMediaUrl) {
+              console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
+              await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+            }
 
             // Register custom handler for unsupported browsers (fallback safety)
             // CE.SDK calls this when WebCodecs API is not available
@@ -549,7 +664,13 @@ export function CESDKEditorWrapper({
         } else {
           await cesdkInstance.createDesignScene();
 
-          // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
+          // FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
+          // This prevents scene from being destroyed/null before media loads
+          // CRITICAL: Must happen synchronously in same execution context
+          if (initialMediaUrl) {
+            console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
+            await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+          }
         }
 
         // ============================================================================
@@ -1064,158 +1185,7 @@ export function CESDKEditorWrapper({
         cesdkInstance.dispose();
       }
     };
-  }, [mediaType, userId]); // CRITICAL FIX v2.7.3: Removed initialMediaUrl to prevent re-initialization
-
-  // ============================================================================
-  // FIX v2.7.3: SEPARATE EFFECT FOR MEDIA LOADING (2025-11-18)
-  // ============================================================================
-  // PROBLEM IDENTIFIED:
-  // - Previous code had initialMediaUrl in main useEffect dependencies
-  // - This caused ENTIRE re-initialization when user uploaded video
-  // - CreativeEditorSDK.create() was called MULTIPLE times (memory leak + state corruption)
-  // - Scene became null because we were accessing wrong instance
-  //
-  // SOLUTION:
-  // - Main useEffect (above) initializes CE.SDK ONCE (no initialMediaUrl dependency)
-  // - This separate useEffect detects initialMediaUrl changes and loads media
-  // - Uses cesdkRef.current to access existing instance (no re-initialization)
-  //
-  // Reference: React Best Practices - Separate initialization from dynamic updates
-  // ============================================================================
-
-  useEffect(() => {
-    // Only load media if:
-    // 1. CE.SDK is initialized (cesdkRef.current exists)
-    // 2. We have a media URL to load
-    // 3. Component is still mounted (isInitialized is true)
-    if (!cesdkRef.current || !initialMediaUrl || !isInitialized) {
-      return;
-    }
-
-    console.log('[CESDKEditorWrapper] 🔄 initialMediaUrl changed, loading media...');
-    console.log('[CESDKEditorWrapper] 📥 New media URL:', initialMediaUrl);
-    console.log('[CESDKEditorWrapper] 📝 Media type:', mediaType);
-
-    // Load media using existing CE.SDK instance (no re-initialization)
-    loadInitialMedia(cesdkRef.current, initialMediaUrl, mediaType);
-
-  }, [initialMediaUrl]); // Only depend on initialMediaUrl (not mediaType or userId)
-
-  // Note: applyYaanTheme is imported from @/config/cesdk/ThemeConfigYAAN
-
-  // ============================================================================
-  // LOAD INITIAL MEDIA
-  // ============================================================================
-  // FIX v2.7.3: This function is now called by dedicated useEffect (lines 1088-1104)
-  // - Triggered automatically when initialMediaUrl changes
-  // - Uses existing CE.SDK instance (cesdkRef.current)
-  // - No re-initialization of CE.SDK
-  //
-  // Previous issues fixed:
-  // - v2.7.1: Added retry logic (over-engineered, removed in v2.7.2)
-  // - v2.7.2: Moved to execute immediately after createScene (caused re-initialization bug)
-  // - v2.7.3: Separated to dedicated useEffect (correct React pattern)
-  // ============================================================================
-
-  const loadInitialMedia = async (
-    cesdk: CreativeEditorSDK,
-    mediaUrl: string,
-    type: 'image' | 'video'
-  ) => {
-    try {
-      console.log('[CESDKEditorWrapper] 📥 Loading initial media:', mediaUrl);
-      console.log('[CESDKEditorWrapper] 📝 Media type:', type);
-
-      const engine = cesdk.engine;
-
-      // Scene is ready because:
-      // 1. Main useEffect already called createVideoScene/createDesignScene
-      // 2. This function is called AFTER initialization completes (isInitialized === true)
-      // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt (lines 7919-7921)
-      const scene = engine.scene.get();
-
-      if (!scene) {
-        console.error('[CESDKEditorWrapper] ❌ No active scene found');
-        console.error('[CESDKEditorWrapper] 💡 Scene should exist - CE.SDK was initialized');
-        console.error('[CESDKEditorWrapper] 🔍 Debug info:', {
-          hasEngine: !!engine,
-          isInitialized,
-          mediaType: type
-        });
-        return;
-      }
-
-      console.log('[CESDKEditorWrapper] ✅ Scene ready:', scene);
-
-      // Get all pages in the scene
-      const pages = engine.block.findByType('page');
-
-      if (pages.length === 0) {
-        console.error('[CESDKEditorWrapper] ❌ No pages found in scene');
-        return;
-      }
-
-      const pageId = pages[0]; // Use first page
-      console.log('[CESDKEditorWrapper] 📄 Using page:', pageId);
-
-      // Get page dimensions for sizing
-      const pageWidth = engine.block.getWidth(pageId);
-      const pageHeight = engine.block.getHeight(pageId);
-      console.log('[CESDKEditorWrapper] 📐 Page dimensions:', { width: pageWidth, height: pageHeight });
-
-      // Create and add media block based on type
-      let blockId: number;
-
-      if (type === 'video') {
-        // RECOMMENDED APPROACH: Use official addVideo() API (CE.SDK docs lines 43477-43506)
-        console.log('[CESDKEditorWrapper] 🎬 Adding video using official addVideo() API...');
-
-        blockId = await engine.block.addVideo(
-          mediaUrl,
-          pageWidth,
-          pageHeight,
-          {
-            sizeMode: 'Absolute',
-            positionMode: 'Absolute',
-            x: pageWidth / 2,
-            y: pageHeight / 2
-          }
-        );
-
-        console.log('[CESDKEditorWrapper] ✅ Video block created and added:', blockId);
-      } else {
-        // Create image block (default)
-        console.log('[CESDKEditorWrapper] 🖼️ Adding image block...');
-
-        blockId = engine.block.create('//ly.img.ubq/graphic');
-        const imageFill = engine.block.createFill('//ly.img.ubq/fill/image');
-        engine.block.setString(imageFill, 'fill/image/imageFileURI', mediaUrl);
-        engine.block.setFill(blockId, imageFill);
-        engine.block.appendChild(pageId, blockId);
-
-        // Fit image to page bounds
-        engine.block.setWidth(blockId, pageWidth);
-        engine.block.setHeight(blockId, pageHeight);
-        engine.block.setPositionX(blockId, pageWidth / 2);
-        engine.block.setPositionY(blockId, pageHeight / 2);
-
-        // Set as background or main content layer
-        engine.block.sendToBack(blockId);
-
-        console.log('[CESDKEditorWrapper] ✅ Image block created and added:', blockId);
-      }
-
-      console.log('[CESDKEditorWrapper] 🎉 Initial media loaded successfully');
-
-    } catch (err) {
-      console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
-      console.error('[CESDKEditorWrapper] 📋 Error details:', {
-        message: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack : undefined
-      });
-      // Non-critical - user can still add media manually through CE.SDK UI
-    }
-  };
+  }, [mediaType, userId, initialMediaUrl, loadInitialMedia]); // FIX v2.13.0: Added dependencies for loadInitialMedia function
 
   // ============================================================================
   // RENDER

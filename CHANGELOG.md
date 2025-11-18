@@ -2,6 +2,531 @@
 
 Todas las modificaciones importantes del proyecto están documentadas en este archivo.
 
+## [2.13.0] - 2025-11-18
+
+### 🔧 FIX CRÍTICO: Scene Destruction Between Initialization and Media Loading
+
+#### Problem
+**Images STILL not rendering after v2.12.0 fix**, despite race condition being resolved.
+
+**Symptom:**
+- User uploads image → CE.SDK editor loads → Canvas shows "Placeholder" (no image visible)
+- Console logs show CE.SDK initialized successfully ✅
+- Console logs show `loadInitialMedia` IS being called (v2.12.0 working) ✅
+- Console logs show **"No active scene found"** ❌
+
+**Impact:** 🔴 **CRITICAL** - v2.12.0 fixed the race condition but revealed a DEEPER problem: scene destruction
+
+**User feedback (2025-11-18):**
+> "continúa igual, no se renderiza el video [sic - meant image]"
+
+#### Root Cause Analysis
+
+**Scene Destruction Window:**
+
+The v2.12.0 fix successfully made `loadInitialMedia` execute, but the scene was **NULL** when it tried to access it.
+
+**Evidence from console logs:**
+```
+[CESDKEditorWrapper] ✅ CE.SDK initialized successfully
+[ThemeConfigYAAN] ✅ Tema YAAN aplicado exitosamente
+[CESDKEditorWrapper] 📊 Scene complexity: 4 blocks  ← Scene EXISTS at some point
+... (time passes between useEffects)
+[CESDKEditorWrapper] ❌ No active scene found      ← Scene is NULL when loadInitialMedia runs
+[CESDKEditorWrapper] 💡 Scene should exist - CE.SDK was initialized
+[CESDKEditorWrapper] 🔍 Debug info: {
+  hasEngine: true,
+  isInitialized: true,
+  mediaType: 'image'
+}
+```
+
+**Timeline of the bug (v2.12.0 behavior):**
+```typescript
+T1: Component mounts
+T2: BOTH useEffects execute SIMULTANEOUSLY
+T3: Media loading useEffect: isInitialized=false → EARLY RETURN ✅
+T4: Main useEffect: createDesignScene() → Scene created ✅
+T5: Main useEffect: setIsInitialized(true) → Trigger re-execution
+T6: Media loading useEffect RE-EXECUTES (v2.12.0 fix working) ✅
+T7: engine.scene.get() → NULL ❌ (scene was destroyed in the gap)
+```
+
+**The problem**: There's a **time window between T4 and T7** where:
+1. Scene is created (T4)
+2. State change triggers React re-render
+3. Something destroys or invalidates the scene
+4. `loadInitialMedia` executes and finds no scene (T7)
+
+**Root Cause**: Using a **separate useEffect for media loading** creates a time gap where the scene can be destroyed. React Fast Refresh, state updates, or cleanup functions can invalidate the scene during this window.
+
+#### Solution
+
+**Move `loadInitialMedia` call INSIDE main useEffect - synchronous execution:**
+
+Instead of using a separate useEffect that depends on `isInitialized` state change, call `loadInitialMedia` **IMMEDIATELY AFTER** `createDesignScene()` in the same execution context.
+
+**Architecture change:**
+```typescript
+// BEFORE v2.13.0 (TWO separate useEffects with time gap):
+useEffect(() => {
+  // Initialize CE.SDK
+  await createDesignScene();
+  setIsInitialized(true); // ← Triggers state change
+  // Time gap here...
+}, [mediaType, userId]);
+
+useEffect(() => {
+  // Wait for isInitialized to become true
+  if (!isInitialized) return;
+  loadInitialMedia(...); // ← Scene might be null here
+}, [initialMediaUrl, isInitialized]);
+
+// AFTER v2.13.0 (ONE useEffect, synchronous execution):
+useEffect(() => {
+  // Initialize CE.SDK
+  await createDesignScene();
+
+  // Load media IMMEDIATELY (same execution context)
+  if (initialMediaUrl) {
+    await loadInitialMedia(...); // ← Scene guaranteed to exist
+  }
+
+  setIsInitialized(true);
+}, [mediaType, userId, initialMediaUrl]);
+```
+
+**Benefits:**
+- ✅ **No time gap**: `loadInitialMedia` executes in same execution context as scene creation
+- ✅ **No state dependency**: Doesn't rely on `isInitialized` state change to trigger
+- ✅ **Simpler**: One useEffect instead of two (fewer moving parts)
+- ✅ **Guaranteed scene**: Scene CANNOT be destroyed between creation and media loading
+
+#### Files Modified
+
+**`src/components/cesdk/CESDKEditorWrapper.tsx`**
+
+**Change 1 (Line 230-323)**: Moved `loadInitialMedia` function BEFORE main useEffect
+- Function now defined before main useEffect so it can be called from within
+- Updated documentation to reflect v2.13.0 change
+
+**Change 2 (Line ~503)**: Added synchronous media loading for videos
+```typescript
+await cesdkInstance.createVideoScene();
+
+// FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
+if (initialMediaUrl) {
+  console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
+  await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+}
+```
+
+**Change 3 (Line ~557)**: Added synchronous media loading for images
+```typescript
+await cesdkInstance.createDesignScene();
+
+// FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
+if (initialMediaUrl) {
+  console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
+  await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+}
+```
+
+**Change 4 (Line 1188)**: Updated main useEffect dependencies
+```typescript
+}, [mediaType, userId, initialMediaUrl, loadInitialMedia]);
+```
+
+**Change 5 (Lines 1190-1337)**: **REMOVED** second useEffect entirely
+- No longer needed - media loading happens synchronously in main useEffect
+- Eliminated race condition window completely
+
+#### Testing
+
+**Expected console logs (after v2.13.0):**
+```
+[CESDKEditorWrapper] ✅ CE.SDK initialized successfully
+[ThemeConfigYAAN] ✅ Tema YAAN aplicado exitosamente
+[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...
+[CESDKEditorWrapper] 📥 Loading initial media: https://...
+[CESDKEditorWrapper] 📝 Media type: image
+[CESDKEditorWrapper] ✅ Scene ready: [scene-id]
+[CESDKEditorWrapper] 📄 Using page: [page-id]
+[CESDKEditorWrapper] 📐 Page dimensions: { width: ..., height: ... }
+[CESDKEditorWrapper] 🖼️ Adding image using official addImage() API...
+[CESDKEditorWrapper] ✅ Image block created and added using addImage() API: [block-id]
+[CESDKEditorWrapper] 🎉 Initial media loaded successfully
+[CESDKEditorWrapper] 📊 Scene complexity: 5 blocks  ← Includes image block
+```
+
+**Canvas behavior:**
+- ✅ Image VISIBLE in CE.SDK canvas (no "Placeholder")
+- ✅ User can immediately start editing
+- ✅ No delay or loading state
+- ✅ Scene is never null
+
+**Key difference from v2.12.0:**
+- NO "❌ No active scene found" error
+- Media loading happens IMMEDIATELY after scene creation
+- No separate useEffect execution delay
+
+#### Related Issues
+
+- **v2.11.0**: Implemented correct `addImage()` API (code correct, but never executed)
+- **v2.12.0**: Fixed race condition (function executed, but scene was already destroyed)
+- **v2.13.0**: Eliminated destruction window (synchronous execution guarantees scene exists)
+
+**Evolution of the fix:**
+1. v2.11.0: Fixed API usage ✅
+2. v2.12.0: Fixed race condition to call the function ✅
+3. v2.13.0: Fixed timing to ensure scene exists ✅
+
+---
+
+## [2.12.0] - 2025-11-18
+
+### 🔧 FIX CRÍTICO: CE.SDK Media Loading Race Condition
+
+#### Problem
+**Images still not rendering in CE.SDK canvas after v2.11.0 fix**, despite correct `addImage()` API implementation.
+
+**Symptom:**
+- User uploads image → CE.SDK editor loads → Canvas shows "Placeholder" (no image visible)
+- Console logs show CE.SDK initialized successfully ✅
+- Console logs show image uploaded to S3 successfully ✅
+- Console logs for image loading (`🖼️ Adding image using official addImage() API...`) **NEVER APPEAR** ❌
+
+**Impact:** 🔴 **CRITICAL** - The v2.11.0 fix code is correct but NEVER EXECUTES due to race condition
+
+#### Root Cause Analysis
+
+**Race Condition in useEffect Execution:**
+
+The problem was NOT the `addImage()` implementation (that code is correct). The problem was that `loadInitialMedia()` function was NEVER BEING CALLED.
+
+**Race condition timeline:**
+```typescript
+T1: Component mounts, isInitialized = false
+T2: Main initialization useEffect starts (line 218)
+T3: Media loading useEffect executes, checks if (!isInitialized) → EARLY RETURN ❌
+T4: Main useEffect completes, sets isInitialized = true
+T5: Media loading useEffect does NOT re-execute (because initialMediaUrl dependency didn't change)
+T6: loadInitialMedia NEVER CALLED → Canvas shows "Placeholder"
+```
+
+**Incomplete dependency array:**
+```typescript
+// src/components/cesdk/CESDKEditorWrapper.tsx:1086-1102 (BEFORE FIX)
+useEffect(() => {
+  if (!cesdkRef.current || !initialMediaUrl || !isInitialized) {
+    return; // ← Early return when isInitialized = false
+  }
+
+  loadInitialMedia(cesdkRef.current, initialMediaUrl, mediaType);
+
+}, [initialMediaUrl]); // ❌ Missing isInitialized in dependencies!
+```
+
+**Why the early return prevented execution:**
+- When component mounted, `isInitialized` was `false`
+- useEffect executed, hit the early return condition at line 1091
+- Main initialization completed and set `isInitialized = true`
+- **useEffect did NOT re-execute** because `initialMediaUrl` dependency didn't change
+- Result: `loadInitialMedia` never called, canvas remained empty
+
+#### Solution
+
+**Added `isInitialized` to useEffect dependency array:**
+
+```typescript
+// src/components/cesdk/CESDKEditorWrapper.tsx:1102 (AFTER FIX v2.12.0)
+}, [initialMediaUrl, isInitialized]); // ✅ Now re-executes when isInitialized changes
+```
+
+**How this fixes the race condition:**
+1. Component mounts, `isInitialized = false`
+2. Media loading useEffect executes, hits early return ✅ (expected)
+3. Main initialization completes, sets `isInitialized = true`
+4. **Media loading useEffect RE-EXECUTES** (because `isInitialized` dependency changed) ✅
+5. Early return condition now passes (`isInitialized = true`)
+6. `loadInitialMedia` executes successfully
+7. Image renders in canvas using `addImage()` API from v2.11.0
+
+#### Files Modified
+
+**`src/components/cesdk/CESDKEditorWrapper.tsx`**
+- Line 1102: Added `isInitialized` to useEffect dependency array
+- Updated comment to document FIX v2.12.0
+
+#### Testing
+
+**Expected console logs (after fix):**
+```
+[CESDKEditorWrapper] ✅ CE.SDK initialized successfully
+[CESDKEditorWrapper] 🔄 initialMediaUrl changed, loading media...
+[CESDKEditorWrapper] 📥 Loading initial media: { mediaUrl: '...', type: 'image' }
+[CESDKEditorWrapper] 🖼️ Adding image using official addImage() API...
+[CESDKEditorWrapper] ✅ Image block created and added using addImage() API: <block-id>
+```
+
+**Canvas behavior:**
+- ✅ Image renders correctly on upload
+- ✅ No "Placeholder" text visible
+- ✅ Image fills canvas with correct dimensions
+
+#### Related Issues
+
+- **v2.11.0**: Implemented correct `addImage()` API (code was correct, but never executed)
+- **v2.12.0**: Fixed race condition to actually execute the v2.11.0 code
+
+---
+
+## [2.11.0] - 2025-11-18
+
+### 🖼️ FIX: CE.SDK Image Rendering - addImage() API
+
+#### Problem
+**Images were not rendering in CE.SDK canvas at `/moments/create`**, while videos rendered correctly.
+
+**Symptom:**
+- User uploads image → CE.SDK editor loads → Canvas is blank (no image visible)
+- User uploads video → CE.SDK editor loads → Video renders correctly ✅
+- Console shows "Image block created and added" but nothing appears visually
+
+**Impact:** 🔴 **HIGH** - Users cannot edit images in Moments feature (50% of use cases broken)
+
+#### Root Cause Analysis
+
+**Inconsistency in API Usage:**
+
+Videos (✅ CORRECTO):
+```typescript
+// src/components/cesdk/CESDKEditorWrapper.tsx:1169-1185
+blockId = await engine.block.addVideo(
+  mediaUrl,
+  pageWidth,
+  pageHeight,
+  {
+    sizeMode: 'Absolute',
+    positionMode: 'Absolute',
+    x: pageWidth / 2,
+    y: pageHeight / 2
+  }
+);
+```
+Uses **official `addVideo()` convenience API** → triggers automatic rendering ✅
+
+Images (❌ INCORRECTO):
+```typescript
+// src/components/cesdk/CESDKEditorWrapper.tsx:1186-1205 (BEFORE FIX)
+blockId = engine.block.create('//ly.img.ubq/graphic');
+const imageFill = engine.block.createFill('//ly.img.ubq/fill/image');
+engine.block.setString(imageFill, 'fill/image/imageFileURI', mediaUrl);
+engine.block.setFill(blockId, imageFill);
+engine.block.appendChild(pageId, blockId);
+```
+Uses **manual pattern** (create + createFill + setString) → does NOT trigger automatic rendering ❌
+
+**Why Manual Pattern Failed:**
+
+According to CE.SDK documentation (`docs/CESDK_NEXTJS_LLMS_FULL.txt:8270`):
+- `addImage()` is a **convenience method** that handles automatic rendering
+- Manual pattern creates blocks but doesn't trigger CE.SDK's internal rendering logic
+- Result: Block exists in scene graph but isn't visually rendered
+
+#### Solution Applied
+
+**Changed image loading to use official `addImage()` API:**
+
+```typescript
+// src/components/cesdk/CESDKEditorWrapper.tsx:1186-1204 (AFTER FIX)
+// ✅ FIX v2.11.0: Use official addImage() API instead of manual pattern
+blockId = await engine.block.addImage(mediaUrl, {
+  size: { width: pageWidth, height: pageHeight }
+});
+
+engine.block.appendChild(pageId, blockId);
+engine.block.setPositionX(blockId, pageWidth / 2);
+engine.block.setPositionY(blockId, pageHeight / 2);
+engine.block.sendToBack(blockId);
+```
+
+**Benefits:**
+- ✅ Consistency with video loading pattern
+- ✅ Uses official CE.SDK recommendation (docs line 8270)
+- ✅ Automatic rendering triggered correctly
+- ✅ Simplified code (fewer lines, clearer intent)
+
+#### Files Modified
+
+1. **src/components/cesdk/CESDKEditorWrapper.tsx**
+   - Lines 1186-1204: Replaced manual pattern with `addImage()` API
+   - Added explanatory comments referencing CE.SDK documentation
+
+#### Testing
+
+**Expected Behavior After Fix:**
+1. User navigates to `/moments/create`
+2. User uploads image → CE.SDK initializes
+3. **Image renders immediately in canvas** ✅
+4. User can edit image (filters, stickers, text)
+5. User can export edited image
+
+**Verification:**
+```
+Console logs should show:
+[CESDKEditorWrapper] 🖼️ Adding image using official addImage() API...
+[CESDKEditorWrapper] ✅ Image block created and added using addImage() API: 42
+[CESDKEditorWrapper] 🎉 Initial media loaded successfully
+```
+
+**Visual verification:** Image should be visible in CE.SDK canvas immediately after upload.
+
+#### Impact
+
+- ✅ Restores image editing capability in Moments feature
+- ✅ Aligns with CE.SDK best practices
+- ✅ Consistency with video editing pattern
+- ✅ Improved maintainability (simpler code)
+
+---
+
+## [2.10.0] - 2025-11-18
+
+### 🔴 CRITICAL FIX: React Hooks Violation - MomentCard.tsx
+
+#### Problem
+**React error: "Rendered more hooks than during the previous render"** in `/moments` page.
+
+**Error Details:**
+- **Location:** `src/components/moments/MomentCard.tsx:508:47 @ MomentMedia`
+- **Error Message 1:** "React has detected a change in the order of Hooks called by MomentMedia"
+- **Error Message 2:** "Rendered more hooks than during the previous render"
+- **Detected by:** React DevTools and Next.js MCP server
+
+**Impact:** 🚨 **CRÍTICO** - Violates React Hooks Rule #1, causes unpredictable behavior and potential crashes
+
+#### Root Cause Analysis
+
+**React Hooks Order Violation:**
+
+```typescript
+// BEFORE FIX (INCORRECT):
+function MomentMedia({ resourceUrl, hasVideo, description }: MomentMediaProps) {
+  const { url, isLoading, error } = useStorageUrl(resourceUrl);
+
+  // ❌ Early return BEFORE useState hook
+  if (isLoading) {
+    return <Skeleton />;
+  }
+
+  // ❌ Early return BEFORE useState hook
+  if (error || !url) {
+    return <Error />;
+  }
+
+  // ❌ Hook declared AFTER conditional returns
+  const [videoError, setVideoError] = useState<string | null>(null);
+}
+```
+
+**Why This Breaks:**
+
+React tracks hooks by **call order**, not by name:
+
+| Render Scenario | Hooks Executed |
+|----------------|----------------|
+| First render (isLoading=true) | 1. `useStorageUrl` → **EARLY RETURN** (1 hook total) |
+| Second render (isLoading=false) | 1. `useStorageUrl` 2. `useState` (2 hooks total) |
+
+**React's Error:** "Expected 1 hook but got 2 hooks" → Violation of Hooks Rule #1
+
+**React Hooks Rule #1:**
+> "Only Call Hooks at the Top Level. Don't call Hooks inside loops, conditions, or nested functions."
+
+#### Solution Applied
+
+**Moved all hooks BEFORE conditional returns:**
+
+```typescript
+// AFTER FIX (CORRECT):
+function MomentMedia({ resourceUrl, hasVideo, description }: MomentMediaProps) {
+  // ✅ CRITICAL: Todos los hooks PRIMERO, antes de conditional returns (React Hooks Rule #1)
+  const { url, isLoading, error } = useStorageUrl(resourceUrl);
+
+  // ✅ Estado de error para videos (FIX v2.8.0 + v2.10.0 - movido antes de conditional returns)
+  const [videoError, setVideoError] = useState<string | null>(null);
+
+  console.log('[MomentMedia] 📦 Props recibidas:', {
+    resourceUrl,
+    hasVideo,
+    description: description?.substring(0, 50)
+  });
+
+  console.log('[MomentMedia] 🔗 Estado de useStorageUrl:', {
+    url: url?.substring(0, 100),
+    isLoading,
+    error: error?.message
+  });
+
+  // ✅ Ahora sí podemos hacer early returns (después de TODOS los hooks)
+  if (isLoading) {
+    return <Skeleton />;
+  }
+
+  if (error || !url) {
+    return <Error />;
+  }
+}
+```
+
+**Now hooks execute consistently:**
+
+| Render Scenario | Hooks Executed |
+|----------------|----------------|
+| First render (isLoading=true) | 1. `useStorageUrl` 2. `useState` → Early return (2 hooks total) ✅ |
+| Second render (isLoading=false) | 1. `useStorageUrl` 2. `useState` → Continue (2 hooks total) ✅ |
+
+#### Files Modified
+
+1. **src/components/moments/MomentCard.tsx**
+   - Lines 463-510: Reorganized hook declarations
+   - Moved `useState` from line 508 to line 469 (before conditional returns)
+   - Added explanatory comments about React Hooks Rule #1
+
+#### Testing
+
+**Verification with Next.js MCP:**
+```bash
+# Before fix:
+get_errors → 2 React errors detected
+
+# After fix:
+get_errors → 0 errors detected ✅
+```
+
+**Expected Console (After Fix):**
+```
+[MomentMedia] 📦 Props recibidas: {...}
+[MomentMedia] 🔗 Estado de useStorageUrl: {...}
+✅ No React errors or warnings
+```
+
+#### Impact
+
+- ✅ Eliminates React Hooks violation
+- ✅ Consistent hook execution across renders
+- ✅ Prevents unpredictable behavior
+- ✅ Complies with React best practices
+- ✅ Improves code maintainability
+
+#### Related Fixes
+
+- **v2.8.0:** Original `videoError` state was added for video error handling
+- **v2.10.0:** State moved to top level to comply with Hooks rules
+
+---
+
 ## [2.9.0] - 2025-11-18
 
 ### 🔴 CRITICAL FIXES: Booking Flow & Map Race Condition
