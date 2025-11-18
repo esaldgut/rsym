@@ -1064,61 +1064,98 @@ export function CESDKEditorWrapper({
   ) => {
     try {
       console.log('[CESDKEditorWrapper] 📥 Loading initial media:', mediaUrl);
+      console.log('[CESDKEditorWrapper] 📝 Media type:', type);
 
-      // Get the current page/scene
       const engine = cesdk.engine;
-      const scene = engine.scene.get();
+
+      // CRITICAL FIX v2.7.1: Wait for scene to be ready
+      // createVideoScene() is asynchronous - scene may not be immediately available
+      let scene = engine.scene.get();
+      let retries = 0;
+      const maxRetries = 10;
+      const retryDelay = 100; // milliseconds
+
+      while (!scene && retries < maxRetries) {
+        retries++;
+        console.log(`[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt ${retries}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, retryDelay));
+        scene = engine.scene.get();
+      }
 
       if (!scene) {
-        console.warn('[CESDKEditorWrapper] No active scene found');
+        console.error('[CESDKEditorWrapper] ❌ Scene not ready after', maxRetries, 'retries (', maxRetries * retryDelay, 'ms)');
+        console.error('[CESDKEditorWrapper] 💡 Hint: createVideoScene() may have failed or is taking longer than expected');
         return;
       }
+
+      console.log('[CESDKEditorWrapper] ✅ Scene ready:', scene);
 
       // Get all pages in the scene
       const pages = engine.block.findByType('page');
 
       if (pages.length === 0) {
-        console.warn('[CESDKEditorWrapper] No pages found in scene');
+        console.error('[CESDKEditorWrapper] ❌ No pages found in scene');
         return;
       }
 
       const pageId = pages[0]; // Use first page
+      console.log('[CESDKEditorWrapper] 📄 Using page:', pageId);
+
+      // Get page dimensions for sizing
+      const pageWidth = engine.block.getWidth(pageId);
+      const pageHeight = engine.block.getHeight(pageId);
+      console.log('[CESDKEditorWrapper] 📐 Page dimensions:', { width: pageWidth, height: pageHeight });
 
       // Create and add media block based on type
       let blockId: number;
 
       if (type === 'video') {
-        // Create video block
-        blockId = engine.block.create('//ly.img.ubq/video' as DesignBlockTypeLonghand);
-        engine.block.setString(blockId, 'video/fileURI', mediaUrl);
-        engine.block.appendChild(pageId, blockId);
-        console.log('[CESDKEditorWrapper] ✅ Video block created and added to page');
+        // RECOMMENDED APPROACH: Use official addVideo() API (CE.SDK docs lines 43477-43506)
+        console.log('[CESDKEditorWrapper] 🎬 Adding video using official addVideo() API...');
+
+        blockId = await engine.block.addVideo(
+          mediaUrl,
+          pageWidth,
+          pageHeight,
+          {
+            sizeMode: 'Absolute',
+            positionMode: 'Absolute',
+            x: pageWidth / 2,
+            y: pageHeight / 2
+          }
+        );
+
+        console.log('[CESDKEditorWrapper] ✅ Video block created and added:', blockId);
       } else {
         // Create image block (default)
+        console.log('[CESDKEditorWrapper] 🖼️ Adding image block...');
+
         blockId = engine.block.create('//ly.img.ubq/graphic');
         const imageFill = engine.block.createFill('//ly.img.ubq/fill/image');
         engine.block.setString(imageFill, 'fill/image/imageFileURI', mediaUrl);
         engine.block.setFill(blockId, imageFill);
         engine.block.appendChild(pageId, blockId);
-        console.log('[CESDKEditorWrapper] ✅ Image block created and added to page');
+
+        // Fit image to page bounds
+        engine.block.setWidth(blockId, pageWidth);
+        engine.block.setHeight(blockId, pageHeight);
+        engine.block.setPositionX(blockId, pageWidth / 2);
+        engine.block.setPositionY(blockId, pageHeight / 2);
+
+        // Set as background or main content layer
+        engine.block.sendToBack(blockId);
+
+        console.log('[CESDKEditorWrapper] ✅ Image block created and added:', blockId);
       }
 
-      // Fit block to page bounds
-      const pageWidth = engine.block.getWidth(pageId);
-      const pageHeight = engine.block.getHeight(pageId);
-
-      engine.block.setWidth(blockId, pageWidth);
-      engine.block.setHeight(blockId, pageHeight);
-      engine.block.setPositionX(blockId, pageWidth / 2);
-      engine.block.setPositionY(blockId, pageHeight / 2);
-
-      // Set as background or main content layer
-      engine.block.sendToBack(blockId);
-
-      console.log('[CESDKEditorWrapper] ✅ Initial media loaded successfully');
+      console.log('[CESDKEditorWrapper] 🎉 Initial media loaded successfully');
 
     } catch (err) {
       console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
+      console.error('[CESDKEditorWrapper] 📋 Error details:', {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined
+      });
       // Non-critical - user can still add media manually through CE.SDK UI
     }
   };

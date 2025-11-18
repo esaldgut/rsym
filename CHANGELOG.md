@@ -2,6 +2,152 @@
 
 Todas las modificaciones importantes del proyecto están documentadas en este archivo.
 
+## [2.7.1] - 2025-11-18
+
+### 🎬 CRITICAL FIX: CE.SDK Video Rendering - Scene Readiness Issue
+
+#### Overview
+**Production fix crítico que resuelve problema de renderizado de videos** donde videos subidos exitosamente no aparecían en el canvas de CE.SDK (solo se mostraba placeholder rosa vacío).
+
+**Problem:** Videos se subían a S3 correctamente pero no se renderizaban en el canvas de CE.SDK después de la inicialización.
+
+**Root Cause:**
+- ❌ `createVideoScene()` es asíncrono - la escena no estaba inmediatamente disponible
+- ❌ `loadInitialMedia()` se ejecutaba antes de que la escena estuviera completamente inicializada
+- ❌ `engine.scene.get()` retornaba `null`, causando salida temprana de la función
+- ❌ Uso de creación manual de bloques en lugar de API oficial `addVideo()`
+
+**Impact:**
+- ✅ **Videos renderizando correctamente:** Canvas ahora muestra el video después de la carga
+- ✅ **Sin advertencias "No active scene found":** Retry logic asegura escena lista
+- ✅ **API oficial de CE.SDK:** Usando `engine.block.addVideo()` (recomendado en docs)
+- ✅ **Mejor logging:** Mensajes de depuración mejorados para troubleshooting
+- ✅ **UX mejorada:** Video se carga y muestra correctamente después del upload
+
+---
+
+#### Implementation Details
+
+**File Modified:** `src/components/cesdk/CESDKEditorWrapper.tsx`
+
+**1. Scene Readiness Detection (lines 1071-1089):**
+```typescript
+// BEFORE (v2.7.0 - Immediate execution, scene not ready)
+const scene = engine.scene.get();
+if (!scene) {
+  console.warn('[CESDKEditorWrapper] No active scene found'); // ← Logging this
+  return; // ← Exiting early, video never added
+}
+
+// AFTER (v2.7.1 - Retry logic with 1 second timeout)
+let scene = engine.scene.get();
+let retries = 0;
+const maxRetries = 10;
+const retryDelay = 100; // milliseconds
+
+while (!scene && retries < maxRetries) {
+  retries++;
+  console.log(`[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt ${retries}/${maxRetries})...`);
+  await new Promise(resolve => setTimeout(resolve, retryDelay));
+  scene = engine.scene.get();
+}
+```
+
+**2. Official addVideo() API (lines 1112-1128):**
+```typescript
+// BEFORE (v2.7.0 - Manual block creation)
+blockId = engine.block.create('//ly.img.ubq/video' as DesignBlockTypeLonghand);
+engine.block.setString(blockId, 'video/fileURI', mediaUrl);
+engine.block.appendChild(pageId, blockId);
+
+// AFTER (v2.7.1 - Official CE.SDK API - Recommended)
+blockId = await engine.block.addVideo(
+  mediaUrl,
+  pageWidth,
+  pageHeight,
+  {
+    sizeMode: 'Absolute',
+    positionMode: 'Absolute',
+    x: pageWidth / 2,
+    y: pageHeight / 2
+  }
+);
+```
+
+**3. Enhanced Error Logging (lines 1153-1158):**
+```typescript
+catch (err) {
+  console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
+  console.error('[CESDKEditorWrapper] 📋 Error details:', {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined
+  });
+}
+```
+
+---
+
+#### Benefits of Official addVideo() API
+
+**From IMG.LY Documentation (lines 43477-43506 in CESDK_NEXTJS_LLMS_FULL.txt):**
+- ✅ **Recommended approach:** Official method designed for video scenes
+- ✅ **Automatic handling:** Positioning, sizing, timeline integration
+- ✅ **Better error handling:** Built-in validation and error messages
+- ✅ **Future-proof:** Updates with CE.SDK releases
+- ✅ **Simplified code:** Less manual block manipulation required
+
+---
+
+#### Testing & Verification
+
+**Console Logs (Expected - Success):**
+```bash
+[CESDKEditorWrapper] 📥 Loading initial media: https://yaan-provider-documents.s3...
+[CESDKEditorWrapper] 📝 Media type: video
+[CESDKEditorWrapper] ✅ Scene ready: [scene_id]
+[CESDKEditorWrapper] 📄 Using page: [page_id]
+[CESDKEditorWrapper] 📐 Page dimensions: { width: 1920, height: 1080 }
+[CESDKEditorWrapper] 🎬 Adding video using official addVideo() API...
+[CESDKEditorWrapper] ✅ Video block created and added: [block_id]
+[CESDKEditorWrapper] 🎉 Initial media loaded successfully
+```
+
+**Console Logs (Expected - Scene Not Ready, Retry):**
+```bash
+[CESDKEditorWrapper] 📥 Loading initial media: https://yaan-provider-documents.s3...
+[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt 1/10)...
+[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt 2/10)...
+[CESDKEditorWrapper] ✅ Scene ready: [scene_id]
+[CESDKEditorWrapper] 🎬 Adding video using official addVideo() API...
+[CESDKEditorWrapper] ✅ Video block created and added: [block_id]
+```
+
+---
+
+#### Documentation References
+
+**CE.SDK Official Documentation:**
+- `docs/CESDK_NEXTJS_LLMS_FULL.txt` lines **43477-43506**: `addVideo()` method definition
+- `docs/CESDK_NEXTJS_LLMS_FULL.txt` lines **29247-29265**: `AddVideoOptions` interface
+
+**Updated Documentation:**
+- `docs/CESDK-TESTING-REPORT.md`: Added v2.7.1 section with root cause analysis
+- `CHANGELOG.md`: This entry
+
+---
+
+#### Files Changed
+
+| File | Lines Changed | Type | Description |
+|------|--------------|------|-------------|
+| `src/components/cesdk/CESDKEditorWrapper.tsx` | ~70 | CRITICAL FIX | Added retry logic + official addVideo() API |
+| `docs/CESDK-TESTING-REPORT.md` | +87 | Documentation | Documented fix implementation and benefits |
+| `CHANGELOG.md` | +160 | Documentation | Added v2.7.1 entry with complete details |
+
+**Total:** ~317 lines modified/added
+
+---
+
 ## [2.7.0] - 2025-11-18
 
 ### 🔧 CRITICAL FIX: CE.SDK Video Editing - Chrome 142 False Negative

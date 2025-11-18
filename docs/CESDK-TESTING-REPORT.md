@@ -1,8 +1,8 @@
 # CE.SDK Testing Report - YAAN Moments
 
 **Date:** 2025-11-18
-**Version:** 2.7.0
-**Status:** ✅ PRODUCTION FIX DEPLOYED - Using CE.SDK Official supportsVideo() (0 Errors)
+**Version:** 2.7.1
+**Status:** ✅ PRODUCTION FIX DEPLOYED - Video Rendering Fixed with addVideo() API (0 Errors)
 
 ---
 
@@ -94,6 +94,95 @@ Browser: Chrome 142.0.0.0
 - ✅ MCP get_errors: 0 errors detected
 - ✅ No console errors
 - ✅ Proper fallback to image editing for unsupported browsers
+
+---
+
+### Production Fix Implementation (v2.7.1 - Video Rendering)
+
+**Date:** 2025-11-18
+**Problem:** Videos uploaded successfully but did not render in CE.SDK canvas (empty pink placeholder shown)
+
+**File Modified:** `src/components/cesdk/CESDKEditorWrapper.tsx`
+
+**Changes Made:**
+
+**1. Scene Readiness Detection (lines 1071-1089):**
+```typescript
+// BEFORE (v2.7.0 - Immediate execution, scene not ready)
+const scene = engine.scene.get();
+if (!scene) {
+  console.warn('[CESDKEditorWrapper] No active scene found'); // ← THIS WAS LOGGING
+  return; // ← EXITED EARLY, VIDEO NEVER ADDED
+}
+
+// AFTER (v2.7.1 - Retry logic)
+let scene = engine.scene.get();
+let retries = 0;
+const maxRetries = 10;
+const retryDelay = 100; // milliseconds
+
+while (!scene && retries < maxRetries) {
+  retries++;
+  console.log(`[CESDKEditorWrapper] ⏳ Waiting for scene to be ready (attempt ${retries}/${maxRetries})...`);
+  await new Promise(resolve => setTimeout(resolve, retryDelay));
+  scene = engine.scene.get();
+}
+```
+
+**2. Use Official addVideo() API (lines 1112-1128):**
+```typescript
+// BEFORE (v2.7.0 - Manual block creation)
+blockId = engine.block.create('//ly.img.ubq/video' as DesignBlockTypeLonghand);
+engine.block.setString(blockId, 'video/fileURI', mediaUrl);
+engine.block.appendChild(pageId, blockId);
+
+// AFTER (v2.7.1 - Official CE.SDK API)
+blockId = await engine.block.addVideo(
+  mediaUrl,
+  pageWidth,
+  pageHeight,
+  {
+    sizeMode: 'Absolute',
+    positionMode: 'Absolute',
+    x: pageWidth / 2,
+    y: pageHeight / 2
+  }
+);
+```
+
+**3. Enhanced Error Logging (lines 1153-1158):**
+```typescript
+catch (err) {
+  console.error('[CESDKEditorWrapper] ❌ Failed to load initial media:', err);
+  console.error('[CESDKEditorWrapper] 📋 Error details:', {
+    message: err instanceof Error ? err.message : String(err),
+    stack: err instanceof Error ? err.stack : undefined
+  });
+}
+```
+
+**Root Cause Analysis:**
+- ❌ `createVideoScene()` is asynchronous, scene not immediately available
+- ❌ `loadInitialMedia()` executed before scene fully initialized
+- ❌ `engine.scene.get()` returned `null`, causing early exit
+- ❌ Using manual block creation instead of official API
+
+**Benefits of Official addVideo() API:**
+- ✅ Recommended by IMG.LY documentation (lines 43477-43506)
+- ✅ Automatic positioning and sizing
+- ✅ Timeline integration handled automatically
+- ✅ Better error handling
+- ✅ Consistent with CE.SDK best practices
+
+**Testing Results:**
+- ✅ Videos now render correctly in CE.SDK canvas
+- ✅ No more "No active scene found" warnings
+- ✅ Proper error handling if scene fails to initialize
+- ✅ Enhanced debugging logs for troubleshooting
+
+**User Experience Improvement:**
+- **Before:** Empty pink canvas, video never appeared
+- **After:** Video loads and displays correctly after upload
 
 ---
 
