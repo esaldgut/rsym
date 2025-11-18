@@ -676,7 +676,7 @@ function SelectDateStep({ product, selectedSeasonId, onSelect, onCancel }: Selec
               key={season.id}
               onClick={() => {
                 setSelectedSeason(season.id);
-                setSelectedRoomType(undefined); // Reset room selection when changing season
+                setSelectedRoomPriceId(undefined); // Reset room selection when changing season
               }}
               className={`w-full text-left p-6 rounded-xl border-2 transition-all duration-300 ${
                 selectedSeason === season.id

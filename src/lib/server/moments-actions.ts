@@ -389,6 +389,18 @@ export async function getMomentsAction(
     if (moments.length > 0) {
       console.log('[getMomentsAction] 📋 Ejemplo de momento completo:');
       console.log(JSON.stringify(moments[0], null, 2));
+
+      // ✅ FIX v2.8.0: Verificación específica de resourceType para debugging
+      console.log('[getMomentsAction] 🔍 Verificación de resourceType:', {
+        id: moments[0]?.id,
+        resourceType: moments[0]?.resourceType,
+        resourceTypeIsUndefined: moments[0]?.resourceType === undefined,
+        resourceTypeIsNull: moments[0]?.resourceType === null,
+        resourceTypeValue: JSON.stringify(moments[0]?.resourceType),
+        resourceUrl: moments[0]?.resourceUrl,
+        hasResourceUrl: !!moments[0]?.resourceUrl,
+        resourceUrlLength: moments[0]?.resourceUrl?.length
+      });
     }
 
     return {

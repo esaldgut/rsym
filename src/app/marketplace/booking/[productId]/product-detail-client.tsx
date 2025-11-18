@@ -9,6 +9,7 @@ import { SeasonCard } from '@/components/booking/SeasonCard';
 import { HybridProductMap } from '@/components/marketplace/maps/HybridProductMap';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { cn } from '@/lib/utils';
+import { encryptProductUrlAction } from '@/lib/server/url-encryption-actions';
 import type { Product } from '@/generated/graphql';
 
 /**
@@ -87,10 +88,26 @@ export function ProductDetailClient({ product }: ProductDetailClientProps) {
   };
 
   // Handle reserve button
-  const handleReserve = () => {
+  const handleReserve = async () => {
     console.log('[ProductDetailClient] 🎫 Iniciando proceso de reserva');
-    // TODO: Navigate to booking wizard with product ID
-    router.push(`/marketplace/booking?product=${product.id}`);
+
+    // Cifrar parámetros de URL usando Server Action
+    console.log('[ProductDetailClient] 🔐 Cifrando parámetros de URL...');
+    const encryptionResult = await encryptProductUrlAction(
+      product.id,
+      product.name,
+      product.product_type as 'circuit' | 'package'
+    );
+
+    if (!encryptionResult.success || !encryptionResult.encrypted) {
+      console.error('[ProductDetailClient] ❌ Error al cifrar parámetros:', encryptionResult.error);
+      alert('Error al generar el enlace de reservación. Por favor intenta nuevamente.');
+      return;
+    }
+
+    const bookingUrl = `/marketplace/booking?product=${encryptionResult.encrypted}`;
+    console.log('[ProductDetailClient] ✅ Navegando a booking con URL cifrada');
+    router.push(bookingUrl);
   };
 
   return (

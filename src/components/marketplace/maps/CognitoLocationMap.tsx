@@ -49,6 +49,7 @@ interface RouteData {
 export function CognitoLocationMap({ destinations, productType, productName }: CognitoLocationMapProps) {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const isMountedRef = useRef<boolean>(true); // Track if component is mounted
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
@@ -232,6 +233,7 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
     // Cleanup
     return () => {
+      isMountedRef.current = false; // Mark component as unmounted
       if (map.current) {
         map.current.remove();
         map.current = null;
@@ -327,6 +329,12 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
   // Fallback: Draw straight lines between waypoints
   const drawStraightLineRoute = (mapInstance: maplibregl.Map, waypoints: Array<[number, number]>) => {
+    // CRITICAL: Verify component is still mounted and map exists
+    if (!isMountedRef.current || !mapInstance) {
+      console.warn('[CognitoLocationMap] ⚠️ Component unmounted or map destroyed, skipping drawStraightLineRoute');
+      return;
+    }
+
     // Create line geometry
     const routeGeoJSON: GeoJSON.LineString = {
       type: 'LineString',
@@ -343,8 +351,15 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       geometry: routeGeoJSON
     });
 
-    // Add route line to map
-    if (mapInstance.getSource('route')) {
+    // CRITICAL: Verify map still exists before accessing getSource()
+    try {
+      if (!mapInstance || !mapInstance.getSource) {
+        console.warn('[CognitoLocationMap] ⚠️ Map instance invalid, cannot add route source');
+        return;
+      }
+
+      // Add route line to map
+      if (mapInstance.getSource('route')) {
       (mapInstance.getSource('route') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
         properties: { isApproximation: true },
@@ -393,10 +408,20 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         }
       }, 'route');
     }
+    } catch (err) {
+      console.error('[CognitoLocationMap] ❌ Error agregando ruta línea recta:', err);
+      // Non-critical error - map still works without route
+    }
   };
 
   // Calculate and display route for circuits
   const calculateAndDisplayRoute = async (mapInstance: maplibregl.Map) => {
+    // CRITICAL: Early return if component unmounted or map destroyed
+    if (!isMountedRef.current || !mapInstance) {
+      console.warn('[CognitoLocationMap] ⚠️ Component unmounted or map destroyed, aborting calculateAndDisplayRoute');
+      return;
+    }
+
     // Prepare waypoints - API expects position as [longitude, latitude]
     // IMPORTANT: Declared outside try/catch so it's available in the fallback catch block
     const waypoints = validDestinations.map(d => ({
@@ -448,6 +473,11 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       const data = await response.json();
 
       if (data.success && data.data) {
+        // CRITICAL: Verify component still mounted after async operation
+        if (!isMountedRef.current || !mapInstance) {
+          console.warn('[CognitoLocationMap] ⚠️ Component unmounted during async route calculation, aborting');
+          return;
+        }
 
         // Convert route geometry to GeoJSON LineString
         const routeGeoJSON: GeoJSON.LineString = {
@@ -461,8 +491,15 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           geometry: routeGeoJSON
         });
 
-        // Add route line to map
-        if (mapInstance.getSource('route')) {
+        // CRITICAL: Verify map still exists before accessing getSource()
+        try {
+          if (!mapInstance || !mapInstance.getSource) {
+            console.warn('[CognitoLocationMap] ⚠️ Map instance invalid, cannot add route source');
+            return;
+          }
+
+          // Add route line to map
+          if (mapInstance.getSource('route')) {
           (mapInstance.getSource('route') as maplibregl.GeoJSONSource).setData({
             type: 'Feature',
             properties: {},
@@ -508,6 +545,10 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
               'line-opacity': 0.4
             }
           }, 'route');
+        }
+        } catch (mapErr) {
+          console.error('[CognitoLocationMap] ❌ Error agregando ruta al mapa:', mapErr);
+          // Non-critical error - map still works without route
         }
       }
     } catch (err) {
