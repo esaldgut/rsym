@@ -1,0 +1,6 @@
+projectKey=RSYM-feat-copilot-deploy
+serverUrl=http://roatech.dyndns.info:9000
+serverVersion=8.9.10.61524
+dashboardUrl=http://roatech.dyndns.info:9000/dashboard?id=RSYM-feat-copilot-deploy
+ceTaskId=AZpVOGp93yL2AqQfOyfx
+ceTaskUrl=http://roatech.dyndns.info:9000/api/ce/task?id=AZpVOGp93yL2AqQfOyfx
