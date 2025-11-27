@@ -1,6 +1,8 @@
 const { defaults } = require('jest-config');
 
 module.exports = {
+  // Ensure Jest searches the entire repository root for tests (not only `src`).
+  roots: ['<rootDir>'],
   testEnvironment: 'jsdom',
   collectCoverage: true,
   coverageProvider: 'v8',
@@ -16,7 +18,7 @@ module.exports = {
   ],
   moduleNameMapper: {
     '^.+\\.(css|sass|scss)$': 'identity-obj-proxy',
-    '^@/(.*)$': '<rootDir>/$1',
+    '^@/(.*)$': '<rootDir>/src/$1',
     '^@public/(.*)$': '<rootDir>/public/$1',
     '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
