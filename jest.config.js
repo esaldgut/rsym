@@ -1,56 +1,124 @@
-const { defaults } = require('jest-config');
+// Jest Configuration for YAAN Product Wizard Unit Tests
+// See: https://jestjs.io/docs/configuration
+// See: https://nextjs.org/docs/testing#jest-and-react-testing-library
+//
+// Convenciones:
+// - Archivos de test: __tests__/**/*.test.ts(x)
+// - Mocks: src/__tests__/mocks/
+// - Coverage: coverage/
 
-module.exports = {
-  // Ensure Jest searches the entire repository root for tests (not only `src`).
-  roots: ['<rootDir>'],
-  testEnvironment: 'jsdom',
-  collectCoverage: true,
-  coverageProvider: 'v8',
-  collectCoverageFrom: [
-    '**/*.{ts,tsx,js,jsx}',
-    '!**/*.d.ts',
-    '!**/node_modules/**',
-    '!<rootDir>/out/**',
-    '!<rootDir>/.next/**',
-    '!<rootDir>/*.config.js',
-    '!<rootDir>/coverage/**',
-    '!<rootDir>/.scannerwork/**',
-  ],
+const nextJest = require('next/jest');
+
+const createJestConfig = nextJest({
+  // Provide the path to your Next.js app to load next.config.js and .env files
+  dir: './',
+});
+
+/** @type {import('jest').Config} */
+const customJestConfig = {
+  // Test environment
+  testEnvironment: 'jest-environment-jsdom',
+
+  // Setup files to run after jest is initialized
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+
+  // Module path aliases (must match tsconfig.json paths)
   moduleNameMapper: {
-    '^.+\\.(css|sass|scss)$': 'identity-obj-proxy',
     '^@/(.*)$': '<rootDir>/src/$1',
-    '^@public/(.*)$': '<rootDir>/public/$1',
-    '^.+\\.(png|jpg|jpeg|gif|webp|avif|ico|bmp|svg)$': '<rootDir>/__mocks__/fileMock.js',
   },
+
+  // Test file patterns
   testMatch: [
-    '<rootDir>/test/**/*.+(ts|tsx|js|jsx)',
-    '**/?(*.)+(spec|test).+(ts|tsx|js|jsx)'
+    '**/__tests__/**/*.test.ts',
+    '**/__tests__/**/*.test.tsx',
   ],
+
+  // Files to ignore during tests
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
-    '.auth.ts',
-    'jest.config.js',
-    'styleMock.js',
-    'next.config.ts',
-    'tailwind.config.ts',
-    'route.ts'
+    '<rootDir>/amplify/',
   ],
-  transform: {
-    // Use babel-jest with Next preset to support JSX/TSX
-    '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
+
+  // Transform ignore patterns (required for ES modules in node_modules)
+  transformIgnorePatterns: [
+    '/node_modules/(?!(maplibre-gl|@mapbox|@cesdk|@aws-amplify|aws-amplify)/)',
+  ],
+
+  // Coverage configuration
+  collectCoverageFrom: [
+    // Product Wizard components (primary focus)
+    'src/components/product-wizard/**/*.{ts,tsx}',
+    // Related hooks
+    'src/hooks/useUnsavedChanges.ts',
+    'src/hooks/useMediaUpload.ts',
+    'src/hooks/useProductCreation.ts',
+    // Validation schemas
+    'src/lib/validations/product-schemas.ts',
+    // Form context
+    'src/context/ProductFormContext.tsx',
+    // Exclude type definitions and index files
+    '!**/*.d.ts',
+    '!**/index.ts',
+    '!**/node_modules/**',
+  ],
+
+  // Coverage thresholds per file (enforced in CI)
+  // Global thresholds are set to 0 because not all files have tests yet
+  // Specific thresholds enforce high coverage on tested files
+  coverageThreshold: {
+    global: {
+      branches: 0,
+      functions: 0,
+      lines: 0,
+      statements: 0,
+    },
+    // High thresholds for fully tested utility files
+    'src/components/product-wizard/utils/tab-navigation.ts': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+    // High thresholds for tested hooks
+    'src/hooks/useUnsavedChanges.ts': {
+      branches: 85,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+    // Medium thresholds for partially tested files
+    'src/lib/validations/product-schemas.ts': {
+      branches: 45,
+      functions: 80,
+      lines: 70,
+      statements: 70,
+    },
+    'src/context/ProductFormContext.tsx': {
+      branches: 40,
+      functions: 50,
+      lines: 60,
+      statements: 60,
+    },
   },
-  coveragePathIgnorePatterns: [
-    'auth.ts',
-    'jest.config.js',
-    'styleMock.js',
-    'next.config.ts',
-    'tailwind.config.ts',
-    'route.ts',
-    '<rootDir>/.scannerwork/'
-  ],
-  transformIgnorePatterns: ['/node_modules/', '^.+\\.module\\.(css|sass|scss)$'],
-  moduleFileExtensions: [...defaults.moduleFileExtensions, 'ts', 'tsx', 'css'],
-  fakeTimers: { enableGlobally: true },
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+
+  // Coverage reporters
+  coverageReporters: ['text', 'lcov', 'html'],
+
+  // Verbose output
+  verbose: true,
+
+  // Clear mocks between tests
+  clearMocks: true,
+
+  // Restore mocks between tests
+  restoreMocks: true,
+
+  // Maximum workers for parallel execution
+  maxWorkers: '50%',
+
+  // Global timeout for tests (10 seconds)
+  testTimeout: 10000,
 };
+
+module.exports = createJestConfig(customJestConfig);
