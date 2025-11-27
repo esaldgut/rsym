@@ -49,6 +49,11 @@ const customJestConfig = {
   collectCoverageFrom: [
     // Product Wizard components (primary focus)
     'src/components/product-wizard/**/*.{ts,tsx}',
+    // UI components (tested)
+    'src/components/ui/CarouselDots.tsx',
+    'src/components/ui/DateInput.tsx',
+    'src/components/ui/DateRangeInput.tsx',
+    'src/components/ui/FileUpload.tsx',
     // Related hooks
     'src/hooks/useUnsavedChanges.ts',
     'src/hooks/useMediaUpload.ts',
@@ -99,6 +104,31 @@ const customJestConfig = {
       functions: 50,
       lines: 60,
       statements: 60,
+    },
+    // UI Components - fully tested
+    'src/components/ui/CarouselDots.tsx': {
+      branches: 100,
+      functions: 100,
+      lines: 100,
+      statements: 100,
+    },
+    'src/components/ui/DateInput.tsx': {
+      branches: 100,
+      functions: 85,
+      lines: 95,
+      statements: 95,
+    },
+    'src/components/ui/DateRangeInput.tsx': {
+      branches: 90,
+      functions: 100,
+      lines: 90,
+      statements: 90,
+    },
+    'src/components/ui/FileUpload.tsx': {
+      branches: 45,
+      functions: 70,
+      lines: 40,
+      statements: 40,
     },
   },
 
