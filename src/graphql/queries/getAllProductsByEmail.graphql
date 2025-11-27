@@ -125,6 +125,7 @@ query getAllProductsByEmail($pagination: PaginationInput) {
         email
         name
         sub
+        uniq_influencer_ID
         user_type
         username
       }

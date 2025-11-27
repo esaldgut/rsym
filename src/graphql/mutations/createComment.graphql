@@ -12,6 +12,7 @@ mutation createComment($input: CreateCommentInput!) {
       email
       name
       sub
+      uniq_influencer_ID
       user_type
       username
     }

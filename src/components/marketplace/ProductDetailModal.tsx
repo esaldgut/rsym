@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { ProductGalleryHeader, ProductGalleryHeaderHandle } from './ProductGalleryHeader';
 import { FullscreenGallery } from './FullscreenGallery';
 import { SeasonCard } from './SeasonCard';
@@ -8,6 +9,8 @@ import { ProductReviews } from './ProductReviews';
 import { HybridProductMap } from './maps/HybridProductMap';
 import { ProfileImage } from '@/components/ui/ProfileImage';
 import { ItineraryCard } from './ItineraryCard';
+import { useProfileCompletion } from '@/hooks/useProfileCompletion';
+import { encryptProductUrlAction } from '@/lib/server/url-encryption-actions';
 
 interface MarketplaceProduct {
   id: string;
@@ -83,6 +86,8 @@ const SECTIONS: Array<{ id: SectionId; label: string }> = [
 ];
 
 export function ProductDetailModal({ product, onClose, onReserve }: ProductDetailModalProps) {
+  const router = useRouter();
+  const { isComplete, isLoading, userType, requireProfileCompletion } = useProfileCompletion();
   const [isVisible, setIsVisible] = useState(false);
   const [showFullscreenGallery, setShowFullscreenGallery] = useState(false);
   const [scrollY, setScrollY] = useState(0);
@@ -191,6 +196,75 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
       });
     }
   }, []);
+
+  /**
+   * Handler para el botón "Reservar ahora"
+   *
+   * Flujo:
+   * 1. Valida que el perfil esté completo
+   * 2. Si incompleto, redirige a /settings/profile con callback
+   * 3. Si completo, cifra productId + productName + productType (Server Action)
+   * 4. Navega a /marketplace/booking?product=[encrypted]
+   */
+  const handleReserveClick = useCallback(async () => {
+    console.log('[ProductDetailModal] 🎯 Botón "Reservar ahora" clickeado');
+
+    // Validar que el userType esté configurado (traveler, influencer, o provider)
+    if (!userType) {
+      console.warn('[ProductDetailModal] ⚠️ Usuario sin user_type definido, requiere completar perfil');
+    }
+
+    // Validar que sea uno de los user_types permitidos para hacer reservaciones
+    const allowedUserTypes = ['traveler', 'influencer', 'provider'];
+    if (userType && !allowedUserTypes.includes(userType)) {
+      console.error('[ProductDetailModal] ❌ User type no permitido para reservar:', userType);
+      alert('Tu tipo de usuario no tiene permisos para realizar reservaciones.');
+      return;
+    }
+
+    // Cifrar parámetros de URL usando Server Action
+    console.log('[ProductDetailModal] 🔐 Llamando Server Action para cifrar URL...');
+    const encryptionResult = await encryptProductUrlAction(
+      product.id,
+      product.name,
+      product.product_type as 'circuit' | 'package'
+    );
+
+    if (!encryptionResult.success || !encryptionResult.encrypted) {
+      console.error('[ProductDetailModal] ❌ Error al cifrar parámetros:', encryptionResult.error);
+      alert('Error al generar el enlace de reservación. Por favor intenta nuevamente.');
+      return;
+    }
+
+    const bookingUrl = `/marketplace/booking?product=${encryptionResult.encrypted}`;
+    console.log('[ProductDetailModal] 🔐 URL de booking cifrada generada');
+
+    // Verificar si el perfil está completo
+    const needsCompletion = requireProfileCompletion({
+      returnUrl: bookingUrl,
+      action: 'reserve_product',
+      data: {
+        productId: product.id,
+        productName: product.name,
+        productType: product.product_type
+      }
+    });
+
+    if (needsCompletion) {
+      console.log('[ProductDetailModal] 📝 Perfil incompleto, redirigiendo a /settings/profile');
+      // requireProfileCompletion ya maneja la redirección
+      return;
+    }
+
+    // Perfil completo, navegar a booking
+    console.log('[ProductDetailModal] ✅ Perfil completo, navegando a booking:', bookingUrl);
+    router.push(bookingUrl);
+
+    // Opcional: Ejecutar callback original si existe
+    if (onReserve) {
+      onReserve();
+    }
+  }, [product, userType, requireProfileCompletion, router, onReserve]);
 
   // Prepare media for gallery
   const allImages = [product.cover_image_url, ...(product.image_url || [])];
@@ -598,18 +672,39 @@ export function ProductDetailModal({ product, onClose, onReserve }: ProductDetai
                 </div>
                 <p className="text-xs text-gray-500 mt-1">*Precio por persona</p>
               </div>
-              <button
-                onClick={onReserve}
-                className="w-full sm:w-auto flex-shrink-0 bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft"
-              >
-                {/* Shine effect */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
 
-                <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                </svg>
-                <span className="relative z-10">Reservar ahora</span>
-              </button>
+              {/* Botones de acción */}
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                {/* Botón "Ver detalles completos" */}
+                <button
+                  onClick={() => {
+                    onClose(); // Cierra modal
+                    router.push(`/marketplace/booking/${product.id}`);
+                  }}
+                  className="flex-1 sm:flex-initial bg-white border-2 border-purple-600 text-purple-600 px-5 py-3 rounded-xl font-bold hover:bg-purple-50 transition-all duration-300 text-base flex items-center justify-center gap-2"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <span>Ver detalles</span>
+                </button>
+
+                {/* Botón "Reservar ahora" */}
+                <button
+                  onClick={handleReserveClick}
+                  disabled={isLoading}
+                  className="flex-1 sm:flex-initial bg-gradient-to-r from-pink-500 via-purple-600 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:shadow-2xl transition-all duration-300 transform hover:scale-105 shadow-lg text-base flex items-center justify-center gap-2 relative overflow-hidden group animate-pulse-soft disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {/* Shine effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                  <svg className="w-5 h-5 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span className="relative z-10">Reservar ahora</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

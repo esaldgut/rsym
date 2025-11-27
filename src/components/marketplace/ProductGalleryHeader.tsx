@@ -33,7 +33,7 @@ export const ProductGalleryHeader = forwardRef<ProductGalleryHeaderHandle, Produ
   ) {
   // Filter out undefined values and combine images and videos
   const validImages = images.filter((img): img is string => !!img);
-  const validVideos = videos.filter((vid): vid is string => !!vid);
+  const validVideos = (videos || []).filter((vid): vid is string => !!vid);
 
   const mediaItems = [
     ...validImages.map(img => ({ type: 'image' as const, url: img })),

@@ -1,15 +1,16 @@
 'use server';
 
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { uploadData } from 'aws-amplify/storage';
+import { uploadData, remove } from 'aws-amplify/storage';
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
 import outputs from '../../../amplify/outputs.json';
 import type { Schema } from '@/amplify/data/resource';
-import type { CreateMomentInput } from '@/lib/graphql/types';
-import * as mutations from '@/lib/graphql/operations';
-import * as queries from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import type { CreateMomentInput } from '@/generated/graphql';
+import * as mutations from '@/graphql/operations';
+import * as queries from '@/graphql/operations';
 
 // Tipos para media
 export type MediaType = 'image' | 'video' | 'text';
@@ -70,12 +71,46 @@ export async function createMomentAction(formData: FormData) {
     const tags = formData.getAll('tags') as string[];
     const preferences = formData.getAll('preferences') as string[];
 
+    // Parse locations (destination)
+    const destinations: Array<{
+      place?: string;
+      placeSub?: string;
+      coordinates?: { latitude?: number; longitude?: number };
+    }> = [];
+    let index = 0;
+    while (formData.has(`destination[${index}][place]`)) {
+      const place = formData.get(`destination[${index}][place]`) as string;
+      const placeSub = formData.get(`destination[${index}][placeSub]`) as string;
+      const latitude = formData.get(`destination[${index}][coordinates][latitude]`) as string | null;
+      const longitude = formData.get(`destination[${index}][coordinates][longitude]`) as string | null;
+
+      destinations.push({
+        place: place || undefined,
+        placeSub: placeSub || undefined,
+        coordinates: (latitude && longitude) ? {
+          latitude: parseFloat(latitude),
+          longitude: parseFloat(longitude)
+        } : undefined
+      });
+
+      index++;
+    }
+
+    // Parse experience link
+    const experienceLink = formData.get('experienceLink') as string | null;
+
+    // Parse tagged user IDs (futureproof - backend doesn't support yet)
+    const taggedUserIds = formData.getAll('taggedUserIds').map(id => String(id)).filter(id => id.trim());
+
     console.log('[createMomentAction] 📝 Datos del formulario:', {
       description,
       mediaFile: mediaFile ? `${mediaFile.name} (${mediaFile.size} bytes)` : 'null',
       existingMediaUrls,
       tags,
-      preferences
+      preferences,
+      destinations: destinations.length,
+      experienceLink,
+      taggedUserIds: taggedUserIds.length
     });
 
     if (!description?.trim()) {
@@ -143,7 +178,13 @@ export async function createMomentAction(formData: FormData) {
       resourceType,
       resourceUrl: resourceUrls.length > 0 ? resourceUrls : undefined,
       tags: tags.filter(t => t.trim()),
-      preferences: preferences.filter(p => p.trim())
+      preferences: preferences.filter(p => p.trim()),
+      destination: destinations.length > 0 ? destinations : undefined,
+      experienceLink: experienceLink || undefined,
+      // Futureproof - send taggedUserIds even though backend doesn't support yet
+      ...(taggedUserIds.length > 0 && {
+        taggedUserIds: taggedUserIds as any
+      })
     };
 
     console.log('[createMomentAction] 📊 Input para GraphQL:', JSON.stringify(input, null, 2));
@@ -173,8 +214,40 @@ export async function createMomentAction(formData: FormData) {
 
       // Si falló GraphQL y subimos archivos nuevos, limpiar archivos de S3
       if (mediaFile && resourceUrls.length > 0) {
-        // TODO: Implementar cleanup de S3
-        console.warn('[createMomentAction] ⚠️ Failed to create moment, S3 files not cleaned:', resourceUrls);
+        console.warn('[createMomentAction] 🧹 Limpiando archivos de S3 subidos...', resourceUrls);
+
+        // Cleanup de archivos S3 en paralelo
+        const cleanupResults = await Promise.allSettled(
+          resourceUrls.map(async (path) => {
+            try {
+              console.log('[createMomentAction] 🗑️ Eliminando archivo S3:', path);
+              await remove({ path });
+              console.log('[createMomentAction] ✅ Archivo eliminado:', path);
+              return { path, success: true };
+            } catch (cleanupError: unknown) {
+              const errorMessage = cleanupError instanceof Error
+                ? cleanupError.message
+                : 'Unknown cleanup error';
+              console.error('[createMomentAction] ❌ Error eliminando archivo:', path, errorMessage);
+              return { path, success: false, error: errorMessage };
+            }
+          })
+        );
+
+        // Log resumen de cleanup
+        const successCount = cleanupResults.filter(r => r.status === 'fulfilled' && r.value.success).length;
+        const failureCount = cleanupResults.length - successCount;
+
+        console.log('[createMomentAction] 📊 Cleanup completado:', {
+          total: resourceUrls.length,
+          success: successCount,
+          failed: failureCount
+        });
+
+        // Si algún cleanup falló, log advertencia pero no bloquear el error principal
+        if (failureCount > 0) {
+          console.warn('[createMomentAction] ⚠️ Algunos archivos no pudieron ser eliminados. Revisar manualmente.');
+        }
       }
 
       throw new Error('Failed to create moment in database');
@@ -316,6 +389,18 @@ export async function getMomentsAction(
     if (moments.length > 0) {
       console.log('[getMomentsAction] 📋 Ejemplo de momento completo:');
       console.log(JSON.stringify(moments[0], null, 2));
+
+      // ✅ FIX v2.8.0: Verificación específica de resourceType para debugging
+      console.log('[getMomentsAction] 🔍 Verificación de resourceType:', {
+        id: moments[0]?.id,
+        resourceType: moments[0]?.resourceType,
+        resourceTypeIsUndefined: moments[0]?.resourceType === undefined,
+        resourceTypeIsNull: moments[0]?.resourceType === null,
+        resourceTypeValue: JSON.stringify(moments[0]?.resourceType),
+        resourceUrl: moments[0]?.resourceUrl,
+        hasResourceUrl: !!moments[0]?.resourceUrl,
+        resourceUrlLength: moments[0]?.resourceUrl?.length
+      });
     }
 
     return {

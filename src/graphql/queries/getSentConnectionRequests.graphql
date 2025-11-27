@@ -8,6 +8,7 @@ query getSentConnectionRequests($limit: Int, $nextToken: String) {
         email
         name
         sub
+        uniq_influencer_ID
         user_type
         username
       }
@@ -21,6 +22,7 @@ query getSentConnectionRequests($limit: Int, $nextToken: String) {
         email
         name
         sub
+        uniq_influencer_ID
         user_type
         username
       }

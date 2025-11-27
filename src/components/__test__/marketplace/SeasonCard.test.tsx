@@ -7,7 +7,6 @@ describe('SeasonCard', () => {
   beforeAll(() => {
     // Use modern fake timers so we can set system time deterministically
     // Some Jest versions require this syntax; if the environment differs, adjust accordingly.
-    // eslint-disable-next-line jest/no-standalone-expect
     jest.useFakeTimers('modern' as unknown as jest.FakeTimersConfig);
     jest.setSystemTime(new Date('2025-11-27T12:00:00Z'));
   });

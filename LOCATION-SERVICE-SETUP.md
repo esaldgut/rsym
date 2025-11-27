@@ -148,13 +148,28 @@ Aplica la política completa del archivo `docs/aws-location-iam-policy.json` al 
       ]
     },
     {
+      "Sid": "YAANLocationServiceMapAccess",
+      "Effect": "Allow",
+      "Action": [
+        "geo:GetMapStyleDescriptor",
+        "geo:GetMapGlyphs",
+        "geo:GetMapSprites",
+        "geo:GetMapTile"
+      ],
+      "Resource": [
+        "arn:aws:geo:us-west-2:288761749126:map/YaanEsri"
+      ]
+    },
+    {
       "Sid": "YAANLocationServiceList",
       "Effect": "Allow",
       "Action": [
         "geo:ListPlaceIndexes",
         "geo:DescribePlaceIndex",
         "geo:ListRouteCalculators",
-        "geo:DescribeRouteCalculator"
+        "geo:DescribeRouteCalculator",
+        "geo:ListMaps",
+        "geo:DescribeMap"
       ],
       "Resource": "*",
       "Condition": {
@@ -174,8 +189,10 @@ AWS Location Service requiere permisos en **dos roles diferentes** dependiendo d
 | Componente | Rol IAM Requerido | Permisos Necesarios |
 |------------|-------------------|---------------------|
 | **location-actions.ts** (Server Action) | Cognito Identity Pool Authenticated Role | `geo:SearchPlaceIndexForText`, `geo:SearchPlaceIndexForPosition`, `geo:GetPlace` |
-| **CognitoLocationMap.tsx** (Client Component) | Cognito Identity Pool Authenticated Role | `geo:GetMapTile`, `geo:GetMapStyleDescriptor`, `geo:GetMapGlyphs`, `geo:GetMapSprites` |
+| **CognitoLocationMap.tsx** (Client Component) | Cognito Identity Pool Authenticated Role | **`geo:GetMapTile`**, **`geo:GetMapStyleDescriptor`**, **`geo:GetMapGlyphs`**, **`geo:GetMapSprites`** |
 | **/api/routes/calculate** (API Route) | Cognito Identity Pool Authenticated Role | `geo:CalculateRoute` |
+
+**NOTA CRÍTICA**: Los permisos de map tiles (`geo:GetMap*`) son ESENCIALES para que CognitoLocationMap renderice correctamente. Sin ellos, maplibre-gl NO podrá cargar el estilo del mapa ni los tiles, causando spinner infinito.
 
 **Nota:** Los API Routes (como `/api/routes/calculate`) usan el ID Token del usuario para obtener credenciales temporales del Cognito Identity Pool, por lo que los permisos se configuran en el **Authenticated Role del Identity Pool**, NO en el ECS Task Role.
 
@@ -302,9 +319,23 @@ npx tsx scripts/verify-location-permissions.ts
 - **Causa**: Credenciales temporales expiradas sin auto-refresh
 - **Solución**: Verificar que el código use `fromCognitoIdentityPool` (patrón correcto v2.0.1)
 
-### Mapa no carga en CognitoLocationMap
-- **Causa**: Identity Pool Authenticated Role no tiene permisos `geo:GetMapTile`
-- **Solución**: Aplicar política completa que incluye permisos de map tiles
+### Mapa no carga en CognitoLocationMap (spinner infinito)
+- **Síntomas**:
+  - Spinner "Cargando mapa interactivo..." se queda girando indefinidamente
+  - Timeout de 10 segundos: "Timeout: evento 'load' no disparó en 10s"
+  - Marcadores de destinos no aparecen
+  - Traza de ruta no se renderiza
+- **Causa**: Identity Pool Authenticated Role **NO tiene** permisos `geo:GetMapStyleDescriptor`, `geo:GetMapGlyphs`, `geo:GetMapSprites`, `geo:GetMapTile`
+- **Diagnóstico**:
+  - ResizeObserver detecta correctamente las dimensiones del container ✅
+  - `initializeMap()` se ejecuta sin errores ✅
+  - `authHelper` se crea correctamente ✅
+  - `maplibregl.Map` se inicializa PERO evento 'load' NUNCA se dispara ❌
+  - **Causa Raíz**: MapLibre GL intenta cargar el estilo del mapa desde `https://maps.geo.us-west-2.amazonaws.com/maps/v0/maps/YaanEsri/style-descriptor` pero recibe 401/403 Unauthorized
+- **Solución**:
+  1. Aplicar la política IAM COMPLETA del archivo `docs/aws-location-iam-policy.json` que **ahora incluye** los permisos de map tiles
+  2. Verificar en browser DevTools → Network → Filter "maps.geo" → Verificar que las peticiones HTTP retornan 200 OK (no 401/403)
+  3. Recargar la página después de aplicar los permisos (las credenciales temporales se refrescan automáticamente)
 
 ## Archivos del Sistema
 

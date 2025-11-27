@@ -8,7 +8,8 @@ import {
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { ChatInput } from '@/components/chat/ChatInput';
-import type { Conversation, Message } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Conversation, Message } from '@/generated/graphql';
 
 // No cachear para mostrar mensajes en tiempo real
 export const revalidate = 0;
@@ -17,9 +18,10 @@ export const revalidate = 0;
 export async function generateMetadata({
   params
 }: {
-  params: { conversationId: string };
+  params: Promise<{ conversationId: string }>;
 }) {
-  const { conversationId } = params;
+  // Next.js 16: params is now async
+  const { conversationId } = await params;
   const { success, conversation } = await getConversationByIdAction(conversationId);
 
   if (!success || !conversation) {
@@ -47,9 +49,10 @@ export async function generateMetadata({
 export default async function ChatConversationPage({
   params
 }: {
-  params: { conversationId: string };
+  params: Promise<{ conversationId: string }>;
 }) {
-  const { conversationId } = params;
+  // Next.js 16: params is now async
+  const { conversationId } = await params;
 
   // Verificar autenticación
   const user = await getAuthenticatedUser();

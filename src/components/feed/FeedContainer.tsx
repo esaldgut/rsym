@@ -2,7 +2,8 @@ import { Suspense } from 'react';
 import { FeedGrid } from './FeedGrid';
 import { FeedSkeleton } from './FeedSkeleton';
 import { getMomentsAction } from '@/lib/server/moments-actions';
-import type { Moment } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Moment } from '@/generated/graphql';
 
 interface FeedContainerProps {
   type?: 'moments' | 'marketplace';

@@ -13,7 +13,8 @@ import ProductNameModal from './ProductNameModal';
 import { RecoveryModal } from './RecoveryModal';
 import { CancelProductModal } from './CancelProductModal';
 import type { StepProps } from '@/types/wizard';
-import type { Product } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Product } from '@/generated/graphql';
 import type { ProductFormDataWithRecovery } from '@/types/wizard';
 
 interface ProductWizardProps {

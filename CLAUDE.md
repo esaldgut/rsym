@@ -2,11 +2,21 @@
 
 > **📋 Auditoría de Documentación**: Este documento fue auditado exhaustivamente el 2025-10-28. Ver [ARCHITECTURE-VALIDATION.md](docs/ARCHITECTURE-VALIDATION.md) para el reporte completo de verificación (92% de coincidencia con implementación real).
 
+> **🏪 Análisis de Marketplace**: Análisis exhaustivo del marketplace completado el 2025-10-30. Ver [MARKETPLACE-ANALYSIS.md](docs/MARKETPLACE-ANALYSIS.md) para evaluación de completitud (60% funcional, 3 servicios críticos pendientes).
+
+> **✈️ GraphQL Operations Completeness**: GraphQL operations 100% alineadas con backend schema (2025-10-31). Todas las queries/mutations verificadas con profundidad completa. Ver sección "GraphQL Integration" para detalles.
+
+> **🎯 Proyecto Activo - Experiencia de Reservaciones**: Implementación en curso de sistema completo de gestión de viajes (2025-10-31). Objetivo: superar competencia (Exoticca) aprovechando ventajas únicas de YAAN (payment plans auto-generados, room distribution, change policies). Ver sección "Reservation Management System" para roadmap completo.
+
+> **💳 FASE 6: MIT Payment Integration**: Integración completa con MIT Payment Gateway completada el 2025-10-31. Sistema de pagos en línea (CONTADO y PLAZOS) con webhooks seguros (HMAC SHA-256), página de confirmación, y flujo end-to-end verificado. Ver [RESUMEN-EJECUTIVO-FASE6.md](RESUMEN-EJECUTIVO-FASE6.md) para detalles completos (~1,097 líneas de código limpio, 0 duplicaciones).
+
+> **🗺️ FLUJO COMPLETO DE RESERVACIONES**: Documentación exhaustiva del sistema completo desde marketplace hasta pago (FASES 1-6). Ver [FLUJO-COMPLETO-RESERVACIONES.md](FLUJO-COMPLETO-RESERVACIONES.md) para diagrama de flujo end-to-end, casos de uso completos, y especificaciones técnicas (~7,482 líneas de código implementadas, 37 archivos, 10 funcionalidades).
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
 
-YAAN is a Next.js 15 marketplace platform for tourism products (circuits and packages) built with AWS Amplify v6, TypeScript, and deployed to AWS ECS via Copilot. It features multi-tenant role-based access (admin, provider, influencer, traveler) with AWS Cognito authentication.
+YAAN is a Next.js 16.0.2 marketplace platform for tourism products (circuits and packages) built with AWS Amplify v6, TypeScript, React 19.2.0, and deployed to AWS ECS via Copilot. It features multi-tenant role-based access (admin, provider, influencer, traveler) with AWS Cognito authentication.
 
 ## TypeScript Type Safety & Best Practices
 
@@ -471,6 +481,79 @@ User type stored in Cognito custom attribute `custom:user_type` and validated in
 - Queries: `src/graphql/queries/*.graphql`
 - Mutations: `src/graphql/mutations/*.graphql`
 - Generated operations: `src/lib/graphql/operations.ts`
+
+**GraphQL File Loading Pattern (Next.js 15.5.4):**
+
+YAAN uses a **webpack asset/source loader** to import `.graphql` files as strings. This is the recommended approach for AWS Amplify.
+
+**Architecture:**
+```javascript
+// next.config.mjs (webpack configuration)
+webpack: (config) => {
+  config.module.rules.push({
+    test: /\.graphql$/,
+    type: 'asset/source'  // ✅ Built-in Webpack 5 loader
+  });
+  return config;
+}
+```
+
+```typescript
+// src/types/graphql.d.ts (TypeScript declarations - REQUIRED)
+declare module '*.graphql' {
+  const content: string;  // ← Loaded as string
+  export default content;
+}
+```
+
+**Why `asset/source` instead of `graphql-tag/loader`?**
+
+| Aspect | asset/source (YAAN) | graphql-tag/loader |
+|--------|---------------------|-------------------|
+| Output | Plain string | DocumentNode AST |
+| Dependencies | ✅ Built-in (Webpack 5+) | ❌ Requires graphql-tag |
+| AWS Amplify | ✅ Accepts strings | ✅ Accepts both |
+| Compile-time validation | ❌ No | ✅ Yes |
+| Bundle size | ✅ Smaller | ⚠️ Larger (includes AST) |
+| Simplicity | ✅ Simpler | ⚠️ More complex |
+
+**Usage Example:**
+```typescript
+// Import .graphql file as string
+import createProduct from '@/graphql/mutations/createProduct.graphql';
+
+// Use with AWS Amplify client
+const result = await client.graphql({
+  query: createProduct,  // ← String containing GraphQL mutation
+  variables: { input: { name: 'Product' } }
+});
+```
+
+**Critical Files:**
+- ⚠️ **DO NOT DELETE**: `src/types/graphql.d.ts` (required for TypeScript)
+- Configuration: `next.config.mjs` (webpack loader)
+- TypeScript config: `tsconfig.json` (includes `src/types/**/*.d.ts`)
+
+**Common Issues:**
+
+1. **"Module parse failed: Unexpected token"**
+   - Cause: Missing `src/types/graphql.d.ts` file
+   - Fix: Ensure file exists and is committed to git
+   - Verify: `tsconfig.json` includes `src/types/**/*.d.ts`
+
+2. **TypeScript can't find module '*.graphql'**
+   - Cause: `tsconfig.json` not including type declarations
+   - Fix: Add `"src/types/**/*.d.ts"` to `include` array
+
+3. **Warning: "Unrecognized key(s) in object: 'turbo'"**
+   - Cause: Using deprecated `turbo: false` in Next.js 15.5+
+   - Fix: Remove the line (webpack config is sufficient)
+   - Note: Next.js 15.5.4 uses webpack by default when custom config exists
+
+**Future Migration (Turbopack):**
+- When Next.js forces Turbopack (possibly Next.js 16+), this pattern will need updating
+- Turbopack doesn't support custom webpack loaders yet
+- Alternatives: Stay on webpack mode, or import GraphQL as template strings
 
 ### Server Actions Pattern
 
@@ -1123,6 +1206,335 @@ export const ProductGalleryHeader = forwardRef<ProductGalleryHeaderHandle, Produ
 />
 ```
 
+### Product Detail Display System - Dual Architecture
+
+**Hybrid modal + page system for displaying product details in marketplace**
+
+The product detail display system uses a dual architecture that provides both quick preview (modal) and comprehensive detail view (dedicated page), allowing users to explore products without leaving the marketplace while also supporting deep linking and SEO.
+
+#### Architecture Overview
+
+**Dual Display Strategy:**
+
+1. **ProductDetailModal** - Quick preview overlay (vista rápida)
+2. **ProductDetailClient** (page) - Comprehensive detail view (detalle completo)
+
+#### 1. ProductDetailModal - Quick Preview
+
+**File:** `src/components/marketplace/ProductDetailModal.tsx`
+**Lines:** 731 lines
+**Purpose:** Modal overlay for quick product preview without leaving marketplace
+
+**Features:**
+- ✅ Modal overlay (z-50) with backdrop
+- ✅ ProductGalleryHeader with auto-play carousel
+- ✅ FullscreenGallery integration
+- ✅ Complete product sections:
+  - Description with provider info
+  - Itinerary timeline (ItineraryCard)
+  - Seasons and pricing (SeasonCard)
+  - Hotels list
+  - Route map (HybridProductMap)
+  - Reviews (ProductReviews)
+- ✅ Lateral navigation with dots (6 sections)
+- ✅ Sticky footer with dual CTAs:
+  - "Ver detalles" → Navigate to full page
+  - "Reservar ahora" → Navigate to full page
+- ✅ Deep linking support via query params
+
+**Props Interface:**
+```typescript
+interface ProductDetailModalProps {
+  product: MarketplaceProduct;
+  onClose: () => void;
+  onReserve: () => void; // Navigates to full detail page
+}
+```
+
+**URL Pattern:**
+```
+/marketplace?product=abc123&type=circuit
+```
+
+**Usage in marketplace-client.tsx:**
+```typescript
+const handleOpenProductDetail = (product: MarketplaceProduct) => {
+  // Open modal
+  setSelectedProduct(product);
+
+  // Update URL for deep linking
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('product', product.id);
+  params.set('type', product.product_type);
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+
+// Render modal
+{selectedProduct && (
+  <ProductDetailModal
+    product={selectedProduct}
+    onClose={handleCloseProductDetail}
+    onReserve={() => {
+      handleCloseProductDetail();
+      router.push(`/marketplace/booking/${selectedProduct.id}`);
+    }}
+  />
+)}
+```
+
+#### 2. ProductDetailClient - Comprehensive Detail Page
+
+**Files:**
+- Server: `src/app/marketplace/booking/[productId]/page.tsx`
+- Client: `src/app/marketplace/booking/[productId]/product-detail-client.tsx`
+
+**Route:** `/marketplace/booking/[productId]`
+**Lines:** 362 lines (client component)
+
+**Features:**
+- ✅ Full-page layout (max-w-7xl)
+- ✅ ProductGalleryHeader with fullscreen toggle
+- ✅ FullscreenGallery integration
+- ✅ Section navigation with sticky tabs (5 sections)
+- ✅ Back button to marketplace
+- ✅ Sticky footer with "Reservar Ahora" CTA → booking wizard
+- ✅ Server-side data fetching
+- ✅ SEO metadata generation (generateMetadata)
+- ✅ Deep linking support (shareable URLs)
+
+**Sections:**
+```typescript
+const SECTIONS = [
+  { id: 'descripcion', label: 'Descripción', icon: '📝' },
+  { id: 'itinerario', label: 'Itinerario', icon: '🗺️' },
+  { id: 'temporadas', label: 'Temporadas', icon: '📅' },
+  { id: 'alojamiento', label: 'Alojamiento', icon: '🏨' },
+  { id: 'mapa', label: 'Mapa', icon: '🌍' }
+];
+```
+
+**Server Component Pattern:**
+```typescript
+// page.tsx - Server Component
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  if (!result.success || !result.data?.product) {
+    notFound();
+  }
+
+  return <ProductDetailClient product={result.data.product} />;
+}
+
+// SEO Metadata
+export async function generateMetadata({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  return {
+    title: `${product.name} | YAAN`,
+    description: product.description,
+    openGraph: {
+      title: product.name,
+      description: product.description,
+      images: product.cover_image_url ? [product.cover_image_url] : []
+    }
+  };
+}
+```
+
+#### 3. Navigation Flow
+
+**User Journey:**
+
+```
+Marketplace Grid
+    │
+    ├─ Click on product card → ProductDetailModal (overlay)
+    │       │
+    │       │  [Modal displays: gallery, description, itinerary, seasons, map]
+    │       │
+    │       ├─ Button "Ver detalles" → /marketplace/booking/[id]
+    │       ├─ Button "Reservar ahora" → /marketplace/booking/[id]
+    │       └─ Close (X) → Back to /marketplace
+    │
+    └─ Deep link (shared URL) → /marketplace/booking/[id] (no modal)
+            │
+            └─ Button "Reservar ahora" → /marketplace/booking?product=[encrypted]
+                    │
+                    └─ Booking wizard
+```
+
+**Navigation Implementation:**
+
+**marketplace-client.tsx:**
+```typescript
+// Open modal with deep linking
+const handleOpenProductDetail = (product: MarketplaceProduct) => {
+  setSelectedProduct(product); // Opens modal
+
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('product', product.id);
+  params.set('type', product.product_type);
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+
+// Close modal and clean URL
+const handleCloseProductDetail = () => {
+  setSelectedProduct(null);
+
+  const params = new URLSearchParams(searchParams.toString());
+  params.delete('product');
+  params.delete('type');
+  router.push(`/marketplace?${params.toString()}`, { scroll: false });
+};
+```
+
+#### 4. Comparison: Modal vs Page
+
+| Feature | ProductDetailModal | ProductDetailClient (Page) |
+|---------|-------------------|---------------------------|
+| **Type** | Modal overlay (z-50) | Full page |
+| **URL** | Query params only | Dedicated route |
+| **Size** | Compact (max-w-3xl) | Full width (max-w-7xl) |
+| **Navigation** | Lateral dots (6 sections) | Sticky tabs (5 sections) |
+| **Sections** | 6 (includes Reviews) | 5 (no Reviews yet) |
+| **Scroll** | Internal modal scroll | Full page scroll |
+| **Back button** | Close X (top-right) | Back arrow (top-left) |
+| **SEO** | ❌ No (JS dynamic) | ✅ Yes (generateMetadata) |
+| **Deep linking** | ⚠️ Partial (query params) | ✅ Complete (dedicated route) |
+| **Shareable** | ⚠️ Works but not SEO-friendly | ✅ Fully shareable with SEO |
+| **Use case** | Quick preview, comparison | Detailed exploration, sharing |
+| **CTA behavior** | Navigate to page | Navigate to booking wizard |
+
+#### 5. Shared Components
+
+Both modal and page use the same components for consistency:
+
+| Component | Modal | Page | Purpose |
+|-----------|-------|------|---------|
+| ProductGalleryHeader | ✅ | ✅ | Carousel with auto-play |
+| FullscreenGallery | ✅ | ✅ | Expanded image view |
+| ItineraryCard | ✅ | ✅ | Day-by-day timeline |
+| SeasonCard | ✅ | ✅ | Seasons and pricing |
+| HybridProductMap | ✅ | ✅ | Route visualization |
+| ProductReviews | ✅ | ❌ | Customer testimonials |
+
+#### 6. Deep Linking Support
+
+**Modal (Query Parameters):**
+```typescript
+// URL: /marketplace?product=abc123&type=circuit
+
+// Auto-open modal on page load
+useEffect(() => {
+  const validatedParams = validateDeepLinkParams(searchParams);
+  const productIdFromUrl = validatedParams.productId;
+
+  if (productIdFromUrl) {
+    const product = products.find(p => p.id === productIdFromUrl);
+    if (product) {
+      setSelectedProduct(product); // Opens modal automatically
+    } else {
+      // Fetch individual product if not in list
+      const result = await getProductByIdAction(productIdFromUrl);
+      setSelectedProduct(result.data.product);
+    }
+  }
+}, [productIdFromUrl, products]);
+```
+
+**Page (Dedicated Route):**
+```typescript
+// URL: /marketplace/booking/abc123
+
+// Server-side data fetching (page.tsx)
+export default async function ProductDetailPage({ params }: ProductDetailPageProps) {
+  const result = await getProductByIdAction(params.productId);
+
+  if (!result.success || !result.data?.product) {
+    notFound(); // 404 page
+  }
+
+  return <ProductDetailClient product={result.data.product} />;
+}
+```
+
+#### 7. When to Use Each
+
+**Use ProductDetailModal when:**
+- ✅ User is browsing multiple products in marketplace
+- ✅ Quick comparison needed without losing context
+- ✅ First impression before committing to full details
+- ✅ Fast navigation between products desired
+
+**Use ProductDetailClient (page) when:**
+- ✅ User wants comprehensive information before booking
+- ✅ Sharing product link (SEO required)
+- ✅ Deep linking from external sources (email, social media)
+- ✅ Bookmarking for later reference
+
+#### 8. Sticky Footer Pattern
+
+Both modal and page implement sticky footer with CTAs:
+
+**Modal Footer (2 buttons):**
+```typescript
+<div className="flex flex-col sm:flex-row gap-3">
+  {/* Ver detalles completos */}
+  <button
+    onClick={() => {
+      onClose();
+      router.push(`/marketplace/booking/${product.id}`);
+    }}
+    className="bg-white border-2 border-purple-600 text-purple-600 ..."
+  >
+    Ver detalles
+  </button>
+
+  {/* Reservar ahora */}
+  <button
+    onClick={onReserve} // Navigates to page
+    className="bg-gradient-to-r from-pink-500 to-purple-600 text-white ..."
+  >
+    Reservar ahora
+  </button>
+</div>
+```
+
+**Page Footer (1 button):**
+```typescript
+<div className="hidden lg:block fixed bottom-0 left-0 right-0">
+  <button
+    onClick={handleReserve} // Navigates to booking wizard
+    className="bg-gradient-to-r from-pink-500 to-purple-600 text-white ..."
+  >
+    Reservar Ahora →
+  </button>
+</div>
+```
+
+#### 9. Benefits of Dual Architecture
+
+**UX Benefits:**
+- ✅ **Fast Preview**: Users can quickly view product without leaving marketplace
+- ✅ **No Context Loss**: Modal keeps marketplace visible in background
+- ✅ **Detailed Exploration**: Page provides comprehensive information when needed
+- ✅ **Flexible Navigation**: Users choose their preferred level of detail
+
+**Technical Benefits:**
+- ✅ **SEO Optimization**: Page provides proper metadata for search engines
+- ✅ **Deep Linking**: Both query params (modal) and routes (page) supported
+- ✅ **Code Reuse**: Both use same gallery and detail components
+- ✅ **Performance**: Modal loads faster (already in marketplace bundle)
+
+**Business Benefits:**
+- ✅ **Higher Engagement**: Quick preview reduces friction
+- ✅ **Better Conversion**: Users more likely to explore multiple products
+- ✅ **Shareability**: Page URLs are shareable with full context
+- ✅ **Analytics**: Track user journey (modal → page → booking)
+
+---
+
 ### Product Wizard Architecture
 
 **Multi-step form system for creating and editing tourism products (circuits and packages)**
@@ -1727,6 +2139,1122 @@ export default async function EditProductPage({
 - **Root Cause**: Component was simplified copy from before navigation features were implemented
 - **Solution**: Added all navigation helpers and intelligent button logic from ProductDetailsStep
 - **Result**: 100% feature parity between both detail steps
+
+---
+
+### YAAN Moments Feature
+
+**Complete social media system for travelers to create, edit, and share travel moments**
+
+YAAN Moments is a comprehensive feature that allows travelers to capture and share their travel experiences through edited photos and videos. The system integrates IMG.LY's CE.SDK (Creative Editor SDK v1.64.0) for professional editing capabilities with a complete publishing flow that includes friend tagging, location tagging, and experience linking.
+
+#### Architecture Overview
+
+The Moments feature is divided into two main epics:
+
+| Epic | Components | Purpose | Lines of Code |
+|------|-----------|---------|---------------|
+| **Epic 1** | CE.SDK Integration | Professional image/video editing with YAAN branding | ~1,500 lines |
+| **Epic 2** | Publishing Flow | Complete social publishing system | ~600 lines |
+| **Total** | 7 major components | End-to-end moment creation and sharing | ~2,100 lines |
+
+#### Epic 1: CE.SDK Integration (Image/Video Editor)
+
+**Professional editing powered by IMG.LY's Creative Editor SDK with complete YAAN branding**
+
+##### 1. CESDKEditorWrapper - Main Editor Component
+
+**File:** `src/components/cesdk/CESDKEditorWrapper.tsx` (333 lines)
+
+**Purpose:** Wrapper component that integrates CE.SDK with YAAN's architecture and branding.
+
+**Props Interface:**
+```typescript
+export interface CESDKEditorWrapperProps {
+  initialMediaUrl?: string;           // Initial media URL to load
+  mediaType: 'image' | 'video';       // Media type
+  onExport: (blob: Blob, metadata: ExportMetadata) => Promise<void>;
+  onClose: () => void;                // Callback when user closes editor
+  loading?: boolean;                  // Show loading state
+  className?: string;                 // Custom CSS class
+}
+
+export interface ExportMetadata {
+  filename: string;                   // Original filename
+  mimeType: string;                   // MIME type
+  size: number;                       // File size in bytes
+  format: 'image/png' | 'image/jpeg' | 'video/mp4';
+  quality?: number;                   // Export quality (if applicable)
+}
+```
+
+**Key Features:**
+- ✅ **Initialization**: Auto-initializes CE.SDK with license key and YAAN theme
+- ✅ **Media Support**: Both images and videos (video editing desktop-only)
+- ✅ **Export Handling**: Exports edited media as Blob with metadata
+- ✅ **Loading States**: Skeleton UI during initialization
+- ✅ **Error Handling**: Graceful fallbacks with user-friendly error messages
+- ✅ **Cleanup**: Proper disposal of CE.SDK instance on unmount
+
+**Environment Configuration:**
+```env
+NEXT_PUBLIC_CESDK_LICENSE_KEY=your-license-key
+NEXT_PUBLIC_CESDK_BASE_URL=https://cdn.img.ly/packages/imgly/cesdk-js/latest/assets
+```
+
+**Initialization Flow:**
+```typescript
+const config: Configuration = {
+  license: process.env.NEXT_PUBLIC_CESDK_LICENSE_KEY,
+  userId: 'yaan-moments-user',
+  baseURL: process.env.NEXT_PUBLIC_CESDK_BASE_URL,
+  role: 'Creator'  // Full editing capabilities
+};
+
+const cesdkInstance = await CreativeEditorSDK.create(containerRef.current, config);
+await applyYaanTheme(cesdkInstance);  // Apply YAAN pink-purple branding
+
+if (mediaType === 'video') {
+  await cesdkInstance.createVideoScene();
+
+  // Register custom handler for unsupported browsers (video editing)
+  cesdkInstance.actions.register('onUnsupportedBrowser', () => {
+    // Custom Spanish error message
+    setError('Video editing not available in this browser...');
+  });
+} else {
+  await cesdkInstance.createDesignScene();
+}
+```
+
+##### 1.1. CE.SDK Browser Requirements & WebCodecs API
+
+**CRITICAL**: CE.SDK video editing requires WebCodecs API, which is **NOT universally supported**.
+
+**Supported Browsers for Video Editing:**
+
+| Browser | Minimum Version | Platform | Status |
+|---------|----------------|----------|--------|
+| **Chrome Desktop** | 114+ | Windows, macOS | ✅ Fully supported |
+| **Edge Desktop** | 114+ | Windows, macOS | ✅ Fully supported |
+| **Safari Desktop** | 26.0+ | macOS Sequoia 15.3+ | ✅ Fully supported |
+| **Chrome on Linux** | Any | Linux | ❌ Lacks AAC encoder (licensing) |
+| **Firefox** | Any | All platforms | ❌ No WebCodecs API support |
+| **All mobile browsers** | Any | iOS, Android | ❌ Technical limitations |
+| **Safari** | <26.0 | macOS | ❌ Incomplete WebCodecs API |
+
+**Why Video Editing Fails:**
+
+1. **WebCodecs API Required**: CE.SDK uses `VideoEncoder`, `VideoDecoder`, `AudioEncoder`, `AudioDecoder` for real-time video editing
+2. **Codec Dependencies**: Browser AND operating system must support specific codecs:
+   - Audio: AAC (mp4a.40.02)
+   - Video: H.264 (avc1.42001E)
+3. **Platform Limitations**:
+   - Linux: Chrome lacks H.264/AAC encoders due to licensing
+   - Mobile: Performance and API limitations
+   - Chromium standalone: No codecs included
+
+**Error Handling Implementation:**
+
+**File:** `src/utils/browser-detection.ts`
+
+Comprehensive browser detection and WebCodecs API checks:
+
+```typescript
+// Detect browser capabilities
+export function detectBrowser(): BrowserInfo {
+  // Returns: name, version, os, isMobile, supportsVideoEditing, reason
+}
+
+// Runtime API check
+export function hasWebCodecsAPI(): boolean {
+  return (
+    'VideoEncoder' in window &&
+    'VideoDecoder' in window &&
+    'AudioEncoder' in window &&
+    'AudioDecoder' in window
+  );
+}
+
+// Comprehensive check with codec support
+export async function canEditVideos(): Promise<{
+  supported: boolean;
+  reason?: string;
+  browserInfo: BrowserInfo;
+}> {
+  // Checks: user agent, WebCodecs API, AAC codec, H.264 codec
+}
+```
+
+**UX Improvements:**
+
+1. **Custom Error Handler** (`CESDKEditorWrapper.tsx:163-180`):
+   - Spanish error message when browser doesn't support video editing
+   - Lists compatible browsers
+   - Suggests alternative (use images instead)
+
+2. **Proactive Detection** (`MomentMediaUpload.tsx:39-50`):
+   - Detects browser capabilities on component mount
+   - Shows warning banner if video editing not supported
+   - Conditional UI elements based on browser support
+
+3. **User-Friendly Messages**:
+   - ⚠️ "Solo imágenes disponibles en tu navegador"
+   - Explains specific limitation (e.g., "Chrome en Linux carece de encoder AAC")
+   - Expandable details with browser requirements
+   - Alternative suggestion: "Puedes crear momentos con imágenes"
+
+**Expected User Experience:**
+
+**Supported Browser (Chrome 114+, Edge 114+, Safari 26.0+)**:
+```
+1. User uploads video → ✅ CE.SDK loads successfully
+2. User edits video → ✅ All tools available
+3. User exports → ✅ High-quality MP4 output
+```
+
+**Unsupported Browser (Firefox, mobile, Chrome on Linux)**:
+```
+1. Component mount → Detects incompatibility
+2. Shows amber banner: "⚠️ Solo imágenes disponibles en tu navegador"
+3. Helper text updated: "⚠️ Videos no disponibles en este navegador"
+4. If user tries video anyway → CE.SDK shows custom Spanish error
+5. User can still create moments with images ✅
+```
+
+**Debugging Commands:**
+
+```typescript
+// In browser console
+import { logBrowserInfo, canEditVideos } from '@/utils/browser-detection';
+
+// Log current browser capabilities
+logBrowserInfo();
+// Output: { name: 'Chrome', version: '120.0', supportsVideoEditing: true, ... }
+
+// Check comprehensive video editing support
+const result = await canEditVideos();
+// Output: { supported: true, browserInfo: {...} }
+```
+
+**Common Error Messages:**
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| `AudioEncoder NotSupportedError` | Browser lacks AAC encoder | Use supported browser (Chrome 114+, Edge 114+, Safari 26.0+) |
+| `VideoEncoder NotSupportedError` | Browser lacks H.264 encoder | Use supported browser |
+| `WebCodecs API not available` | Browser doesn't support WebCodecs | Update browser or switch to Chrome/Edge |
+| Video editing no disponible | Mobile browser or Firefox | Use desktop Chrome, Edge, or Safari 26.0+ |
+
+**Reference Documentation:**
+- Local: `docs/CESDK_NEXTJS_LLMS_FULL.txt` (complete CE.SDK documentation)
+- Online: https://img.ly/docs/cesdk/faq/browser-support/
+- WebCodecs API: https://developer.mozilla.org/en-US/docs/Web/API/WebCodecs_API
+
+##### 2. ThemeConfigYAAN - YAAN Brand Theme
+
+**File:** `src/config/cesdk/ThemeConfigYAAN.ts` (291 lines)
+
+**Purpose:** Complete CE.SDK theming configuration with YAAN's visual identity (pink-500 to purple-600 gradient).
+
+**Color Palette:**
+```typescript
+export const YaanColors = {
+  // Primary Brand Colors
+  pink500: { r: 0.925, g: 0.282, b: 0.6, a: 1.0 },      // rgb(236, 72, 153) - #EC4899
+  purple600: { r: 0.576, g: 0.2, b: 0.918, a: 1.0 },    // rgb(147, 51, 234) - #9333EA
+
+  // Accent Colors
+  pink400: { r: 0.957, g: 0.447, b: 0.714, a: 1.0 },    // rgb(244, 114, 182) - #F472B6
+  purple500: { r: 0.659, g: 0.333, b: 0.969, a: 1.0 },  // rgb(168, 85, 247) - #A855F7
+
+  // Transparent Variants
+  pink500_70: { r: 0.925, g: 0.282, b: 0.6, a: 0.7 },   // Overlays
+  purple600_70: { r: 0.576, g: 0.2, b: 0.918, a: 0.7 }, // Overlays
+  pink500_39: { r: 0.925, g: 0.282, b: 0.6, a: 0.39 },  // Dimming
+  pink500_10: { r: 0.925, g: 0.282, b: 0.6, a: 0.1 },   // Subtle backgrounds
+};
+```
+
+**Theme Application:**
+```typescript
+export async function applyYaanTheme(cesdk: CreativeEditorSDK) {
+  // Set base theme to dark (matches YAAN UI)
+  cesdk.ui.setTheme('dark');
+
+  const engine = cesdk.engine;
+
+  // Apply YAAN colors to editor elements
+  if (engine.editor?.setSettingColor) {
+    engine.editor.setSettingColor('highlightColor', YaanColors.pink500);
+    engine.editor.setSettingColor('placeholderHighlightColor', YaanColors.purple600);
+    engine.editor.setSettingColor('handleFillColor', YaanColors.white);
+    engine.editor.setSettingColor('cropOverlayColor', YaanColors.pink500_39);
+    engine.editor.setSettingColor('rotationSnappingGuideColor', YaanColors.pink500);
+    engine.editor.setSettingColor('progressColor', YaanColors.pink500_70);
+
+    // Page colors
+    engine.editor.setSettingColor('page/innerBorderColor', YaanColors.transparent);
+    engine.editor.setSettingColor('page/outerBorderColor', YaanColors.pink500_10);
+    engine.editor.setSettingColor('page/marginFillColor', YaanColors.pink500_10);
+    engine.editor.setSettingColor('page/marginFrameColor', YaanColors.pink500);
+    engine.editor.setSettingColor('page/title/color', YaanColors.white);
+  }
+}
+```
+
+**Utility Functions:**
+```typescript
+// Convert hex to CE.SDK color format
+export function hexToColor(hex: string, alpha = 1.0);
+
+// Convert RGB to CE.SDK color format
+export function rgbToColor(r: number, g: number, b: number, a = 1.0);
+```
+
+##### 3. BrandedFiltersPanel - Image/Video Filters
+
+**File:** `src/components/cesdk/BrandedFiltersPanel.tsx` (551 lines)
+
+**Purpose:** Custom filter panel with YAAN-branded presets and manual adjustments.
+
+**Features:**
+- ✅ **6 YAAN Filter Presets**: Vibrante, Soñador, Atardecer, Vintage, Dramático, Fresco
+- ✅ **8 Manual Adjustments**: Brightness, contrast, saturation, exposure, temperature, highlights, shadows, clarity
+- ✅ **Real-time Preview**: Instant visual feedback
+- ✅ **Reset Functionality**: One-click reset to original
+- ✅ **Responsive Design**: Desktop and mobile layouts
+
+**Filter Presets:**
+```typescript
+const FILTER_PRESETS: FilterPreset[] = [
+  {
+    id: 'vibrant',
+    name: 'Vibrante',
+    icon: '✨',
+    description: 'Colores intensos y vibrantes',
+    adjustments: {
+      brightness: 0.05,
+      contrast: 0.15,
+      saturation: 0.3,
+      exposure: 0.5,
+      temperature: 0.05,
+      highlights: 0.1,
+      shadows: -0.05,
+      clarity: 0.3
+    }
+  },
+  // ... 5 more presets
+];
+```
+
+**Manual Adjustments Interface:**
+```typescript
+export interface FilterAdjustments {
+  brightness: number;     // -1.0 to 1.0
+  contrast: number;       // -1.0 to 1.0
+  saturation: number;     // -1.0 to 1.0
+  exposure: number;       // -10.0 to 10.0
+  temperature: number;    // -1.0 to 1.0
+  highlights: number;     // -1.0 to 1.0
+  shadows: number;        // -1.0 to 1.0
+  clarity: number;        // 0.0 to 1.0
+}
+```
+
+**Usage:**
+```typescript
+<BrandedFiltersPanel
+  cesdkInstance={cesdkInstance}
+  selectedBlockId={selectedBlockId}  // Current selected image/video block
+  onFilterApply={() => console.log('Filter applied')}
+/>
+```
+
+##### 4. AssetLibraryYAAN - Travel Stickers & Fonts
+
+**File:** `src/components/cesdk/AssetLibraryYAAN.tsx` (621 lines)
+
+**Purpose:** Curated library of travel-themed stickers, icons, and fonts for moments.
+
+**Assets:**
+- ✅ **10 Travel Stickers**: Plane, camera, palm tree, sun, compass, mountain, backpack, suitcase, globe, heart
+- ✅ **3 Fonts**: Roboto Bold, Regular, Italic
+- ✅ **8 Category Filters**: All, Travel, Nature, Adventure, Urban, Beach, Food, Celebration
+
+**Sticker Asset Structure:**
+```typescript
+interface YaanAsset {
+  id: string;
+  type: 'sticker' | 'font' | 'shape';
+  category: string;
+  name: string;
+  assetUrl: string;
+  thumbnailUrl: string;
+  keywords: string[];
+}
+```
+
+**Asset Addition Logic:**
+```typescript
+const handleAddSticker = async (asset: YaanAsset) => {
+  const engine = cesdkInstance.engine;
+
+  // Create graphic block
+  const block = engine.block.create('//ly.img.ubq/graphic');
+  const rectShape = engine.block.createShape('//ly.img.ubq/shape/rect');
+  const imageFill = engine.block.createFill('//ly.img.ubq/fill/image');
+
+  // Set image URL
+  engine.block.setString(imageFill, 'fill/image/imageFileURI', asset.assetUrl);
+  engine.block.setShape(block, rectShape);
+  engine.block.setFill(block, imageFill);
+  engine.block.setKind(block, 'sticker');
+
+  // Add to scene
+  const scene = engine.scene.get();
+  engine.block.appendChild(scene, block);
+};
+```
+
+**Search & Filter:**
+```typescript
+// Search by keywords
+const searchAssets = (query: string) => {
+  return assets.filter(asset =>
+    asset.name.toLowerCase().includes(query.toLowerCase()) ||
+    asset.keywords.some(keyword => keyword.toLowerCase().includes(query.toLowerCase()))
+  );
+};
+
+// Filter by category
+const filterByCategory = (category: string) => {
+  if (category === 'all') return assets;
+  return assets.filter(asset => asset.category === category);
+};
+```
+
+##### 5. EyeDropperButton - Color Picker Nativo (v2.16.0)
+
+**File:** `src/components/cesdk/EyeDropperButton.tsx` (~200 lines)
+
+**Purpose:** Botón para samplear colores directamente desde la pantalla usando Browser EyeDropper API.
+
+**Browser Support:**
+| Browser | Version | Status |
+|---------|---------|--------|
+| Chrome | 95+ | ✅ Supported |
+| Edge | 95+ | ✅ Supported |
+| Safari | 15.1+ | ✅ Supported |
+| Firefox | 116+ | ⚠️ Recent |
+
+**Props Interface:**
+```typescript
+interface EyeDropperButtonProps {
+  cesdkInstance: CreativeEditorSDK | null;
+  onColorPicked?: (color: RGBAColor, hexColor: string) => void;
+  showTooltip?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+```
+
+**Hook:** `src/hooks/useEyeDropper.ts`
+```typescript
+interface UseEyeDropperReturn {
+  pickColor: () => Promise<string | null>;
+  isSupported: boolean;
+  isPicking: boolean;
+  error: string | null;
+}
+```
+
+**Utilidades:** `src/utils/color-utils.ts`
+- `hexToRgba(hex: string): RGBAColor` - Convierte hex a RGBA
+- `rgbaToHex(rgba: RGBAColor): string` - Convierte RGBA a hex
+- `applyColorToBlock(engine, blockId, color)` - Aplica color a bloque CE.SDK
+
+**Ubicación en UI:** Toolbar superior izquierda, junto a Undo/Redo controls
+
+##### 6. TimelineGroupPanel - Agrupación de Clips (v2.16.0)
+
+**File:** `src/components/cesdk/TimelineGroupPanel.tsx` (~500 lines)
+
+**Purpose:** Panel para agrupar y gestionar clips de video en el timeline.
+
+**Solo disponible en video mode.**
+
+**Props Interface:**
+```typescript
+interface TimelineGroupPanelProps {
+  cesdkInstance: CreativeEditorSDK | null;
+  isVideoMode: boolean;
+  defaultCollapsed?: boolean;
+  className?: string;
+}
+```
+
+**Features:**
+- CRUD completo de grupos
+- 8 colores predefinidos (Rosa, Morado, Azul, Verde, Amarillo, Naranja, Rojo, Gris)
+- Selección múltiple de clips
+- Merge/split de grupos
+- Persistencia en scene metadata
+
+**Manager:** `src/lib/cesdk/timeline-groups.ts`
+```typescript
+export class TimelineGroupManager {
+  constructor(engine: Engine);
+  createGroup(name: string, clipIds: number[]): TimelineGroup;
+  addToGroup(groupId: number, clipId: number): void;
+  removeFromGroup(groupId: number, clipId: number): void;
+  deleteGroup(groupId: number, deleteClips?: boolean): void;
+  mergeGroups(groupIds: number[]): TimelineGroup;
+  getGroups(): TimelineGroup[];
+  getGroupForClip(clipId: number): TimelineGroup | null;
+}
+```
+
+**Hook:** `src/hooks/useTimelineGroups.ts`
+```typescript
+interface UseTimelineGroupsReturn {
+  groups: TimelineGroup[];
+  createGroup: (clipIds: number[]) => void;
+  deleteGroup: (groupId: number) => void;
+  selectGroup: (groupId: number) => void;
+  isGroupSelected: (groupId: number) => boolean;
+}
+```
+
+**Ubicación en UI:** Panel colapsable esquina superior derecha (solo video mode)
+
+##### 7. ExportFormatSelector - Modal de Formato Export (v2.16.0)
+
+**File:** `src/components/cesdk/ExportFormatSelector.tsx` (~450 lines)
+
+**Purpose:** Modal para seleccionar formato de exportación de video (MP4/WebM/MKV).
+
+**Solo aparece en video mode, después del export nativo de CE.SDK.**
+
+**Props Interface:**
+```typescript
+interface ExportFormatSelectorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onExport: (format: ExportFormat, quality: TranscodeQuality) => Promise<void>;
+  isVideoMode: boolean;
+  videoBlob?: Blob;
+  videoFilename?: string;
+}
+
+type ExportFormat = 'mp4' | 'webm' | 'mkv';
+type TranscodeQuality = 'low' | 'medium' | 'high';
+```
+
+**Formatos Soportados:**
+| Formato | Codec Video | Codec Audio | Requiere Transcoding |
+|---------|-------------|-------------|---------------------|
+| MP4 | H.264 | AAC | ❌ Nativo CE.SDK |
+| WebM | VP9 | Opus | ✅ Server-side FFmpeg |
+| MKV | H.264 | AAC | ✅ Server-side FFmpeg |
+
+**Hook:** `src/hooks/useVideoTranscode.ts`
+```typescript
+interface UseVideoTranscodeReturn {
+  transcode: (blob: Blob, filename: string, options: TranscodeOptions) => Promise<TranscodeResult | null>;
+  isTranscoding: boolean;
+  error: string | null;
+  clearError: () => void;
+}
+```
+
+**API Route:** `src/app/api/transcode-video/route.ts`
+- Endpoint: `POST /api/transcode-video`
+- Body: FormData con video file, format, quality
+- Requiere FFmpeg instalado en servidor
+
+**Server Action:** `src/lib/server/video-transcode-actions.ts`
+- `transcodeVideo(inputPath, outputPath, options)` - Ejecuta FFmpeg
+- Quality presets con CRF values configurados
+- Cleanup automático de archivos temporales
+
+**Flujo de Export para Videos:**
+```
+User clicks Export → CE.SDK exports MP4 (native)
+                   → Show ExportFormatSelector modal
+                   → User selects format + quality
+                   → If MP4: onExport(blob original)
+                   → If WebM/MKV: transcode via API → onExport(blob transcodificado)
+```
+
+**Dockerfile Update:**
+```dockerfile
+# FFmpeg installation for video transcoding
+RUN apk add --no-cache ffmpeg
+# Adds ~70-80MB to image size
+```
+
+#### Epic 2: Publishing Flow (Social Features)
+
+**Complete social publishing system with friend tagging, location tagging, and experience linking**
+
+##### 1. MomentPublishScreen - Main Publishing Interface
+
+**File:** `src/components/moments/publish/MomentPublishScreen.tsx` (362 lines)
+
+**Purpose:** Orchestrates the entire publishing flow with multi-step form and GraphQL integration.
+
+**Props Interface:**
+```typescript
+interface MomentPublishScreenProps {
+  initialMediaUrl: string;            // Edited media URL from CE.SDK
+  mediaType: 'image' | 'video';       // Media type
+  onPublishSuccess: () => void;       // Callback on successful publish
+  onBack: () => void;                 // Callback to return to editor
+}
+```
+
+**Form Data Structure:**
+```typescript
+interface MomentPublishFormData {
+  description: string;                // Moment caption/description
+  locations: LocationInput[];         // Tagged locations (max 5)
+  tags: string[];                     // Content tags (e.g., #beach, #sunset)
+  taggedFriends: string[];           // Tagged friend user IDs
+  experienceId?: string;             // Linked reservation/experience ID
+}
+```
+
+**Validation Schema (Zod):**
+```typescript
+const momentPublishSchema = z.object({
+  description: z.string().min(1, 'La descripción es requerida'),
+  locations: z.array(z.custom<LocationInput>()).max(5, 'Máximo 5 ubicaciones'),
+  tags: z.array(z.string()).max(10, 'Máximo 10 etiquetas'),
+  taggedFriends: z.array(z.string()),
+  experienceId: z.string().optional()
+});
+```
+
+**Publishing Flow:**
+```typescript
+const handlePublish = async (data: MomentPublishFormData) => {
+  setIsPublishing(true);
+
+  try {
+    // Build FormData for Server Action
+    const formData = new FormData();
+    formData.append('description', data.description);
+    formData.append('existingMediaUrls', initialMediaUrl);
+    formData.append('resourceType', mediaType);
+
+    // Append locations
+    data.locations.forEach((location, index) => {
+      formData.append(`destination[${index}][place]`, location.place || '');
+      formData.append(`destination[${index}][placeSub]`, location.placeSub || '');
+      if (location.coordinates) {
+        formData.append(`destination[${index}][coordinates][latitude]`,
+          location.coordinates.latitude?.toString() || '');
+        formData.append(`destination[${index}][coordinates][longitude]`,
+          location.coordinates.longitude?.toString() || '');
+      }
+    });
+
+    // Append tags (preferences)
+    data.tags.forEach(tag => formData.append('preferences', tag));
+
+    // Append tagged friends (futureproof - backend doesn't support yet)
+    data.taggedFriends.forEach(friendId => formData.append('taggedUserIds', friendId));
+
+    // Append experience link
+    if (data.experienceId) {
+      formData.append('experienceLink', data.experienceId);
+    }
+
+    // Call Server Action
+    const result = await createMomentAction(formData);
+
+    if (result.success) {
+      setShowSuccessMessage(true);
+      setTimeout(() => onPublishSuccess(), 2000);
+    } else {
+      setError(result.error || 'Error al publicar momento');
+    }
+  } catch (error) {
+    console.error('[MomentPublishScreen] Error:', error);
+    setError(error instanceof Error ? error.message : 'Error desconocido');
+  } finally {
+    setIsPublishing(false);
+  }
+};
+```
+
+##### 2. FriendsTagging - Friend Selector Component
+
+**File:** `src/components/moments/publish/FriendsTagging.tsx` (268 lines)
+
+**Purpose:** Multi-select friend tagging interface with GraphQL integration.
+
+**GraphQL Integration:**
+```typescript
+import { generateClient } from 'aws-amplify/data';
+import { getMyConnections } from '@/graphql/operations';
+
+const client = generateClient();
+
+const loadFriends = async () => {
+  try {
+    const { data, errors } = await client.graphql({
+      query: getMyConnections,
+      variables: {
+        limit: 100,
+        status: 'ACCEPTED'
+      }
+    });
+
+    if (errors) {
+      console.error('[FriendsTagging] Error:', errors);
+      setError(errors[0]?.message || 'Error al cargar amigos');
+      return;
+    }
+
+    const friendsData = data?.getMyConnections?.items?.map(friendship => ({
+      sub: friendship.friend?.sub || '',
+      username: friendship.friend?.username,
+      name: friendship.friend?.name,
+      avatar_url: friendship.friend?.avatar_url
+    })) || [];
+
+    setFriends(friendsData);
+  } catch (error) {
+    console.error('[FriendsTagging] Error:', error);
+  }
+};
+```
+
+**Features:**
+- ✅ **Search**: Filter friends by name or username
+- ✅ **Multi-select**: Select multiple friends with visual chips
+- ✅ **Avatar Display**: Shows friend avatars with fallback initials
+- ✅ **Real-time Updates**: Syncs with form state via react-hook-form
+- ✅ **Responsive**: Grid layout adapts to screen size
+
+##### 3. ExperienceSelector - Reservation Linking
+
+**File:** `src/components/moments/publish/ExperienceSelector.tsx` (252 lines)
+
+**Purpose:** Links moments to user's reservations/experiences.
+
+**GraphQL Integration:**
+```typescript
+import { generateClient } from 'aws-amplify/data';
+import { getReservationsBySUB } from '@/graphql/operations';
+
+const client = generateClient();
+
+const loadReservations = async () => {
+  try {
+    const { data, errors } = await client.graphql({
+      query: getReservationsBySUB
+    });
+
+    if (errors) {
+      console.error('[ExperienceSelector] Error:', errors);
+      setError(errors[0]?.message || 'Error al cargar experiencias');
+      return;
+    }
+
+    if (data?.getReservationsBySUB) {
+      const validReservations = data.getReservationsBySUB.filter(r =>
+        r.id && r.experience_id && r.reservationDate
+      );
+      setReservations(validReservations);
+    }
+  } catch (error) {
+    console.error('[ExperienceSelector] Error:', error);
+  }
+};
+```
+
+**Features:**
+- ✅ **Reservation Cards**: Displays user's past/upcoming reservations
+- ✅ **Experience Details**: Shows experience name, date, price, type
+- ✅ **Single Selection**: Radio-button style selection
+- ✅ **Optional Linking**: Not required, user can skip
+- ✅ **Deselection**: Can unselect to unlink
+
+#### GraphQL Operations
+
+**Available Queries & Mutations:**
+
+| Operation | Type | Purpose | Variables | Pagination |
+|-----------|------|---------|-----------|------------|
+| `createMoment` | Mutation | Create new moment | `CreateMomentInput` | N/A |
+| `getMyConnections` | Query | Get user's friendships | `limit`, `status`, `nextToken` | ✅ Yes |
+| `getReservationsBySUB` | Query | Get user's reservations | None (uses auth context) | ❌ No |
+
+**GraphQL Schema Details:**
+
+**CreateMomentInput:**
+```graphql
+input CreateMomentInput {
+  audioUrl: String
+  description: String
+  destination: [LocationInput]
+  experienceLink: String
+  preferences: [String]
+  resourceType: String
+  resourceUrl: [String]
+  tags: [String]
+  # ⚠️ Missing: taggedUserIds: [ID] - Backend limitation (futureproofed in frontend)
+}
+```
+
+**LocationInput:**
+```graphql
+input LocationInput {
+  place: String
+  placeSub: String
+  coordinates: PointInput
+}
+
+input PointInput {
+  latitude: Float
+  longitude: Float
+}
+```
+
+**Friendship (from getMyConnections):**
+```graphql
+type Friendship {
+  id: ID!
+  status: FriendshipStatus!
+  friend: User
+  createdAt: AWSDateTime
+  updatedAt: AWSDateTime
+}
+
+type FriendshipConnection {
+  items: [Friendship]
+  nextToken: String
+}
+```
+
+**Reservation (from getReservationsBySUB):**
+```graphql
+type Reservation {
+  id: ID!
+  experience_id: ID!
+  experience_type: String
+  reservationDate: AWSDateTime!
+  adults: Int
+  total_price: Float
+  type: PaymentType
+}
+```
+
+#### Server Actions
+
+**Primary Server Action:** `src/lib/server/moments-actions.ts`
+
+**createMomentAction:**
+```typescript
+'use server';
+
+export async function createMomentAction(formData: FormData): Promise<ActionResult> {
+  try {
+    // 1. Validate authentication
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return { success: false, error: 'Not authenticated' };
+    }
+
+    // 2. Parse FormData
+    const description = formData.get('description') as string;
+    const resourceType = formData.get('resourceType') as string;
+    const existingMediaUrls = formData.getAll('existingMediaUrls').map(url => String(url));
+
+    // Parse locations (destination)
+    const destinations: Location[] = [];
+    let index = 0;
+    while (formData.has(`destination[${index}][place]`)) {
+      const place = formData.get(`destination[${index}][place]`) as string;
+      const placeSub = formData.get(`destination[${index}][placeSub]`) as string;
+      const latitude = formData.get(`destination[${index}][coordinates][latitude]`);
+      const longitude = formData.get(`destination[${index}][coordinates][longitude]`);
+
+      destinations.push({
+        place: place || undefined,
+        placeSub: placeSub || undefined,
+        coordinates: (latitude && longitude) ? {
+          latitude: parseFloat(latitude as string),
+          longitude: parseFloat(longitude as string)
+        } : undefined
+      });
+
+      index++;
+    }
+
+    // Parse tags and preferences
+    const preferences = formData.getAll('preferences').map(p => String(p));
+    const tags = formData.getAll('tags').map(t => String(t));
+
+    // Parse experience link
+    const experienceLink = formData.get('experienceLink') as string | null;
+
+    // Parse tagged user IDs (futureproof - backend doesn't support yet)
+    const taggedUserIds = formData.getAll('taggedUserIds').map(id => String(id));
+
+    // 3. Build GraphQL input
+    const input: CreateMomentInput = {
+      description,
+      resourceType,
+      resourceUrl: existingMediaUrls.length > 0 ? existingMediaUrls : undefined,
+      destination: destinations.length > 0 ? destinations : undefined,
+      preferences: preferences.filter(p => p.trim()),
+      tags: tags.filter(t => t.trim()),
+      experienceLink: experienceLink || undefined,
+      // Futureproof - send even though backend doesn't support
+      ...(taggedUserIds.length > 0 && {
+        taggedUserIds: taggedUserIds as any
+      })
+    };
+
+    // 4. Execute GraphQL mutation
+    const client = await getGraphQLClientWithIdToken();
+    const result = await client.graphql({
+      query: createMoment,
+      variables: { input }
+    });
+
+    // 5. Handle response
+    if (result.errors && result.errors.length > 0) {
+      return {
+        success: false,
+        error: result.errors[0].message
+      };
+    }
+
+    return {
+      success: true,
+      data: result.data?.createMoment
+    };
+
+  } catch (error) {
+    console.error('[createMomentAction] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    };
+  }
+}
+```
+
+#### Known Backend Limitations
+
+**Current Limitations (as of 2025-10-31):**
+
+1. **Tagged Friends Not Supported**:
+   - `CreateMomentInput` schema lacks `taggedUserIds` field
+   - **Workaround**: Frontend sends data anyway (futureproofing)
+   - **When Fixed**: Feature activates automatically (no frontend changes needed)
+
+2. **Pagination Missing in getReservationsBySUB**:
+   - Query doesn't accept `limit` or `nextToken` parameters
+   - **Impact**: Returns all reservations at once
+   - **Risk**: Performance issues if user has many reservations
+   - **Workaround**: Frontend handles large lists with virtual scrolling
+
+3. **No Moment Visibility Control**:
+   - Cannot specify public/friends-only/private visibility
+   - **Current Behavior**: All moments are public
+   - **Future Enhancement**: Add `visibility` field to CreateMomentInput
+
+**Recommended Backend Improvements:**
+```graphql
+# Suggested schema updates
+input CreateMomentInput {
+  # ... existing fields ...
+  taggedUserIds: [ID]           # ⭐ Add tagged friends support
+  visibility: MomentVisibility  # ⭐ Add visibility control
+}
+
+enum MomentVisibility {
+  PUBLIC
+  FRIENDS_ONLY
+  PRIVATE
+}
+
+# Update getReservationsBySUB for pagination
+type Query {
+  getReservationsBySUB(
+    limit: Int
+    nextToken: String
+  ): ReservationConnection  # ⭐ Return connection type instead of array
+}
+
+type ReservationConnection {
+  items: [Reservation]
+  nextToken: String
+}
+```
+
+#### Component File Structure
+
+```
+src/components/cesdk/
+├── CESDKEditorWrapper.tsx         # Main CE.SDK integration (333 lines)
+├── BrandedFiltersPanel.tsx        # Filter presets and adjustments (551 lines)
+└── AssetLibraryYAAN.tsx           # Travel stickers and fonts (621 lines)
+
+src/components/moments/publish/
+├── MomentPublishScreen.tsx        # Main publishing orchestrator (362 lines)
+├── FriendsTagging.tsx             # Friend selector component (268 lines)
+└── ExperienceSelector.tsx         # Reservation linking component (252 lines)
+
+src/config/cesdk/
+└── ThemeConfigYAAN.ts             # YAAN brand theme configuration (291 lines)
+
+src/lib/server/
+└── moments-actions.ts             # Server Actions for moments (existing)
+
+src/graphql/operations.ts          # GraphQL operations export (631 lines, 63 operations)
+```
+
+#### Integration Pattern
+
+**Complete flow from editing to publishing:**
+
+```typescript
+// 1. User navigates to create moment
+<MomentCreationFlow />
+
+// 2. CE.SDK Editor opens
+<CESDKEditorWrapper
+  initialMediaUrl="s3://bucket/photo.jpg"
+  mediaType="image"
+  onExport={async (blob, metadata) => {
+    // 3. Upload edited media to S3
+    const uploadedUrl = await uploadToS3(blob);
+
+    // 4. Open publishing screen
+    setEditedMediaUrl(uploadedUrl);
+    setShowPublishScreen(true);
+  }}
+  onClose={() => router.back()}
+/>
+
+// 5. Publishing screen
+{showPublishScreen && (
+  <MomentPublishScreen
+    initialMediaUrl={editedMediaUrl}
+    mediaType="image"
+    onPublishSuccess={() => {
+      router.push('/moments/feed');
+    }}
+    onBack={() => setShowPublishScreen(false)}
+  />
+)}
+```
+
+#### Quick Start Guide
+
+**Creating a New Moment:**
+
+1. **Prerequisites**:
+   - CE.SDK license key configured in `.env.local`
+   - User authenticated with valid Cognito session
+   - S3 bucket configured for media uploads
+
+2. **Environment Setup**:
+```env
+NEXT_PUBLIC_CESDK_LICENSE_KEY=your-license-key
+NEXT_PUBLIC_CESDK_BASE_URL=https://cdn.img.ly/packages/imgly/cesdk-js/latest/assets
+```
+
+3. **Basic Implementation**:
+```typescript
+import { CESDKEditorWrapper } from '@/components/cesdk/CESDKEditorWrapper';
+import { MomentPublishScreen } from '@/components/moments/publish/MomentPublishScreen';
+
+export default function CreateMomentPage() {
+  const [editedMediaUrl, setEditedMediaUrl] = useState<string | null>(null);
+
+  if (!editedMediaUrl) {
+    return (
+      <CESDKEditorWrapper
+        mediaType="image"
+        onExport={async (blob, metadata) => {
+          const url = await uploadToS3(blob);
+          setEditedMediaUrl(url);
+        }}
+        onClose={() => router.back()}
+      />
+    );
+  }
+
+  return (
+    <MomentPublishScreen
+      initialMediaUrl={editedMediaUrl}
+      mediaType="image"
+      onPublishSuccess={() => router.push('/moments/feed')}
+      onBack={() => setEditedMediaUrl(null)}
+    />
+  );
+}
+```
+
+4. **Testing**:
+```bash
+# Run development server
+yarn dev
+
+# Navigate to moments creation
+http://localhost:3000/moments/create
+
+# Check console for CE.SDK initialization
+# Expected: "✅ CE.SDK initialized successfully"
+# Expected: "✅ Tema YAAN aplicado exitosamente"
+```
+
+#### Troubleshooting
+
+**Common Issues:**
+
+**1. CE.SDK Not Loading**:
+- **Symptom**: Blank screen or loading forever
+- **Check**: License key in `.env.local`
+- **Fix**: Verify `NEXT_PUBLIC_CESDK_LICENSE_KEY` is set correctly
+
+**2. Watermark on Exports**:
+- **Symptom**: "CE.SDK Trial" watermark on exported images
+- **Cause**: Invalid or missing license key
+- **Fix**: Obtain valid license from IMG.LY
+
+**3. Theme Colors Not Applied**:
+- **Symptom**: Default blue theme instead of pink-purple gradient
+- **Check**: Console logs for theme application
+- **Fix**: Verify `applyYaanTheme()` is called after CE.SDK initialization
+
+**4. GraphQL Errors on Publish**:
+- **Symptom**: "Error al publicar momento"
+- **Check**: Console for GraphQL error details
+- **Common Causes**:
+  - Invalid location coordinates (must be valid lat/lng)
+  - Missing required fields (description, resourceUrl)
+  - Network/authentication issues
+- **Fix**: Validate input data, check user session
+
+**5. Tagged Friends Not Showing**:
+- **Symptom**: Friend list empty in FriendsTagging component
+- **Check**: GraphQL query response in console
+- **Common Causes**:
+  - No accepted friendships exist
+  - GraphQL query error
+  - Pagination limit too low
+- **Fix**: Verify `getMyConnections` query with status='ACCEPTED'
+
+---
 
 ### AWS Services Integration
 
@@ -2607,6 +4135,317 @@ curl -I https://www.yaan.com.mx | head -1
 ~/bin/copilot svc logs --name nextjs-dev --env dev --follow
 ```
 
+### Docker Configuration
+
+**Production Dockerfile Architecture (Next.js 16.0.2 Official Pattern)**
+
+El proyecto utiliza un Dockerfile multi-stage optimizado que sigue las mejores prácticas oficiales de Next.js 16.0.2:
+
+**File:** `Dockerfile` (403 líneas con documentación exhaustiva inline)
+
+**Arquitectura Multi-Stage:**
+
+```
+FROM node:20-alpine AS base      # Stage 0: System dependencies
+    ↓
+FROM base AS deps                # Stage 1: Production dependencies only
+    ↓
+FROM base AS builder             # Stage 2: Build Next.js app
+    ↓
+FROM base AS runner              # Stage 3: Minimal production runtime
+```
+
+**Características Clave:**
+
+1. **Auto-detección de Package Manager**
+   - Detecta `yarn.lock`, `package-lock.json`, o `pnpm-lock.yaml`
+   - Usa el package manager correcto automáticamente
+   - Este proyecto: `yarn` (consistente con yarn.lock)
+
+2. **Standalone Output Mode**
+   - `next.config.mjs`: `output: 'standalone'`
+   - Genera `.next/standalone/` con servidor self-contained
+   - Reduce tamaño de imagen (no necesita copiar todo `node_modules/`)
+   - Incluye solo dependencias de runtime necesarias
+
+3. **Sharp para Image Optimization**
+   - Instalado en `package.json` dependencies (v0.34.5)
+   - Compilado para Alpine Linux durante build
+   - CRÍTICO para `next/image` en producción
+   - Si falta, Image Optimization API fallará
+
+4. **Amplify v6 Gen 2 Configuration**
+   - Copia explícita de `amplify/outputs.json` (NO variables de entorno)
+   - Verificación en build-time (falla si no existe)
+   - Copiado a runtime image (requerido para autenticación)
+
+5. **Deep Linking Files**
+   - `public/.well-known/assetlinks.json` (Android App Links)
+   - `public/.well-known/apple-app-site-association` (iOS Universal Links)
+   - Verificación con warnings si no existen
+   - Copiados automáticamente con `public/`
+
+6. **Build Verification (Fail Fast)**
+   - Verifica que `.next/standalone/` existe
+   - Verifica que `.next/static/` existe
+   - Build falla inmediatamente si algo está mal
+   - Previene imágenes rotas en producción
+
+7. **Security Best Practices**
+   - Usuario no-root (`nextjs:nodejs`, uid 1001)
+   - Filesystem read-only en runtime
+   - No expone credenciales en build args
+   - Healthcheck opcional (comentado)
+
+**Tamaño de Imagen:**
+
+| Stage | Propósito | Descartado Después |
+|-------|-----------|-------------------|
+| base | System dependencies | ❌ Reutilizado |
+| deps | Production node_modules | ✅ Solo copiado a builder |
+| builder | Build artifacts | ✅ Solo se copian .next/standalone y .next/static |
+| runner | **Imagen final** | ✅ **333MB** (verificado 2025-01-17) |
+
+**Comparación con Dockerfile.dev:**
+
+| Aspecto | Dockerfile (Producción) | Dockerfile.dev (Desarrollo) |
+|---------|------------------------|----------------------------|
+| **Comando** | `node server.js` | `yarn dev --webpack` |
+| **Tamaño** | **333MB** ✅ | 2.83GB |
+| **Reducción** | **-88%** 🎉 | Baseline |
+| **Startup** | **34ms** ⚡ | ~2-3s |
+| **Optimización** | Multi-stage, standalone | Single-stage, full node_modules |
+| **Sharp** | ✅ Incluido y compilado | ⚠️ No compilado para Alpine |
+| **Build** | `yarn build --webpack` (17.7s) | No build (usa `yarn dev`) |
+| **Routes** | 42 rutas (Dynamic) | N/A |
+| **Hot Reload** | ❌ No | ✅ Sí |
+| **Uso** | **LISTO para AWS ECS** ✅ | Testing local solamente |
+
+**Production Copilot Configuration:**
+
+**Current Status (2025-01-17):** ✅ **DEPLOYED TO AWS ECS**
+
+`copilot/nextjs-dev/manifest.yml` is correctly configured for production:
+
+```yaml
+# ✅ CORRECTO (Actualmente en producción)
+image:
+  build: Dockerfile  # Multi-stage production image
+  port: 3000
+```
+
+**Production Deployment Details:**
+- **Task Definition**: 49 (currently running)
+- **Service Status**: ACTIVE (1 task HEALTHY)
+- **Image Size**: 333MB (verified in ECR)
+- **Startup Time**: 34ms cold start
+- **Endpoints**:
+  - ✅ https://yaan.com.mx
+  - ✅ https://www.yaan.com.mx
+  - ✅ https://yaan.com.mx/api/health
+
+**Testing Local (Historical Reference):**
+
+```bash
+# Build (VERIFICADO 2025-01-17)
+docker build -t yaan-web:test .
+
+# ✅ Output real:
+# - "🔍 Detected yarn.lock - will use yarn"
+# - "📦 Installing dependencies with yarn..."
+# - "🔨 Building with yarn build..."
+# - "✅ amplify/outputs.json found"
+# - "✅ .next/standalone/ created successfully"
+# - "✓ Compiled successfully in 17.7s"
+# - "✓ Generating static pages (10/10) in 571.1ms"
+# - Build completed in 39.44s
+
+# Run
+docker run -d -p 3000:3000 --name yaan-web-test yaan-web:test
+
+# ✅ Verificado - Startup logs:
+# ▲ Next.js 16.0.2
+#    - Local:        http://localhost:3000
+# ✓ Ready in 34ms
+
+# Verify size (REAL)
+docker images yaan-web:test
+# REPOSITORY    TAG       SIZE
+# yaan-web      test      333MB  ← 88% reducción vs 2.83GB
+
+# Test endpoints
+curl http://localhost:3000/api/health  # ✅ 200 OK
+curl http://localhost:3000/            # ✅ 200 OK
+
+# Cleanup
+docker stop yaan-web-test && docker rm yaan-web-test
+```
+
+**Troubleshooting:**
+
+1. **Error: "amplify/outputs.json not found"**
+   - Run: `npx ampx generate outputs --out-dir amplify`
+   - Ensure `amplify/outputs.json` está en el proyecto
+
+2. **Error: ".next/standalone/ not found"**
+   - Verificar `next.config.mjs` tiene `output: 'standalone'`
+   - Ejecutar `yarn build` localmente para verificar
+
+3. **Image size > 500MB:**
+   - Verificar `.dockerignore` excluye `.next/`, `node_modules/`, `.git/`
+   - Verificar que deps stage usa `--production`
+   - Verificar que solo `.next/standalone/` y `.next/static/` se copian al runner
+
+4. **next/image fails in production:**
+   - Verificar que sharp está en `package.json` dependencies
+   - Ejecutar: `docker exec <container> ls node_modules/sharp`
+   - Si falta: revisar logs del build stage
+
+**Build Args (No Usados):**
+
+Este Dockerfile NO usa build args para configuración (patrón incorrecto con Amplify Gen 2):
+
+```dockerfile
+# ❌ ANTI-PATTERN (NO USAR con Amplify Gen 2)
+ARG NEXT_PUBLIC_USER_POOL_ID
+ENV NEXT_PUBLIC_USER_POOL_ID=$NEXT_PUBLIC_USER_POOL_ID
+
+# ✅ CORRECTO (Amplify Gen 2)
+COPY amplify/outputs.json amplify/
+# Configuration loaded at runtime from outputs.json
+```
+
+**Deployment Integration:**
+
+El script `./deploy-safe.sh` usa este Dockerfile automáticamente:
+
+```bash
+#!/bin/bash
+# deploy-safe.sh
+
+# 1. Verifica CloudWatch log groups
+# 2. Ejecuta: copilot svc deploy --name nextjs-dev --env dev
+#    - Copilot lee copilot/nextjs-dev/manifest.yml
+#    - Busca Dockerfile según manifest.yml (actualmente Dockerfile.dev)
+#    - Ejecuta docker build
+#    - Pushea imagen a ECR
+#    - Actualiza ECS service
+# 3. Aplica post-deploy fixes (SSL, DNS)
+```
+
+**Migration Status:**
+
+- ✅ Dockerfile refactorizado según Next.js 16.0.2 oficial
+- ✅ Sharp agregado a package.json (v0.34.5)
+- ✅ .dockerignore optimizado
+- ✅ Documentación actualizada
+- ✅ **Testing local EXITOSO** (2025-01-17)
+  - Build time: ~8 min (primer build, cacheable)
+  - Image size: **333MB** (reducción del 88% vs 2.83GB)
+  - Startup time: **34ms** (mejora del 98%)
+  - Endpoints: ✅ `/api/health` 200 OK, ✅ `/` 200 OK
+  - 42 rutas compiladas correctamente (todas Dynamic)
+- ✅ **copilot/nextjs-dev/manifest.yml actualizado** (usando `dockerfile: Dockerfile`)
+- ✅ **AWS ECS Deployment EXITOSO** (2025-01-17)
+  - Task Definition: 49 (actualmente ejecutando)
+  - Service Status: ACTIVE (1 task HEALTHY)
+  - SSM Secrets Manager configurado: `CESDK_LICENSE_KEY`
+  - IAM Execution Role actualizado con permisos SSM
+  - Endpoints verificados: ✅ https://yaan.com.mx, ✅ https://www.yaan.com.mx
+
+**AWS SSM Secrets Manager Integration:**
+
+El proyecto utiliza AWS Systems Manager Parameter Store para almacenar secretos de forma segura como SecureString.
+
+**SSM Parameters Configurados** (desde `copilot/nextjs-dev/manifest.yml`):
+
+```yaml
+secrets:
+  # Secret para cifrado AES-256-GCM de URLs de booking (FASE 1)
+  URL_ENCRYPTION_SECRET: /copilot/yaan-dev/dev/secrets/URL_ENCRYPTION_SECRET
+
+  # Secret para verificar HMAC SHA-256 de webhooks MIT (FASE 6)
+  MIT_WEBHOOK_SECRET: /copilot/yaan-dev/dev/secrets/MIT_WEBHOOK_SECRET
+
+  # API Key para MIT Payment Gateway (FASE 6)
+  MIT_API_KEY: /copilot/yaan-dev/dev/secrets/MIT_API_KEY
+
+  # CE.SDK License Key para IMG.LY Creative Editor (YAAN Moments)
+  NEXT_PUBLIC_CESDK_LICENSE_KEY: /copilot/yaan-dev/dev/secrets/CESDK_LICENSE_KEY
+```
+
+**IAM Execution Role Configuration:**
+
+El ECS Execution Role (`yaan-dev-dev-nextjs-dev-ExecutionRole-LrOIDMiZOU0Q`) tiene una política inline `AllowReadCESDKSecret` que otorga permisos para leer los secretos:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "ssm:GetParameters",
+        "ssm:GetParameter"
+      ],
+      "Resource": [
+        "arn:aws:ssm:us-west-2:288761749126:parameter/copilot/yaan-dev/dev/secrets/*"
+      ]
+    }
+  ]
+}
+```
+
+**Crear Nuevo Secret (Ejemplo):**
+
+```bash
+# Crear SSM parameter
+aws ssm put-parameter \
+  --name "/copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME" \
+  --value "secret-value-here" \
+  --type "SecureString" \
+  --description "Description of the secret"
+
+# Verificar creación
+aws ssm get-parameter \
+  --name "/copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME" \
+  --with-decryption
+```
+
+**Agregar Secret al Manifest:**
+
+1. Editar `copilot/nextjs-dev/manifest.yml`
+2. Agregar bajo la sección `secrets:`:
+   ```yaml
+   NEW_ENV_VAR_NAME: /copilot/yaan-dev/dev/secrets/NEW_SECRET_NAME
+   ```
+3. Deploy con `./deploy-safe.sh`
+
+**Troubleshooting:**
+
+Si el deployment falla con `ResourceInitializationError: unable to retrieve secrets from ssm`:
+
+1. Verificar que el SSM parameter existe:
+   ```bash
+   aws ssm get-parameter --name "/copilot/yaan-dev/dev/secrets/SECRET_NAME"
+   ```
+
+2. Verificar permisos del Execution Role:
+   ```bash
+   aws iam get-role-policy \
+     --role-name yaan-dev-dev-nextjs-dev-ExecutionRole-LrOIDMiZOU0Q \
+     --policy-name AllowReadCESDKSecret
+   ```
+
+3. Si falta el permiso, actualizar la política inline para incluir el nuevo ARN del secret.
+
+**References:**
+
+- Official Next.js Docker docs: https://nextjs.org/docs/app/building-your-application/deploying/production-checklist#docker-image
+- Dockerfile location: `Dockerfile` (403 líneas)
+- Development Dockerfile: `Dockerfile.dev` (70 líneas)
+- Dockerignore: `.dockerignore` (127 líneas)
+
 ## Common Pitfalls
 
 1. **Cookie Storage Architecture (CRITICAL)**:
@@ -3048,6 +4887,15 @@ curl -I https://www.yaan.com.mx | head -1
   - `src/components/ui/CarouselDots.tsx` - Carousel navigation dots
   - `src/components/ui/S3GalleryImage.tsx` - S3 image display component for galleries
   - `src/hooks/useS3Image.ts` - S3 image loading hook
+- **Product Detail Display System** (Dual architecture: Modal + Page):
+  - `src/components/marketplace/ProductDetailModal.tsx` - Quick preview modal overlay (vista rápida)
+  - `src/app/marketplace/booking/[productId]/page.tsx` - Full detail page server component
+  - `src/app/marketplace/booking/[productId]/product-detail-client.tsx` - Full detail page client component
+  - `src/app/marketplace/marketplace-client.tsx` - Marketplace with modal integration
+  - `src/components/marketplace/ItineraryCard.tsx` - Day-by-day timeline component
+  - `src/components/booking/SeasonCard.tsx` - Season and pricing cards
+  - `src/components/marketplace/maps/HybridProductMap.tsx` - Route visualization
+  - `src/components/marketplace/ProductReviews.tsx` - Customer testimonials (modal only)
 - **GraphQL**: `src/graphql/`, `src/lib/graphql/`, `src/generated/`
 - **Server Actions**: `src/lib/server/`
 - **Components**: `src/components/`

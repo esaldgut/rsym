@@ -1,7 +1,8 @@
 'use server';
 
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
-import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { createProductOfTypeCircuit, createProductOfTypePackage, updateProduct, deleteProduct } from '@/graphql/operations';
 import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
 import { getGraphQLClientWithIdToken, debugIdTokenClaims } from './amplify-graphql-client';
 import type { Schema } from '@/amplify/data/resource';
@@ -12,33 +13,18 @@ import type {
   UpdateProductInput
 } from '@/generated/graphql';
 
-// COPIANDO EXACTAMENTE EL PATTERN DE package-actions.ts QUE FUNCIONA
-// EXTENDED: Soporte para errores parciales de GraphQL
-interface ServerActionResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  validationErrors?: Record<string, string>;
-  // Warnings para errores parciales de GraphQL (data exists pero con errores)
-  warnings?: Array<{
-    message: string;
-    path?: readonly (string | number)[];
-    extensions?: Record<string, unknown>;
-  }>;
-  hasPartialData?: boolean;
-}
-
-interface CreateProductResult {
-  success: boolean;
-  productId?: string;
-  productName?: string;
-  error?: string;
-}
+// ✅ Importar tipos Result desde archivo centralizado
+import type {
+  CreateProductResult,
+  UpdateProductResultData,
+  DeleteProductResult
+} from '@/types/server-actions';
 
 /**
  * Server Action para crear un producto de tipo Circuit
  * COPIANDO EXACTAMENTE EL PATRÓN DE createPackageAction QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
 export async function createCircuitProductAction(name: string): Promise<CreateProductResult> {
   try {
@@ -104,8 +90,10 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
         console.log('✅ [Server Action] Circuito creado con warnings:', newProduct.id);
         return {
           success: true,
-          productId: newProduct.id,
-          productName: newProduct.name
+          data: {
+            productId: newProduct.id,
+            productName: newProduct.name
+          }
         };
       }
 
@@ -122,8 +110,10 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
       console.log('✅ [Server Action] Circuito creado:', newProduct.id);
       return {
         success: true,
-        productId: newProduct.id,
-        productName: newProduct.name
+        data: {
+          productId: newProduct.id,
+          productName: newProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió ID del producto');
@@ -145,6 +135,8 @@ export async function createCircuitProductAction(name: string): Promise<CreatePr
 /**
  * Server Action para crear un producto de tipo Package
  * COPIANDO EXACTAMENTE EL PATRÓN DE createPackageAction QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
 export async function createPackageProductAction(name: string): Promise<CreateProductResult> {
   try {
@@ -210,8 +202,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
         console.log('✅ [Server Action] Paquete creado con warnings:', newProduct.id);
         return {
           success: true,
-          productId: newProduct.id,
-          productName: newProduct.name
+          data: {
+            productId: newProduct.id,
+            productName: newProduct.name
+          }
         };
       }
 
@@ -228,8 +222,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
       console.log('✅ [Server Action] Paquete creado:', newProduct.id);
       return {
         success: true,
-        productId: newProduct.id,
-        productName: newProduct.name
+        data: {
+          productId: newProduct.id,
+          productName: newProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió ID del producto');
@@ -251,8 +247,10 @@ export async function createPackageProductAction(name: string): Promise<CreatePr
 /**
  * Server Action para actualizar un producto existente
  * COPIANDO EXACTAMENTE EL PATRÓN QUE FUNCIONA
+ *
+ * ✅ Migrado a Result Type pattern
  */
-export async function updateProductAction(productId: string, updateData: Record<string, unknown>): Promise<CreateProductResult> {
+export async function updateProductAction(productId: string, updateData: Record<string, unknown>): Promise<UpdateProductResultData> {
   try {
     // 1. Validar autenticación
     const user = await getAuthenticatedUser();
@@ -570,8 +568,10 @@ export async function updateProductAction(productId: string, updateData: Record<
         console.log('✅ [Server Action] Producto actualizado con warnings:', updatedProduct.id);
         return {
           success: true,
-          productId: updatedProduct.id,
-          productName: updatedProduct.name
+          data: {
+            productId: updatedProduct.id,
+            productName: updatedProduct.name
+          }
         };
       }
 
@@ -588,8 +588,10 @@ export async function updateProductAction(productId: string, updateData: Record<
       console.log('✅ [Server Action] Producto actualizado:', updatedProduct.id);
       return {
         success: true,
-        productId: updatedProduct.id,
-        productName: updatedProduct.name
+        data: {
+          productId: updatedProduct.id,
+          productName: updatedProduct.name
+        }
       };
     } else {
       console.error('❌ [Server Action] No se recibió confirmación del update');
@@ -601,6 +603,104 @@ export async function updateProductAction(productId: string, updateData: Record<
 
   } catch (error: unknown) {
     console.error('❌ [Server Action] Error actualizando producto:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Error interno del servidor'
+    };
+  }
+}
+
+/**
+ * Server Action para eliminar (soft-delete) un producto
+ * ADDED 2025-10-31: Enables product deletion from provider dashboard
+ *
+ * ✅ Migrado a Result Type pattern
+ */
+export async function deleteProductAction(productId: string): Promise<DeleteProductResult> {
+  try {
+    console.log('🗑️ [Server Action] Iniciando eliminación de producto:', productId);
+
+    // 1. Validar autenticación
+    const user = await getAuthenticatedUser();
+    if (!user) {
+      return {
+        success: false,
+        error: 'No se pudo obtener información del usuario'
+      };
+    }
+
+    console.log('✅ [Server Action] Usuario autenticado:', {
+      userId: user.userId,
+      email: user.email,
+      userType: user.userType
+    });
+
+    // 2. Validar que es un provider
+    if (user.userType !== 'provider') {
+      return {
+        success: false,
+        error: 'Solo los providers pueden eliminar productos'
+      };
+    }
+
+    // 3. Validar que el provider está aprobado
+    if (!user.isFullyApprovedProvider) {
+      return {
+        success: false,
+        error: 'Tu cuenta de provider debe estar aprobada para eliminar productos'
+      };
+    }
+
+    console.log('🔑 [Server Action] Obteniendo cliente GraphQL con ID token...');
+    const client = await getGraphQLClientWithIdToken();
+
+    // 4. Ejecutar mutación deleteProduct
+    console.log('🔄 [Server Action] Ejecutando mutación deleteProduct...');
+    const result = await client.graphql({
+      query: deleteProduct,
+      variables: { id: productId }
+    });
+
+    console.log('✅ [Server Action] Resultado de deleteProduct:', result);
+
+    // 5. Manejar errores parciales de GraphQL
+    if (result.errors && result.errors.length > 0) {
+      console.error('❌ [Server Action] GraphQL devolvió errores:', result.errors);
+
+      // Verificar si hay data a pesar de los errores (error parcial)
+      if (result.data?.deleteProduct) {
+        console.log('⚠️ [Server Action] Eliminación exitosa CON warnings');
+        return {
+          success: true,
+          data: result.data.deleteProduct // ID del producto eliminado
+        };
+      }
+
+      // Error completo sin data
+      return {
+        success: false,
+        error: result.errors[0].message
+      };
+    }
+
+    // 6. Verificar que la eliminación fue exitosa
+    if (result.data?.deleteProduct) {
+      console.log('✅ [Server Action] Producto eliminado exitosamente');
+      return {
+        success: true,
+        data: result.data.deleteProduct, // ID del producto eliminado
+        message: 'Producto eliminado exitosamente'
+      };
+    } else {
+      console.error('❌ [Server Action] No se recibió confirmación de la eliminación');
+      return {
+        success: false,
+        error: 'No se pudo confirmar la eliminación del producto'
+      };
+    }
+
+  } catch (error: unknown) {
+    console.error('❌ [Server Action] Error eliminando producto:', error);
     return {
       success: false,
       error: error instanceof Error ? error.message : 'Error interno del servidor'

@@ -148,7 +148,7 @@ export default function SecurityVerificationPage() {
   const checkSSRConfiguration = () => {
     // Verificar si Amplify está configurado con SSR
     try {
-      // @ts-ignore
+      // @ts-expect-error - Accessing internal Amplify config for SSR verification
       const amplifyConfig = window.Amplify?._config;
       const hasSSR = amplifyConfig?.ssr === true;
       

@@ -15,7 +15,7 @@
 
 import { useVideoAutoplay } from '@/hooks/useVideoAutoplay';
 import { toggleLikeAction, toggleSaveAction } from '@/lib/server/moments-actions';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useOptimistic, useState, useTransition, useMemo } from 'react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
 import { useStorageUrl } from '@/hooks/useStorageUrls';
@@ -24,6 +24,7 @@ export interface MomentData {
   id: string;
   description?: string | null;
   resourceUrl?: string[] | null;
+  resourceType?: string | null; // FIX: Agregar campo resourceType para detección correcta de video/imagen desde backend
   audioUrl?: string | null;
   tags?: string[] | null;
   preferences?: string[] | null;
@@ -104,9 +105,23 @@ export function MomentCard({
   // para mostrar el contador de guardados
 
   // ✅ Detectar si el momento tiene video
-  const hasVideo = moment.resourceUrl?.some(url =>
-    url.toLowerCase().match(/\.(mp4|webm|mov|ogg)$/i)
-  );
+  // FIX v2.8.0: Prioridad a resourceType + extensiones completas
+  // Prioridad 1: resourceType del backend (más confiable)
+  // Prioridad 2: Detección por extensión (fallback robusto con TODOS los formatos soportados)
+  const hasVideo = useMemo(() => {
+    // Prioridad 1: resourceType del backend (fuente de verdad)
+    if (moment.resourceType === 'video') {
+      return true;
+    }
+
+    // Prioridad 2: Detección por extensión (fallback robusto)
+    // Incluir TODOS los formatos soportados por el upload system
+    // mp4, webm, mov (QuickTime/iPhone), m4v (Apple), ogg, avi, mkv, mxf (profesional), mts/m2ts (MPEG-TS)
+    return moment.resourceUrl?.some(url => {
+      const urlLower = url.toLowerCase();
+      return urlLower.match(/\.(mp4|webm|mov|m4v|ogg|avi|mkv|mxf|mts|m2ts)(\?|$)/i);
+    }) || false;
+  }, [moment.resourceType, moment.resourceUrl]);
 
   const { videoRef, isPlaying, toggle, isMuted, unmute } = useVideoAutoplay({
     threshold: 0.7,
@@ -446,14 +461,18 @@ function MomentMedia({
   toggle,
   unmute
 }: MomentMediaProps) {
+  // ✅ CRITICAL: Todos los hooks PRIMERO, antes de conditional returns (React Hooks Rule #1)
+  // Usar hook para obtener URL firmada de S3
+  const { url, isLoading, error } = useStorageUrl(resourceUrl);
+
+  // ✅ Estado de error para videos (FIX v2.8.0 + v2.10.0 - movido antes de conditional returns)
+  const [videoError, setVideoError] = useState<string | null>(null);
+
   console.log('[MomentMedia] 📦 Props recibidas:', {
     resourceUrl,
     hasVideo,
     description: description?.substring(0, 50)
   });
-
-  // Usar hook para obtener URL firmada de S3
-  const { url, isLoading, error } = useStorageUrl(resourceUrl);
 
   console.log('[MomentMedia] 🔗 Estado de useStorageUrl:', {
     url: url?.substring(0, 100),
@@ -461,6 +480,7 @@ function MomentMedia({
     error: error?.message
   });
 
+  // ✅ Ahora sí podemos hacer early returns (después de TODOS los hooks)
   // Si está cargando, mostrar skeleton
   if (isLoading) {
     return (
@@ -491,6 +511,11 @@ function MomentMedia({
 
   // Renderizar video o imagen según el tipo
   if (hasVideo && videoRef) {
+    // Si hay error de video, mostrar fallback
+    if (videoError) {
+      return <VideoErrorFallback description={description} url={url!} error={videoError} />;
+    }
+
     return (
       <>
         <video
@@ -507,14 +532,22 @@ function MomentMedia({
           onLoadedData={() => console.log('[MomentMedia] ✅ Video data loaded')}
           onCanPlay={() => console.log('[MomentMedia] ✅ Video can play')}
           onError={(e) => {
+            const error = e.currentTarget.error;
+            const errorMessage = error
+              ? `${error.message} (código: ${error.code})`
+              : 'Error desconocido al reproducir video';
+
             console.error('[MomentMedia] ❌ Video error:', {
-              error: e.currentTarget.error,
-              code: e.currentTarget.error?.code,
-              message: e.currentTarget.error?.message,
+              error: error,
+              code: error?.code,
+              message: error?.message,
               src: url,
               networkState: e.currentTarget.networkState,
               readyState: e.currentTarget.readyState
             });
+
+            // Actualizar estado de error para mostrar fallback
+            setVideoError(errorMessage);
           }}
           onAbort={() => console.warn('[MomentMedia] ⚠️ Video abort:', url)}
           onStalled={() => console.warn('[MomentMedia] ⚠️ Video stalled:', url)}
@@ -581,6 +614,60 @@ function MomentMedia({
       className="w-full h-full object-cover"
       loading="lazy"
     />
+  );
+}
+
+// ✅ Componente de error fallback para videos
+// FIX v2.8.0: Proporciona UI clara cuando un video no puede reproducirse
+interface VideoErrorFallbackProps {
+  description: string;
+  url: string;
+  error?: string;
+}
+
+function VideoErrorFallback({ description, url, error }: VideoErrorFallbackProps) {
+  return (
+    <div className="w-full h-full bg-gradient-to-br from-gray-900 to-gray-800 flex flex-col items-center justify-center p-6 text-center">
+      <div className="max-w-md space-y-4">
+        {/* Icon */}
+        <div className="w-20 h-20 mx-auto bg-red-500/20 rounded-full flex items-center justify-center">
+          <svg className="w-10 h-10 text-red-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+            <line x1="4" y1="4" x2="20" y2="20" strokeLinecap="round" strokeWidth={2} />
+          </svg>
+        </div>
+
+        {/* Error message */}
+        <div>
+          <h3 className="text-white font-semibold text-lg mb-2">
+            Error al cargar video
+          </h3>
+          <p className="text-gray-400 text-sm mb-1">
+            {error || 'El video no pudo ser reproducido'}
+          </p>
+
+          {/* Technical details (collapsible) */}
+          <details className="text-xs text-gray-500 mt-3">
+            <summary className="cursor-pointer hover:text-gray-400">
+              Detalles técnicos
+            </summary>
+            <div className="mt-2 text-left bg-black/30 rounded p-2 font-mono break-all">
+              <p><strong>URL:</strong> {url.substring(0, 60)}...</p>
+              <p><strong>Formato:</strong> {url.match(/\.(mp4|webm|mov|m4v)(\?|$)/i)?.[1] || 'desconocido'}</p>
+              <p><strong>Descripción:</strong> {description.substring(0, 40)}...</p>
+            </div>
+          </details>
+        </div>
+
+        {/* Action button */}
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-gradient-to-r from-pink-500 to-purple-600 text-white text-sm rounded-lg hover:from-pink-600 hover:to-purple-700 transition-all"
+        >
+          🔄 Reintentar
+        </button>
+      </div>
+    </div>
   );
 }
 

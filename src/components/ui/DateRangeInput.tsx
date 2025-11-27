@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { DateInput } from './DateInput';
-import type { DateRangeInput as DateRangeType } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/types/departures (tipo custom de frontend)
+import type { DateRangeInput as DateRangeType } from '@/types/departures';
 
 interface DateRangeInputProps {
   value: DateRangeType;

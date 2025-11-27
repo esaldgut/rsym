@@ -1,11 +1,10 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
-import * as maplibregl from 'maplibre-gl';
-import 'maplibre-gl/dist/maplibre-gl.css';
-import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper';
-import { fetchAuthSession } from 'aws-amplify/auth';
-import outputs from '../../../../amplify/outputs.json';
+import { withIdentityPoolId } from '@aws/amazon-location-utilities-auth-helper'
+import { fetchAuthSession } from 'aws-amplify/auth'
+import * as maplibregl from 'maplibre-gl'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import outputs from '../../../../amplify/outputs.json'
 
 interface Destination {
   id?: string;
@@ -48,57 +47,21 @@ interface RouteData {
  * - Interactive controls (zoom, navigation)
  */
 export function CognitoLocationMap({ destinations, productType, productName }: CognitoLocationMapProps) {
-  console.log('🗺️ [CognitoLocationMap] Componente renderizándose...', {
-    destinationsCount: destinations.length,
-    productType,
-    productName
-  });
-
-  // Log raw destinations data structure
-  console.log('📍 [CognitoLocationMap] Destinations raw:', JSON.stringify(destinations, null, 2));
-
-  // Verify maplibregl import
-  console.log('📦 [CognitoLocationMap] maplibregl:', {
-    type: typeof maplibregl,
-    hasMap: 'Map' in (maplibregl || {}),
-    keys: Object.keys(maplibregl || {}).slice(0, 10)
-  });
-
-  console.log('🔧 [CognitoLocationMap] Inicializando hooks... (antes de useRef)');
   const mapContainer = useRef<HTMLDivElement>(null);
-  console.log('✅ [CognitoLocationMap] mapContainer useRef inicializado');
-
   const map = useRef<maplibregl.Map | null>(null);
-  console.log('✅ [CognitoLocationMap] map useRef inicializado');
-
+  const isMountedRef = useRef<boolean>(true); // Track if component is mounted
   const [isLoading, setIsLoading] = useState(true);
-  console.log('✅ [CognitoLocationMap] isLoading useState inicializado');
-
   const [error, setError] = useState<string | null>(null);
-  console.log('✅ [CognitoLocationMap] error useState inicializado');
-
   const [warning, setWarning] = useState<string | null>(null);
-  console.log('✅ [CognitoLocationMap] warning useState inicializado');
-
   const [routeData, setRouteData] = useState<RouteData | null>(null);
-  console.log('✅ [CognitoLocationMap] routeData useState inicializado');
-
   const [selectedDestination, setSelectedDestination] = useState<number>(0);
-  console.log('✅ [CognitoLocationMap] selectedDestination useState inicializado');
-
-  console.log('🔧 [CognitoLocationMap] Todos los hooks básicos inicializados, comenzando useMemo...');
 
   // Filter valid destinations with coordinates (memoized to prevent re-renders)
   const validDestinations = useMemo(() => {
     try {
-      console.log('🔍 [CognitoLocationMap] DENTRO de useMemo - Calculando validDestinations...');
-      console.log('🔍 [CognitoLocationMap] destinations en useMemo:', destinations);
-
       const filtered = destinations.filter(
         d => d.coordinates?.latitude && d.coordinates?.longitude
       );
-
-      console.log('✅ [CognitoLocationMap] validDestinations calculado:', filtered.length, 'de', destinations.length);
       return filtered;
     } catch (err) {
       console.error('❌ [CognitoLocationMap] ERROR en useMemo validDestinations:', err);
@@ -106,39 +69,24 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     }
   }, [destinations]);
 
-  console.log('✅ [CognitoLocationMap] useMemo validDestinations completado, resultado:', validDestinations.length);
-
-  console.log('🔧 [CognitoLocationMap] Preparando segundo useMemo (initialCenter)...');
-
   // Calculate initial map center (average of all coordinates) - memoized
   const initialCenter = useMemo((): [number, number] => {
     try {
-      console.log('🗺️ [CognitoLocationMap] DENTRO de useMemo initialCenter...');
-      console.log('🗺️ [CognitoLocationMap] validDestinations.length:', validDestinations.length);
-
       if (validDestinations.length === 0) {
-        console.log('⚠️ [CognitoLocationMap] No hay destinos válidos, usando default Mexico City');
         return [-99.1332, 19.4326]; // Mexico City default
       }
 
-      console.log('🗺️ [CognitoLocationMap] Calculando avgLng con reduce...');
       const avgLng = validDestinations.reduce((sum, d) => {
         const lng = d.coordinates!.longitude || 0;
-        console.log('  - Sumando longitude:', lng, 'sum actual:', sum);
         return sum + lng;
       }, 0) / validDestinations.length;
-      console.log('✅ [CognitoLocationMap] avgLng calculado:', avgLng);
 
-      console.log('🗺️ [CognitoLocationMap] Calculando avgLat con reduce...');
       const avgLat = validDestinations.reduce((sum, d) => {
         const lat = d.coordinates!.latitude || 0;
-        console.log('  - Sumando latitude:', lat, 'sum actual:', sum);
         return sum + lat;
       }, 0) / validDestinations.length;
-      console.log('✅ [CognitoLocationMap] avgLat calculado:', avgLat);
 
       const result: [number, number] = [avgLng, avgLat];
-      console.log('✅ [CognitoLocationMap] initialCenter calculado:', result);
       return result;
     } catch (err) {
       console.error('❌ [CognitoLocationMap] ERROR en useMemo initialCenter:', err);
@@ -146,45 +94,20 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     }
   }, [validDestinations]);
 
-  console.log('✅ [CognitoLocationMap] useMemo initialCenter completado, resultado:', initialCenter);
-
-  console.log('🔧 [CognitoLocationMap] Preparando tercer useMemo (initialZoom)...');
-
   // Calculate initial zoom based on destination spread - memoized
   const initialZoom = useMemo((): number => {
     try {
-      console.log('🔍 [CognitoLocationMap] DENTRO de useMemo initialZoom...');
-      console.log('🔍 [CognitoLocationMap] validDestinations.length:', validDestinations.length);
-
       if (validDestinations.length <= 1) {
-        console.log('⚠️ [CognitoLocationMap] Solo 1 destino o menos, usando zoom default: 10');
         return 10;
       }
 
       // Calculate bounding box
-      console.log('🔍 [CognitoLocationMap] Mapeando longitudes...');
-      const lngs = validDestinations.map(d => {
-        const lng = d.coordinates!.longitude!;
-        console.log('  - longitude:', lng);
-        return lng;
-      });
-      console.log('✅ [CognitoLocationMap] Longitudes:', lngs);
+      const lngs = validDestinations.map(d => d.coordinates!.longitude!);
+      const lats = validDestinations.map(d => d.coordinates!.latitude!);
 
-      console.log('🔍 [CognitoLocationMap] Mapeando latitudes...');
-      const lats = validDestinations.map(d => {
-        const lat = d.coordinates!.latitude!;
-        console.log('  - latitude:', lat);
-        return lat;
-      });
-      console.log('✅ [CognitoLocationMap] Latitudes:', lats);
-
-      console.log('🔍 [CognitoLocationMap] Calculando spans...');
       const lngSpan = Math.max(...lngs) - Math.min(...lngs);
       const latSpan = Math.max(...lats) - Math.min(...lats);
-      console.log('✅ [CognitoLocationMap] lngSpan:', lngSpan, 'latSpan:', latSpan);
-
       const maxSpan = Math.max(lngSpan, latSpan);
-      console.log('✅ [CognitoLocationMap] maxSpan:', maxSpan);
 
       // Approximate zoom level based on span
       let zoom = 10;
@@ -194,7 +117,6 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       else if (maxSpan > 1) zoom = 8;
       else if (maxSpan > 0.5) zoom = 9;
 
-      console.log('✅ [CognitoLocationMap] initialZoom calculado:', zoom);
       return zoom;
     } catch (err) {
       console.error('❌ [CognitoLocationMap] ERROR en useMemo initialZoom:', err);
@@ -202,26 +124,21 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     }
   }, [validDestinations]);
 
-  console.log('✅ [CognitoLocationMap] useMemo initialZoom completado, resultado:', initialZoom);
-
-  console.log('🔧 [CognitoLocationMap] Preparando useEffect principal...');
-
   // Initialize map with Cognito authentication
   useEffect(() => {
-    console.log('🚀 [CognitoLocationMap] ENTRANDO a useEffect principal...');
-    console.log('🚀 [CognitoLocationMap] mapContainer.current:', !!mapContainer.current);
-    console.log('🚀 [CognitoLocationMap] map.current:', !!map.current);
-
     if (!mapContainer.current || map.current) {
-      console.log('⚠️ [CognitoLocationMap] Saliendo de useEffect: mapContainer no existe o mapa ya inicializado');
       return;
     }
 
-    console.log('✅ [CognitoLocationMap] Condiciones cumplidas, llamando initializeMap...');
-
     const initializeMap = async () => {
       try {
-        console.log('🗺️ [CognitoLocationMap] initializeMap comenzando...');
+        // ✅ CAMBIO 3: Validación temprana del ref ANTES de operaciones async
+        if (!mapContainer.current) {
+          console.warn('[CognitoLocationMap] Container ref no existe al iniciar');
+          setIsLoading(false);
+          return;
+        }
+
         setIsLoading(true);
         setError(null);
 
@@ -233,7 +150,6 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         }
 
         // STEP 2: Get Cognito session and ID Token
-        console.log('🔐 [CognitoLocationMap] Fetching Cognito session...');
         const session = await fetchAuthSession();
 
         if (!session.tokens?.idToken) {
@@ -241,10 +157,8 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         }
 
         const idToken = session.tokens.idToken.toString();
-        console.log('✅ [CognitoLocationMap] ID Token obtenido');
 
         // STEP 3: Create authentication helper with Identity Pool + User Pool token
-        console.log('🔐 [CognitoLocationMap] Configurando autenticación con Identity Pool...');
         const authHelper = await withIdentityPoolId(
           outputs.auth.identity_pool_id,
           {
@@ -253,19 +167,11 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
             }
           }
         );
-        console.log('✅ [CognitoLocationMap] Autenticación configurada');
 
         // STEP 4: Initialize MapLibre GL with Cognito authentication
         const mapStyle = `https://maps.geo.${outputs.auth.aws_region}.amazonaws.com/maps/v0/maps/YaanEsri/style-descriptor`;
 
-        console.log('🗺️ [CognitoLocationMap] Inicializando mapa...', {
-          center: initialCenter,
-          zoom: initialZoom,
-          style: mapStyle
-        });
-
-        // CRITICAL: Verify container still exists after async operations
-        // The component might have unmounted while we were fetching auth tokens
+        // Verify container still exists after async operations
         if (!mapContainer.current) {
           console.warn('⚠️ [CognitoLocationMap] Container ref ya no existe después de operaciones async, abortando inicialización');
           setIsLoading(false);
@@ -277,7 +183,7 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           style: mapStyle,
           center: initialCenter,
           zoom: initialZoom,
-          ...authHelper.getMapAuthenticationOptions(), // KEY: Cognito authentication options
+          ...authHelper.getMapAuthenticationOptions(),
         });
 
         // STEP 5: Wait for map to load
@@ -322,16 +228,18 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       }
     };
 
+    // Initialize map directly (pattern from original working code)
     initializeMap();
 
     // Cleanup
     return () => {
+      isMountedRef.current = false; // Mark component as unmounted
       if (map.current) {
         map.current.remove();
         map.current = null;
       }
     };
-  }, [validDestinations.length, initialCenter, initialZoom, productType]); // Re-run if destinations change
+  }, [validDestinations.length, initialCenter, initialZoom, productType]);
 
   // Add destination markers to the map
   const addDestinationMarkers = (mapInstance: maplibregl.Map) => {
@@ -421,7 +329,11 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
   // Fallback: Draw straight lines between waypoints
   const drawStraightLineRoute = (mapInstance: maplibregl.Map, waypoints: Array<[number, number]>) => {
-    console.log('📏 [CognitoLocationMap] Dibujando líneas rectas como fallback...');
+    // CRITICAL: Verify component is still mounted and map exists
+    if (!isMountedRef.current || !mapInstance) {
+      console.warn('[CognitoLocationMap] ⚠️ Component unmounted or map destroyed, skipping drawStraightLineRoute');
+      return;
+    }
 
     // Create line geometry
     const routeGeoJSON: GeoJSON.LineString = {
@@ -433,16 +345,21 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     const estimatedDistance = calculateTotalDistance(waypoints);
     const estimatedDuration = (estimatedDistance / 60) * 3600; // Assuming 60 km/h average
 
-    console.log('📏 [CognitoLocationMap] Distancia estimada (líneas rectas):', estimatedDistance.toFixed(1), 'km');
-
     setRouteData({
       distance: estimatedDistance * 1000, // Convert to meters
       duration: estimatedDuration,
       geometry: routeGeoJSON
     });
 
-    // Add route line to map
-    if (mapInstance.getSource('route')) {
+    // CRITICAL: Verify map still exists before accessing getSource()
+    try {
+      if (!mapInstance || !mapInstance.getSource) {
+        console.warn('[CognitoLocationMap] ⚠️ Map instance invalid, cannot add route source');
+        return;
+      }
+
+      // Add route line to map
+      if (mapInstance.getSource('route')) {
       (mapInstance.getSource('route') as maplibregl.GeoJSONSource).setData({
         type: 'Feature',
         properties: { isApproximation: true },
@@ -491,10 +408,20 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         }
       }, 'route');
     }
+    } catch (err) {
+      console.error('[CognitoLocationMap] ❌ Error agregando ruta línea recta:', err);
+      // Non-critical error - map still works without route
+    }
   };
 
   // Calculate and display route for circuits
   const calculateAndDisplayRoute = async (mapInstance: maplibregl.Map) => {
+    // CRITICAL: Early return if component unmounted or map destroyed
+    if (!isMountedRef.current || !mapInstance) {
+      console.warn('[CognitoLocationMap] ⚠️ Component unmounted or map destroyed, aborting calculateAndDisplayRoute');
+      return;
+    }
+
     // Prepare waypoints - API expects position as [longitude, latitude]
     // IMPORTANT: Declared outside try/catch so it's available in the fallback catch block
     const waypoints = validDestinations.map(d => ({
@@ -504,9 +431,6 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
     }));
 
     try {
-      console.log('🛣️ [CognitoLocationMap] Calculando ruta...');
-      console.log('🛣️ [CognitoLocationMap] Waypoints preparados:', waypoints);
-
       // Call route calculation API
       const response = await fetch('/api/routes/calculate', {
         method: 'POST',
@@ -518,19 +442,16 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
         })
       });
 
-      console.log('🛣️ [CognitoLocationMap] API response status:', response.status);
-
       // Check for 400 km distance limit error
       if (response.status === 400) {
         const errorData = await response.json();
-        console.warn('⚠️ [CognitoLocationMap] 400 km limit exceeded, using straight line fallback');
 
         // Use fallback: draw straight lines
         const waypointPositions = waypoints.map(w => w.position);
         drawStraightLineRoute(mapInstance, waypointPositions);
 
         // Set warning message for user (not blocking error)
-        setWarning('⚠️ Ruta aproximada con líneas rectas. La distancia total excede el límite de cálculo de 400 km.');
+        setWarning('Ruta aproximada con líneas rectas.');
         return;
       }
 
@@ -540,10 +461,9 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
 
         // Handle 500 errors (expired token, service unavailable) gracefully with immediate fallback
         if (response.status === 500) {
-          console.warn('⚠️ [CognitoLocationMap] API error 500 (posible token expirado), activando fallback inmediato');
           const waypointPositions = waypoints.map(w => w.position);
           drawStraightLineRoute(mapInstance, waypointPositions);
-          setWarning('⚠️ Ruta aproximada con líneas rectas. El servicio de cálculo no está disponible temporalmente. Por favor, recarga la página.');
+          setWarning('Ruta aproximada con líneas rectas.');
           return; // Exit gracefully without throwing
         }
 
@@ -551,14 +471,13 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
       }
 
       const data = await response.json();
-      console.log('🛣️ [CognitoLocationMap] API response data:', data);
 
       if (data.success && data.data) {
-        console.log('✅ [CognitoLocationMap] Ruta calculada:', {
-          distance: `${data.data.totalDistance.toFixed(1)} km`,
-          duration: `${Math.round(data.data.totalDuration / 60)} min`,
-          geometryPoints: data.data.routeGeometry.length
-        });
+        // CRITICAL: Verify component still mounted after async operation
+        if (!isMountedRef.current || !mapInstance) {
+          console.warn('[CognitoLocationMap] ⚠️ Component unmounted during async route calculation, aborting');
+          return;
+        }
 
         // Convert route geometry to GeoJSON LineString
         const routeGeoJSON: GeoJSON.LineString = {
@@ -572,8 +491,15 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
           geometry: routeGeoJSON
         });
 
-        // Add route line to map
-        if (mapInstance.getSource('route')) {
+        // CRITICAL: Verify map still exists before accessing getSource()
+        try {
+          if (!mapInstance || !mapInstance.getSource) {
+            console.warn('[CognitoLocationMap] ⚠️ Map instance invalid, cannot add route source');
+            return;
+          }
+
+          // Add route line to map
+          if (mapInstance.getSource('route')) {
           (mapInstance.getSource('route') as maplibregl.GeoJSONSource).setData({
             type: 'Feature',
             properties: {},
@@ -620,24 +546,25 @@ export function CognitoLocationMap({ destinations, productType, productName }: C
             }
           }, 'route');
         }
+        } catch (mapErr) {
+          console.error('[CognitoLocationMap] ❌ Error agregando ruta al mapa:', mapErr);
+          // Non-critical error - map still works without route
+        }
       }
     } catch (err) {
       console.error('❌ [CognitoLocationMap] Error al calcular ruta:', err);
 
       // Try fallback: draw straight lines as approximation
       try {
-        console.warn('⚠️ [CognitoLocationMap] Intentando fallback con líneas rectas...');
         const waypointPositions = waypoints.map(w => w.position);
         drawStraightLineRoute(mapInstance, waypointPositions);
-        setWarning('⚠️ Ruta aproximada con líneas rectas. No se pudo calcular la ruta real.');
+        setWarning('Ruta aproximada con líneas rectas.');
       } catch (fallbackErr) {
         console.error('❌ [CognitoLocationMap] Fallback también falló:', fallbackErr);
         // Non-critical error - map still works without route
       }
     }
   };
-
-  console.log('🎨 [CognitoLocationMap] Renderizando JSX... isLoading:', isLoading, 'error:', error);
 
   // CRÍTICO: Siempre renderizar el div del mapa para que mapContainer.current exista cuando useEffect se ejecute
   return (

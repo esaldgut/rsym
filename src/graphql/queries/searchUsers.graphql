@@ -1,0 +1,41 @@
+query searchUsers($limit: Int, $nextToken: String, $searchTerm: String!) {
+  searchUsers(limit: $limit, nextToken: $nextToken, searchTerm: $searchTerm) {
+    items {
+      address
+      birthdate
+      budget
+      cognito_sub
+      created_at
+      custom_attributes
+      email
+      email_verified
+      family_name
+      gender
+      given_name
+      have_a_passport
+      have_a_visa
+      id
+      interest_rate
+      last_sync
+      locale
+      name
+      phone_number
+      phone_number_verified
+      preferred_username
+      profile_photo_path
+      profile_preferences
+      provider_is_approved
+      providers_policies {
+        policy
+        title
+      }
+      req_special_services
+      updated_at
+      user_type
+      username
+      zoneinfo
+    }
+    nextToken
+    total
+  }
+}

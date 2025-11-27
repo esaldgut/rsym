@@ -5,13 +5,15 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ProfileImage } from '../../components/ui/ProfileImage';
 import { useRequireCompleteProfile } from '../../components/guards/ProfileCompletionGuard';
 import { createReservationWithPaymentAction, checkAvailabilityAction } from '@/lib/server/reservation-actions';
-import type { ReservationInput } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { ReservationInput } from '@/generated/graphql';
 import { toastManager } from '@/components/ui/ToastWithPinpoint';
 import { useMarketplacePagination } from '@/hooks/useMarketplacePagination';
 import { ProductDetailModal } from '@/components/marketplace/ProductDetailModal';
 import { validateDeepLinkParams } from '@/utils/validators';
 import { logger } from '@/utils/logger';
 import { getProductByIdAction } from '@/lib/server/marketplace-product-actions';
+import { generateBookingUrlAction } from '@/lib/server/booking-url-actions';
 
 // REPLICANDO LOS PATTERNS DE ProviderProductsDashboard.tsx + FeedGrid.tsx
 
@@ -82,7 +84,7 @@ export function MarketplaceClient({
     babys: 0
   });
   const [isProcessingReservation, setIsProcessingReservation] = useState(false);
-  const [isPending, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
+  const [, startTransition] = useTransition(); // Next.js 15 pattern para Server Actions
 
   // Estado para el modal de detalle de producto - ahora sincronizado con URL
   const [selectedProduct, setSelectedProduct] = useState<MarketplaceProduct | null>(null);
@@ -104,7 +106,6 @@ export function MarketplaceClient({
     hasMore,
     error,
     currentFilter,
-    activeFilters,
     searchTerm,
     loadMore,
     changeFilter,
@@ -122,7 +123,6 @@ export function MarketplaceClient({
   // Validar y derivar estado del modal desde URL query parameters
   const validatedParams = validateDeepLinkParams(searchParams);
   const productIdFromUrl = validatedParams.productId;
-  const productTypeFromUrl = validatedParams.productType;
   const showProductDetail = Boolean(productIdFromUrl);
 
   // Sincronizar producto seleccionado con URL al montar o cambiar URL
@@ -191,22 +191,21 @@ export function MarketplaceClient({
     };
   }, [productIdFromUrl, products]);
 
-  // Manejar apertura de detalle de producto - actualiza URL
+  // Manejar apertura de detalle de producto - abre modal con deep linking
   const handleOpenProductDetail = (product: MarketplaceProduct) => {
-    logger.deepLink('Abriendo producto modal', {
+    logger.deepLink('Abriendo modal de producto', {
       productId: product.id,
       productType: product.product_type
     });
 
-    // Actualizar URL con query parameters
+    // Abrir modal (setea producto seleccionado)
+    setSelectedProduct(product);
+
+    // Actualizar URL para deep linking (sin scroll)
     const params = new URLSearchParams(searchParams.toString());
     params.set('product', product.id);
     params.set('type', product.product_type);
-
-    // Usar replace para no agregar entrada al historial
-    router.replace(`/marketplace?${params.toString()}`, { scroll: false });
-
-    setSelectedProduct(product);
+    router.push(`/marketplace?${params.toString()}`, { scroll: false });
   };
 
   // Manejar cierre de detalle de producto - limpia URL
@@ -225,15 +224,48 @@ export function MarketplaceClient({
     setTimeout(() => setSelectedProduct(null), 300); // Delay para animación
   };
 
-  // Manejar inicio de reserva (PATRÓN ORIGINAL MANTENIDO)
+  // Manejar inicio de reserva - Redirigir a /marketplace/booking con URL cifrada
   const handleReserveExperience = async (experience: MarketplaceProduct) => {
     checkProfile('reserve_experience', {
       experienceId: experience.id,
       title: experience.name
-    }, () => {
-      setSelectedExperience(experience);
-      setReservationForm({ adults: 1, kids: 0, babys: 0 });
-      setShowReservationModal(true);
+    }, async () => {
+      try {
+        // Generar URL cifrada para booking usando Server Action
+        console.log('🔐 [MarketplaceClient] Generando URL cifrada con Server Action...');
+
+        const result = await generateBookingUrlAction(
+          experience.id,
+          experience.name,
+          experience.product_type as 'circuit' | 'package'
+        );
+
+        if (result.success && result.url) {
+          console.log('✅ [MarketplaceClient] URL cifrada generada, redirigiendo a booking');
+          router.push(result.url);
+        } else {
+          console.error('❌ [MarketplaceClient] Error al generar URL:', result.error);
+          toastManager.error('Error al generar URL de reserva', {
+            trackingContext: {
+              feature: 'marketplace_booking',
+              error: result.error || 'url_encryption_failed',
+              productId: experience.id,
+              category: 'error_handling'
+            }
+          });
+        }
+      } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
+        console.error('❌ [MarketplaceClient] Error inesperado:', errorMessage);
+        toastManager.error('Error al procesar la reserva', {
+          trackingContext: {
+            feature: 'marketplace_booking',
+            error: errorMessage,
+            productId: experience.id,
+            category: 'error_handling'
+          }
+        });
+      }
     });
   };
 
@@ -293,7 +325,8 @@ export function MarketplaceClient({
           experience_id: selectedExperience.id,
           collection_type: selectedExperience.product_type || 'product',
           reservationDate: new Date().toISOString(),
-          status: 'pending'
+          // ✅ NOTA: Campo 'status' NO se envía - backend asigna IN_PROGRESS automáticamente (secure-pricing.go:262)
+          type: 'CONTADO' // Campo obligatorio: tipo de pago (por defecto CONTADO para reservas desde marketplace)
         };
 
         // SERVER ACTION: Create reservation with payment in one transaction
@@ -354,7 +387,7 @@ export function MarketplaceClient({
 
   // Aplicar filtros locales (bridging legacy UI to new hook)
   const handleFiltersApply = () => {
-    const newFilters: any = {};
+    const newFilters: Record<string, string | number> = {};
 
     if (filters.category) {
       newFilters.category = filters.category;
@@ -616,8 +649,15 @@ export function MarketplaceClient({
                 product={selectedProduct}
                 onClose={handleCloseProductDetail}
                 onReserve={() => {
+                  logger.deepLink('Navegando desde modal a página de detalle completo', {
+                    productId: selectedProduct.id
+                  });
+
+                  // Cerrar modal
                   handleCloseProductDetail();
-                  handleReserveExperience(selectedProduct);
+
+                  // Navegar a página de detalle completo
+                  router.push(`/marketplace/booking/${selectedProduct.id}`);
                 }}
               />
             ) : null}
@@ -886,12 +926,12 @@ function ExperienceCard({ experience, onReserve, onOpenDetail }: ExperienceCardP
 
           <button
             onClick={(e) => {
-              e.stopPropagation(); // Prevenir que se abra el modal al hacer clic en reservar
-              onReserve();
+              e.stopPropagation(); // Prevenir propagación del click
+              onOpenDetail?.(); // Navigate to product detail page
             }}
             className="bg-gradient-to-r from-pink-500 to-purple-600 text-white px-6 py-2 rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition-all duration-300 transform hover:scale-[1.02]"
           >
-            Reservar ahora
+            Ver detalles
           </button>
         </div>
       </div>

@@ -24,13 +24,28 @@
       ]
     },
     {
+      "Sid": "YAANLocationServiceMapAccess",
+      "Effect": "Allow",
+      "Action": [
+        "geo:GetMapStyleDescriptor",
+        "geo:GetMapGlyphs",
+        "geo:GetMapSprites",
+        "geo:GetMapTile"
+      ],
+      "Resource": [
+        "arn:aws:geo:us-west-2:288761749126:map/YaanEsri"
+      ]
+    },
+    {
       "Sid": "YAANLocationServiceList",
       "Effect": "Allow",
       "Action": [
         "geo:ListPlaceIndexes",
         "geo:DescribePlaceIndex",
         "geo:ListRouteCalculators",
-        "geo:DescribeRouteCalculator"
+        "geo:DescribeRouteCalculator",
+        "geo:ListMaps",
+        "geo:DescribeMap"
       ],
       "Resource": "*",
       "Condition": {

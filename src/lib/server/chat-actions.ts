@@ -6,8 +6,9 @@ import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/ap
 import { cookies } from 'next/headers';
 import outputs from '../../../amplify/outputs.json';
 import type { Schema } from '@/amplify/data/resource';
-import * as mutations from '@/lib/graphql/operations';
-import * as queries from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import * as mutations from '@/graphql/operations';
+import * as queries from '@/graphql/operations';
 import type {
   Conversation,
   Message,
@@ -17,7 +18,7 @@ import type {
   SendMessageInput,
   MarkAsReadInput,
   MarkAsDeliveredInput
-} from '@/lib/graphql/types';
+} from '@/generated/graphql';
 
 // ==================== QUERY ACTIONS ====================
 

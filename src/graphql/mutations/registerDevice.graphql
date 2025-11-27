@@ -1,0 +1,15 @@
+mutation registerDevice($deviceInfo: DeviceInfoInput, $deviceToken: String!, $platform: String!) {
+  registerDevice(deviceInfo: $deviceInfo, deviceToken: $deviceToken, platform: $platform) {
+    active
+    appVersion
+    createdAt
+    deviceModel
+    deviceToken
+    id
+    osVersion
+    pinpointEndpointId
+    platform
+    updatedAt
+    userId
+  }
+}

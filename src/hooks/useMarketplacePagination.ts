@@ -98,9 +98,13 @@ export function useMarketplacePagination({
     try {
       const result = await getMarketplaceMetricsAction();
 
-      if (result.success && result.data) {
+      // ✅ Type narrowing automático: después de verificar success, TypeScript garantiza que data existe
+      if (result.success) {
         setMetrics(result.data);
         console.log('📊 Metrics loaded:', result.data, result.cached ? '(cached)' : '(fresh)');
+      } else {
+        // TypeScript garantiza que error existe aquí
+        console.error('Error loading metrics:', result.error);
       }
     } catch (error) {
       console.error('Error loading metrics:', error);
@@ -177,7 +181,9 @@ export function useMarketplacePagination({
 
       const result = await getMarketplaceProductsAction(params);
 
-      if (result.success && result.data) {
+      // ✅ Type narrowing automático: discriminated union garantiza tipos correctos
+      if (result.success) {
+        // TypeScript garantiza que result.data existe (MarketplaceConnection)
         const connection = result.data;
 
         if (append) {
@@ -195,7 +201,8 @@ export function useMarketplacePagination({
           total: connection.total
         });
       } else {
-        setError(result.error || 'Error desconocido');
+        // TypeScript garantiza que result.error existe (string)
+        setError(result.error);
       }
     } catch (error) {
       console.error('Error loading products:', error);

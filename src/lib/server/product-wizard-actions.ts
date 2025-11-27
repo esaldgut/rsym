@@ -2,21 +2,22 @@
 
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { 
-  createProductOfTypeCircuit, 
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import {
+  createProductOfTypeCircuit,
   createProductOfTypePackage,
-  updateProduct 
-} from '@/lib/graphql/operations';
+  updateProduct
+} from '@/graphql/operations';
 import { getAuthenticatedUser } from '@/utils/amplify-server-utils';
 import { SecurityValidator } from '@/lib/security-validator';
 import { canExecuteGraphQLOperation } from '@/lib/permission-matrix';
 import { transformProductUrlsToPaths } from '@/lib/utils/s3-url-transformer';
-import type { 
+import type {
   CreateProductOfTypeCircuitInput,
   CreateProductOfTypePackageInput,
   UpdateProductInput,
-  Product 
-} from '@/lib/graphql/types';
+  Product
+} from '@/generated/graphql';
 
 export interface ProductActionResponse {
   success: boolean;

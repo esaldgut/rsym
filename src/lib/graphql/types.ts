@@ -226,18 +226,64 @@ export interface MarketplaceFeed {
 }
 
 // Tipos de Reservaciones y Pagos
+
+// ✅ AÑADIDO: PaymentPlan interface (23 campos completos)
+export interface PaymentPlan {
+  id: string;
+  product_id: string;
+  reservation_id: string;
+  status: string;
+  payment_type_selected: 'CONTADO' | 'PLAZOS';
+  currency: string;
+  total_cost: number;
+  travel_date: AWSDateTime;
+  reservation_date: AWSDateTime;
+  created_at: AWSDateTime;
+  updated_at: AWSDateTime;
+  allows_date_change: boolean;
+  change_deadline_days: number;
+  benefits_statements?: string[];
+  cash_discount_amount: number;
+  cash_discount_percentage: number;
+  cash_final_amount: number;
+  cash_payment_deadline: AWSDateTime;
+  cash_payment_methods?: string[];
+  installment_down_payment_amount: number;
+  installment_down_payment_percentage: number;
+  installment_amount_per_payment: number;
+  installment_number_of_payments: number;
+  installment_frequency_days: number;
+  installment_total_amount: number;
+  installment_first_payment_deadline: AWSDateTime;
+  installment_payment_deadline: AWSDateTime;
+  installment_payment_methods?: string[];
+  installment_available_days: number;
+}
+
+// ✅ CORREGIDO: Solo campos que existen en backend schema (schemas/schema-raw.graphql:472-487)
+// PaymentPlan es un tipo separado, generado con generatePaymentPlan mutation
 export interface Reservation {
   id: string;
+  adults?: number;
   kids?: number;
   babys?: number;
-  adults?: number;
-  price_per_person?: number;
-  price_per_kid?: number;
-  total_price?: number;
+  companions?: Array<{
+    name?: string;
+    family_name?: string;
+    passport_number?: string;
+    birthday?: AWSDateTime;
+    gender?: string;
+    country?: string;
+  }>;
   experience_id?: string;
   experience_type?: string;
+  price_per_person?: number;
+  price_per_kid?: number;
+  total_price?: number; // Backend-calculated secure price
   reservationDate?: AWSDateTime;
   status?: string;
+  type?: 'CONTADO' | 'PLAZOS'; // Tipo de pago seleccionado
+  // ❌ REMOVIDO: season_id, price_id, payment_plan - No existen en schema backend
 }
 
 export interface Payment {
@@ -377,23 +423,53 @@ export interface CreateCommentInput {
   moment_id?: string;
 }
 
+// Enum de estados de reservación (alineado con backend Go y GraphQL schema)
+export type ReservationStatus =
+  | 'IN_PROGRESS'
+  | 'FINALIZED'
+  | 'CANCELED'
+  | 'PROCESSED'
+  | 'MIT_PAYMENT_PENDING'
+  | 'AWAITING_MANUAL_PAYMENT';
+
+// ✅ CORREGIDO: Solo campos que existen en backend schema (schemas/schema-raw.graphql:724-728)
+// Backend calcula precios automáticamente con Secure Pricing System
 export interface ReservationInput {
+  adults: number;
   kids: number;
   babys: number;
-  adults: number;
-  price_per_person: number;
-  price_per_kid: number;
-  total_price: number;
   experience_id: string;
-  collection_type: string;
+  collection_type: string; // 'circuit' | 'package'
+  type: 'CONTADO' | 'PLAZOS'; // Tipo de pago
   reservationDate?: AWSDateTime;
-  status?: string;
+  status?: ReservationStatus; // Opcional - Backend asigna IN_PROGRESS si no se envía
+
+  // ❌ REMOVIDO: season_id, price_id - No existen en schema backend
+  // Backend calcula precios automáticamente usando su Secure Pricing System
+  // No se envían precios desde frontend (price_per_person, price_per_kid, total_price)
 }
 
 export interface PaymentInput {
   reservation_id: string;
   payment_method: string;
   promotions: boolean;
+}
+
+// ✅ NUEVO: PaymentPlanInput para generatePaymentPlan mutation
+// Schema: schemas/schema-raw.graphql:750-756
+export interface PaymentPlanInput {
+  product_id: string;
+  total_cost: number;
+  travel_date: AWSDateTime;
+  currency: string;
+  payment_type_selected: 'CONTADO' | 'PLAZOS';
+}
+
+// ✅ NUEVO: UpdatePaymentPlanInput para updatePaymentPlan mutation
+export interface UpdatePaymentPlanInput {
+  id: string;
+  payment_type_selected?: 'CONTADO' | 'PLAZOS';
+  status?: 'ACTIVE' | 'SELECTED' | 'COMPLETED' | 'CANCELLED';
 }
 
 // Additional type exports from GraphQL generated types

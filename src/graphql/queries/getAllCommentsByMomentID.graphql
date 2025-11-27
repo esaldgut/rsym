@@ -12,6 +12,7 @@ query getAllCommentsByMomentID($moment_id: ID!) {
       email
       name
       sub
+      uniq_influencer_ID
       user_type
       username
     }

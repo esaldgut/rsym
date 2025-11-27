@@ -20,14 +20,15 @@ http:
     - 'www.yaan.com.mx'
   certificate: 'arn:aws:acm:us-west-2:288761749126:certificate/777f93fa-5315-472e-9df3-94b41098ac4f'
 
-# Imagen de desarrollo
+# Imagen de producción optimizada (Next.js 16.0.2 oficial)
+# ✅ DEPLOYED (2025-01-17): Task Definition 49, 333MB, 34ms startup
 image:
-  build: Dockerfile.dev
+  build: Dockerfile  # Multi-stage production image (standalone mode)
   port: 3000
 
-# Recursos escalados para performance con imagen grande
-cpu: 2048        # 2 vCPUs - Escalamiento vertical para yarn dev + imagen 2.83GB
-memory: 6144     # 6GB RAM - Necesario para imagen grande + hot reload + compilaciones
+# Recursos para performance (optimizados para producción)
+cpu: 2048        # 2 vCPUs - Performance óptima para producción
+memory: 6144     # 6GB RAM - Amplio para imagen 333MB + tráfico concurrente
 
 # Plataforma y configuración básica
 platform: linux/x86_64
@@ -38,13 +39,31 @@ exec: true       # Permitir copilot task exec para debugging
 network:
   connect: true  # Service Connect para comunicación interna
 
-# Variables de entorno para desarrollo
+# Variables de entorno
 variables:
-  NODE_ENV: development
+  NODE_ENV: development  # Dev environment - cambiar a "production" en env prod
   NEXT_TELEMETRY_DISABLED: 1
   PORT: 3000
   AWS_REGION: us-west-2
   HOSTNAME: "0.0.0.0"
+  # Variables públicas - disponibles en tiempo de build y runtime
+  NEXT_PUBLIC_BASE_URL: "https://yaan.com.mx"
+  NEXT_PUBLIC_APP_SCHEME: "yaan"
+  # MIT Payment Gateway
+  MIT_ENVIRONMENT: sandbox
+  MIT_BASE_URL: "https://sandbox.mitpaymentgateway.com"
+
+# Secretos desde AWS Secrets Manager
+# IMPORTANTE: Estos secretos deben crearse primero con scripts/setup-copilot-secrets.sh
+secrets:
+  # Secret para cifrado AES-256-GCM de URLs de booking (FASE 1)
+  URL_ENCRYPTION_SECRET: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/URL_ENCRYPTION_SECRET
+  # Secret para verificar HMAC SHA-256 de webhooks MIT (FASE 6)
+  MIT_WEBHOOK_SECRET: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/MIT_WEBHOOK_SECRET
+  # API Key para MIT Payment Gateway (FASE 6)
+  MIT_API_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/MIT_API_KEY
+  # CE.SDK License Key para IMG.LY Creative Editor (YAAN Moments)
+  NEXT_PUBLIC_CESDK_LICENSE_KEY: /copilot/${COPILOT_APPLICATION_NAME}/${COPILOT_ENVIRONMENT_NAME}/secrets/CESDK_LICENSE_KEY
 
 # Logging habilitado
 logging:
@@ -57,3 +76,15 @@ environments:
     variables:
       LOG_LEVEL: debug
       NEXT_PUBLIC_ENV: development
+      # MIT Sandbox para desarrollo
+      MIT_ENVIRONMENT: sandbox
+      MIT_BASE_URL: "https://sandbox.mitpaymentgateway.com"
+  prod:
+    count: 2
+    variables:
+      LOG_LEVEL: info
+      NEXT_PUBLIC_ENV: production
+      NODE_ENV: production
+      # MIT Producción
+      MIT_ENVIRONMENT: production
+      MIT_BASE_URL: "https://api.mitpaymentgateway.com"

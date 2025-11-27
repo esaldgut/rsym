@@ -1,6 +1,8 @@
 @import "tailwindcss";
 /* Amplify UI React styles */
 @import '@aws-amplify/ui-react/styles.css';
+/* MapLibre GL JS styles */
+@import 'maplibre-gl/dist/maplibre-gl.css';
 
 :root {
   --background: #ffffff;

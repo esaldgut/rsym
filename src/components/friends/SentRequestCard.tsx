@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { es } from 'date-fns/locale';
 import { cancelConnectionRequestAction } from '@/lib/server/friendship-actions';
-import type { User } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { User } from '@/generated/graphql';
 
 interface SentRequestCardProps {
   requestId: string;

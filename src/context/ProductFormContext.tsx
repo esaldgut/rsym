@@ -4,11 +4,10 @@ import { createContext, useContext, useReducer, useMemo, useEffect } from 'react
 import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
 import type {
   LocationInput,
-  ProductCircuitSeasonInput,
-  ProductPackageSeasonInput,
+  ProductSeasonInput,
   PaymentPolicyInput,
   Product
-} from '@/lib/graphql/types';
+} from '@/generated/graphql';
 import type {
   ProductFormData,
   ProductFormAction,

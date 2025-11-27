@@ -125,6 +125,7 @@ query getProductsByType($filter: ProductFilterInput, $pagination: PaginationInpu
         email
         name
         sub
+        uniq_influencer_ID
         user_type
         username
       }

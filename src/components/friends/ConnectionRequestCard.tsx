@@ -8,7 +8,8 @@ import {
   acceptConnectionRequestAction,
   rejectConnectionRequestAction
 } from '@/lib/server/friendship-actions';
-import type { User } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { User } from '@/generated/graphql';
 
 interface ConnectionRequestCardProps {
   requestId: string;

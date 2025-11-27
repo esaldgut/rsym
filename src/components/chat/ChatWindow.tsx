@@ -3,7 +3,8 @@
 import { useEffect, useRef } from 'react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { es } from 'date-fns/locale';
-import type { Message } from '@/lib/graphql/types';
+// ✅ Migrado de @/lib/graphql/types a @/generated/graphql (GraphQL Code Generator)
+import type { Message } from '@/generated/graphql';
 
 interface ChatWindowProps {
   conversationId: string;
@@ -23,16 +24,19 @@ export function ChatWindow({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Validación de datos requeridos
+  // Auto-scroll al final cuando hay mensajes nuevos
+  useEffect(() => {
+    // Only scroll if we have valid data
+    if (conversationId && currentUserId) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [initialMessages.length, conversationId, currentUserId]);
+
+  // Validación de datos requeridos (DESPUÉS de hooks)
   if (!conversationId || !currentUserId) {
     console.error('[ChatWindow] Missing required props:', { conversationId, currentUserId });
     return null;
   }
-
-  // Auto-scroll al final cuando hay mensajes nuevos
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [initialMessages.length]);
 
   // Agrupar mensajes por fecha
   const messagesByDate = groupMessagesByDate(initialMessages || []);

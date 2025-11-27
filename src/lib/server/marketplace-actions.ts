@@ -1,6 +1,7 @@
 'use server';
 
-import { getAllActiveAndPublishedProducts, getProductById, createReservation, generatePaymentLink } from '@/lib/graphql/operations';
+// ✅ Usar imports desde GraphQL Code Generator (fuente única de verdad)
+import { getAllActiveAndPublishedProducts, getProductById, createReservation, generatePaymentLink } from '@/graphql/operations';
 import { generateServerClientUsingCookies } from '@aws-amplify/adapter-nextjs/api';
 import { cookies } from 'next/headers';
 import { revalidateTag, unstable_cache } from 'next/cache';
@@ -8,15 +9,16 @@ import outputs from '../../../amplify/outputs.json';
 import { getServerSession } from '@/utils/amplify-server-utils';
 import type { Schema } from '@/amplify/data/resource';
 import { transformPathsToUrls } from '@/lib/utils/s3-url-transformer';
-
-// SIGUIENDO EXACTAMENTE EL PATTERN DE provider-products-actions.ts
-interface ServerActionResponse<T = any> {
-  success: boolean;
-  data?: T;
-  error?: string;
-  message?: string;
-  cached?: boolean;
-}
+// PASO 3: Importar todos los tipos Result necesarios para marketplace
+import type {
+  VoidResult,
+  MarketplaceProductsResult,
+  MarketplaceMetricsResult,
+  MarketplaceProductResult,
+  // Importar también las interfaces de datos
+  MarketplaceConnection,
+  MarketplaceMetrics
+} from '@/types/server-actions';
 
 interface MarketplaceProduct {
   id: string;
@@ -68,20 +70,6 @@ interface MarketplaceProduct {
   };
 }
 
-interface MarketplaceConnection {
-  items: MarketplaceProduct[];
-  nextToken?: string;
-  total: number;
-}
-
-interface MarketplaceMetrics {
-  total: number;
-  circuits: number;
-  packages: number;
-  avgPrice: number;
-  topDestinations: string[];
-}
-
 interface GetMarketplaceParams {
   pagination?: {
     limit?: number;
@@ -103,7 +91,7 @@ interface GetMarketplaceParams {
  */
 export async function getMarketplaceProductsAction(
   params: GetMarketplaceParams = {}
-): Promise<ServerActionResponse<MarketplaceConnection>> {
+): Promise<MarketplaceProductsResult> {
   try {
     console.log('🚀 [SERVER ACTION] getMarketplaceProductsAction:', {
       params: {
@@ -267,7 +255,7 @@ export async function getMarketplaceProductsAction(
  * Server Action para obtener métricas del marketplace
  * CACHED para mejor performance
  */
-export async function getMarketplaceMetricsAction(): Promise<ServerActionResponse<MarketplaceMetrics>> {
+export async function getMarketplaceMetricsAction(): Promise<MarketplaceMetricsResult> {
   try {
     console.log('📊 [SERVER ACTION] getMarketplaceMetricsAction');
 
@@ -360,7 +348,7 @@ export async function getMarketplaceMetricsAction(): Promise<ServerActionRespons
  */
 export async function getMarketplaceProductAction(
   productId: string
-): Promise<ServerActionResponse<MarketplaceProduct>> {
+): Promise<MarketplaceProductResult> {
   try {
     console.log('🎯 [SERVER ACTION] getMarketplaceProductAction:', productId);
 
@@ -430,8 +418,10 @@ export async function getMarketplaceProductAction(
 /**
  * Server Action para revalidar cache del marketplace
  * Útil después de actualizaciones de productos
+ *
+ * PASO 2: Migrada a Result Type (VoidResult) ✅
  */
-export async function revalidateMarketplaceAction(): Promise<ServerActionResponse> {
+export async function revalidateMarketplaceAction(): Promise<VoidResult> {
   try {
     console.log('🔄 [SERVER ACTION] revalidateMarketplaceAction');
 
@@ -440,6 +430,7 @@ export async function revalidateMarketplaceAction(): Promise<ServerActionRespons
 
     return {
       success: true,
+      data: undefined, // void - operación sin datos de retorno
       message: 'Cache del marketplace revalidado exitosamente'
     };
 

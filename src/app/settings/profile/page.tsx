@@ -12,8 +12,17 @@ import { getProfileImageUrlServer } from '@/lib/server/storage-server-actions';
  * Server Component que obtiene los datos del usuario antes de renderizar
  * Implementa las mejores prácticas de Next.js 15 App Router con datos server-side
  * Usa UnifiedAuthSystem para protección de rutas
+ *
+ * @param searchParams - Query parameters de la URL (opcional: callbackUrl para redirección post-guardado)
  */
-export default async function ProfileSettingsPage() {
+export default async function ProfileSettingsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Next.js 16: searchParams is now async
+  const resolvedSearchParams = searchParams ? await searchParams : {};
+
   // Proteger ruta con autenticación usando UnifiedAuthSystem
   // Solo requiere autenticación básica ya que cualquier usuario puede editar su perfil
   const authResult = await UnifiedAuthSystem.requireAuthentication('/settings/profile');
@@ -97,8 +106,18 @@ export default async function ProfileSettingsPage() {
     'custom:credentials': userAttributes['custom:credentials'] || '',
   };
 
+  // Extraer callbackUrl de searchParams si existe
+  // Este parámetro se usa cuando el usuario es redirigido a completar su perfil
+  // antes de realizar una acción (ej: reservar un producto)
+  const callbackUrl = resolvedSearchParams?.callbackUrl as string | undefined;
+
+  console.log('🔗 [Profile Settings Page] Callback URL detectada:', {
+    hasCallbackUrl: !!callbackUrl,
+    callbackUrl
+  });
+
   // Renderizar cliente con datos sanitizados
   // UnifiedAuthSystem ya validó la sesión y permisos
   // Los datos vienen del servidor, evitando llamadas duplicadas al cliente
-  return <ProfileSettingsClient initialAttributes={initialData} />;
+  return <ProfileSettingsClient initialAttributes={initialData} callbackUrl={callbackUrl} />;
 }

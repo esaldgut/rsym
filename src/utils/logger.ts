@@ -81,6 +81,21 @@ class SecureLogger {
     const emoji = duration > 1000 ? '🐌' : '⚡';
     console.info(`${emoji} [Performance] ${operation}: ${duration.toFixed(2)}ms`);
   }
+
+  webhook(message: string, data?: LogData) {
+    if (!this.isDevelopment) return;
+    console.info(`🔔 [MIT Webhook] ${message}`, data ? this.sanitizeData(data) : '');
+  }
+
+  payment(message: string, data?: LogData) {
+    if (!this.isDevelopment) return;
+    console.info(`💳 [Payment] ${message}`, data ? this.sanitizeData(data) : '');
+  }
+
+  reservation(message: string, data?: LogData) {
+    if (!this.isDevelopment) return;
+    console.info(`📋 [Reservation] ${message}`, data ? this.sanitizeData(data) : '');
+  }
 }
 
 export const logger = new SecureLogger();

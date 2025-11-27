@@ -305,7 +305,7 @@ export function LocationSearch({
       {isOpen && searchText && results.length === 0 && !isPending && !error && (
         <div className="absolute w-full mt-2 p-4 bg-white border border-gray-200 rounded-xl shadow-lg z-[9998]">
           <p className="text-gray-500 text-center">
-            No se encontraron resultados para "{searchText}"
+            No se encontraron resultados para &quot;{searchText}&quot;
           </p>
           <p className="text-xs text-gray-400 text-center mt-2">
             Intenta con otro término o verifica la ortografía
