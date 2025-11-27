@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "node .next/standalone/server.js",
+    "start:copy": "cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/ && node .next/standalone/server.js",
     "lint": "next lint",
     "codegen": "graphql-codegen --config codegen.yml",
     "codegen:watch": "graphql-codegen --config codegen.yml --watch",
@@ -28,7 +29,7 @@
     "@aws-sdk/credential-providers": "^3.873.0",
     "@aws-sdk/s3-request-presigner": "^3.910.0",
     "@aws/amazon-location-utilities-auth-helper": "^1.2.3",
-    "@cesdk/cesdk-js": "^1.63.1",
+    "@cesdk/cesdk-js": "^1.64.0",
     "@hookform/resolvers": "^5.2.1",
     "@imgly/plugin-background-removal-web": "^1.2.1",
     "@tanstack/react-query": "5.81.5",

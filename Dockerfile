@@ -14,7 +14,9 @@
 # - Usuario no-root (nextjs:nodejs) para seguridad
 # - Healthcheck opcional
 #
-# TAMAÑO ESPERADO: ~300-400MB (vs 2.83GB con Dockerfile.dev)
+# TAMAÑO ESPERADO: ~370-480MB (vs 2.83GB con Dockerfile.dev)
+# - Base: ~300-400MB
+# - FFmpeg: ~70-80MB adicionales
 #
 # IMPORTANTE: Este Dockerfile usa --webpack flag
 # - next.config.mjs requiere webpack para custom loader de .graphql files
@@ -249,6 +251,7 @@ RUN \
 # - Copia public/ (archivos estáticos)
 # - Usuario no-root para seguridad
 # - Variables de entorno de producción
+# - FFmpeg para transcoding de video (WebM export)
 # ----------------------------------------------------------------------------
 FROM node:20-alpine AS runner
 
@@ -257,6 +260,21 @@ WORKDIR /app
 # Configuración de entorno
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
+
+# ============================================================================
+# FFMPEG INSTALLATION (Para transcoding de video)
+# ============================================================================
+# FFmpeg es requerido para el endpoint /api/transcode-video
+# - Convierte MP4 (CE.SDK nativo) a WebM/MKV
+# - Codecs: VP9+Opus (WebM), H.264+AAC (MKV)
+# - Alpine incluye FFmpeg en repositorio principal
+#
+# NOTA: Esto añade ~70-80MB al tamaño de la imagen
+# Si no necesitas transcoding de video, puedes comentar esta línea
+# ============================================================================
+RUN apk add --no-cache ffmpeg && \
+    echo "✅ FFmpeg installed:" && \
+    ffmpeg -version | head -1
 
 # ============================================================================
 # SHARP INSTALLATION (CRÍTICO para producción)
@@ -389,7 +407,8 @@ CMD ["node", "server.js"]
 #
 # Verify image size:
 #   docker images yaan-web:latest
-#   Expected: ~300-400MB (vs 2.83GB with Dockerfile.dev)
+#   Expected: ~370-480MB (vs 2.83GB with Dockerfile.dev)
+#   (~300-400MB base + ~70-80MB FFmpeg)
 #
 # AWS Copilot deployment:
 #   ./deploy-safe.sh

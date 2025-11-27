@@ -2146,7 +2146,7 @@ export default async function EditProductPage({
 
 **Complete social media system for travelers to create, edit, and share travel moments**
 
-YAAN Moments is a comprehensive feature that allows travelers to capture and share their travel experiences through edited photos and videos. The system integrates IMG.LY's CE.SDK (Creative Editor SDK v1.63.1) for professional editing capabilities with a complete publishing flow that includes friend tagging, location tagging, and experience linking.
+YAAN Moments is a comprehensive feature that allows travelers to capture and share their travel experiences through edited photos and videos. The system integrates IMG.LY's CE.SDK (Creative Editor SDK v1.64.0) for professional editing capabilities with a complete publishing flow that includes friend tagging, location tagging, and experience linking.
 
 #### Architecture Overview
 
@@ -2532,6 +2532,166 @@ const filterByCategory = (category: string) => {
   if (category === 'all') return assets;
   return assets.filter(asset => asset.category === category);
 };
+```
+
+##### 5. EyeDropperButton - Color Picker Nativo (v2.16.0)
+
+**File:** `src/components/cesdk/EyeDropperButton.tsx` (~200 lines)
+
+**Purpose:** Botón para samplear colores directamente desde la pantalla usando Browser EyeDropper API.
+
+**Browser Support:**
+| Browser | Version | Status |
+|---------|---------|--------|
+| Chrome | 95+ | ✅ Supported |
+| Edge | 95+ | ✅ Supported |
+| Safari | 15.1+ | ✅ Supported |
+| Firefox | 116+ | ⚠️ Recent |
+
+**Props Interface:**
+```typescript
+interface EyeDropperButtonProps {
+  cesdkInstance: CreativeEditorSDK | null;
+  onColorPicked?: (color: RGBAColor, hexColor: string) => void;
+  showTooltip?: boolean;
+  size?: 'sm' | 'md' | 'lg';
+  className?: string;
+}
+```
+
+**Hook:** `src/hooks/useEyeDropper.ts`
+```typescript
+interface UseEyeDropperReturn {
+  pickColor: () => Promise<string | null>;
+  isSupported: boolean;
+  isPicking: boolean;
+  error: string | null;
+}
+```
+
+**Utilidades:** `src/utils/color-utils.ts`
+- `hexToRgba(hex: string): RGBAColor` - Convierte hex a RGBA
+- `rgbaToHex(rgba: RGBAColor): string` - Convierte RGBA a hex
+- `applyColorToBlock(engine, blockId, color)` - Aplica color a bloque CE.SDK
+
+**Ubicación en UI:** Toolbar superior izquierda, junto a Undo/Redo controls
+
+##### 6. TimelineGroupPanel - Agrupación de Clips (v2.16.0)
+
+**File:** `src/components/cesdk/TimelineGroupPanel.tsx` (~500 lines)
+
+**Purpose:** Panel para agrupar y gestionar clips de video en el timeline.
+
+**Solo disponible en video mode.**
+
+**Props Interface:**
+```typescript
+interface TimelineGroupPanelProps {
+  cesdkInstance: CreativeEditorSDK | null;
+  isVideoMode: boolean;
+  defaultCollapsed?: boolean;
+  className?: string;
+}
+```
+
+**Features:**
+- CRUD completo de grupos
+- 8 colores predefinidos (Rosa, Morado, Azul, Verde, Amarillo, Naranja, Rojo, Gris)
+- Selección múltiple de clips
+- Merge/split de grupos
+- Persistencia en scene metadata
+
+**Manager:** `src/lib/cesdk/timeline-groups.ts`
+```typescript
+export class TimelineGroupManager {
+  constructor(engine: Engine);
+  createGroup(name: string, clipIds: number[]): TimelineGroup;
+  addToGroup(groupId: number, clipId: number): void;
+  removeFromGroup(groupId: number, clipId: number): void;
+  deleteGroup(groupId: number, deleteClips?: boolean): void;
+  mergeGroups(groupIds: number[]): TimelineGroup;
+  getGroups(): TimelineGroup[];
+  getGroupForClip(clipId: number): TimelineGroup | null;
+}
+```
+
+**Hook:** `src/hooks/useTimelineGroups.ts`
+```typescript
+interface UseTimelineGroupsReturn {
+  groups: TimelineGroup[];
+  createGroup: (clipIds: number[]) => void;
+  deleteGroup: (groupId: number) => void;
+  selectGroup: (groupId: number) => void;
+  isGroupSelected: (groupId: number) => boolean;
+}
+```
+
+**Ubicación en UI:** Panel colapsable esquina superior derecha (solo video mode)
+
+##### 7. ExportFormatSelector - Modal de Formato Export (v2.16.0)
+
+**File:** `src/components/cesdk/ExportFormatSelector.tsx` (~450 lines)
+
+**Purpose:** Modal para seleccionar formato de exportación de video (MP4/WebM/MKV).
+
+**Solo aparece en video mode, después del export nativo de CE.SDK.**
+
+**Props Interface:**
+```typescript
+interface ExportFormatSelectorProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onExport: (format: ExportFormat, quality: TranscodeQuality) => Promise<void>;
+  isVideoMode: boolean;
+  videoBlob?: Blob;
+  videoFilename?: string;
+}
+
+type ExportFormat = 'mp4' | 'webm' | 'mkv';
+type TranscodeQuality = 'low' | 'medium' | 'high';
+```
+
+**Formatos Soportados:**
+| Formato | Codec Video | Codec Audio | Requiere Transcoding |
+|---------|-------------|-------------|---------------------|
+| MP4 | H.264 | AAC | ❌ Nativo CE.SDK |
+| WebM | VP9 | Opus | ✅ Server-side FFmpeg |
+| MKV | H.264 | AAC | ✅ Server-side FFmpeg |
+
+**Hook:** `src/hooks/useVideoTranscode.ts`
+```typescript
+interface UseVideoTranscodeReturn {
+  transcode: (blob: Blob, filename: string, options: TranscodeOptions) => Promise<TranscodeResult | null>;
+  isTranscoding: boolean;
+  error: string | null;
+  clearError: () => void;
+}
+```
+
+**API Route:** `src/app/api/transcode-video/route.ts`
+- Endpoint: `POST /api/transcode-video`
+- Body: FormData con video file, format, quality
+- Requiere FFmpeg instalado en servidor
+
+**Server Action:** `src/lib/server/video-transcode-actions.ts`
+- `transcodeVideo(inputPath, outputPath, options)` - Ejecuta FFmpeg
+- Quality presets con CRF values configurados
+- Cleanup automático de archivos temporales
+
+**Flujo de Export para Videos:**
+```
+User clicks Export → CE.SDK exports MP4 (native)
+                   → Show ExportFormatSelector modal
+                   → User selects format + quality
+                   → If MP4: onExport(blob original)
+                   → If WebM/MKV: transcode via API → onExport(blob transcodificado)
+```
+
+**Dockerfile Update:**
+```dockerfile
+# FFmpeg installation for video transcoding
+RUN apk add --no-cache ffmpeg
+# Adds ~70-80MB to image size
 ```
 
 #### Epic 2: Publishing Flow (Social Features)

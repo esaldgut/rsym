@@ -26,17 +26,21 @@
  * ```
  */
 
-import { useEffect, useRef, useState, useCallback } from 'react';
-import CreativeEditorSDK, { supportsVideo } from '@cesdk/cesdk-js';
-import type { Configuration, DesignBlockTypeLonghand, ImageMimeType } from '@cesdk/cesdk-js';
-import BackgroundRemovalPlugin from '@imgly/plugin-background-removal-web';
-import { applyYaanTheme } from '@/config/cesdk/ThemeConfigYAAN';
-import { useAutoSave } from '@/hooks/useAutoSave';
-import { RecoveryDialog } from '@/components/cesdk/RecoveryDialog';
-import { UndoRedoControls } from '@/components/cesdk/UndoRedoControls';
-import { createYaanAssetSource } from '@/lib/cesdk/yaan-asset-source';
-import type { SaveMetadata } from '@/hooks/useAutoSave';
-import { detectBrowser } from '@/utils/browser-detection';
+import { EyeDropperButton } from '@/components/cesdk/EyeDropperButton'
+import { ExportFormatSelector, type ExportFormat } from '@/components/cesdk/ExportFormatSelector'
+import { RecoveryDialog } from '@/components/cesdk/RecoveryDialog'
+import { TimelineGroupPanel } from '@/components/cesdk/TimelineGroupPanel'
+import { UndoRedoControls } from '@/components/cesdk/UndoRedoControls'
+import { useVideoTranscode, type TranscodeQuality, type TranscodeFormat } from '@/hooks/useVideoTranscode'
+import { applyYaanTheme } from '@/config/cesdk/ThemeConfigYAAN'
+import type { SaveMetadata } from '@/hooks/useAutoSave'
+import { useAutoSave } from '@/hooks/useAutoSave'
+import { createYaanAssetSource } from '@/lib/cesdk/yaan-asset-source'
+import { detectBrowser } from '@/utils/browser-detection'
+import type { Configuration, DesignBlockTypeLonghand, ImageMimeType } from '@cesdk/cesdk-js'
+import CreativeEditorSDK, { supportsVideo } from '@cesdk/cesdk-js'
+import BackgroundRemovalPlugin from '@imgly/plugin-background-removal-web'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 // ============================================================================
 // TYPES
@@ -76,7 +80,7 @@ export interface ExportMetadata {
   size: number;
 
   /** Export format used */
-  format: 'image/png' | 'image/jpeg' | 'video/mp4';
+  format: 'image/png' | 'image/jpeg' | 'video/mp4' | 'video/webm' | 'video/x-matroska';
 
   /** Export quality (if applicable) */
   quality?: number;
@@ -110,6 +114,11 @@ export function CESDKEditorWrapper({
   const [draftMetadata, setDraftMetadata] = useState<SaveMetadata | null>(null);
   const hasCheckedDraft = useRef(false);
 
+  // FASE 3: Export Format Selector state (WebM/MKV transcoding)
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [pendingExportBlob, setPendingExportBlob] = useState<Blob | null>(null);
+  const [pendingExportFilename, setPendingExportFilename] = useState<string>('');
+
   // ============================================================================
   // AUTO-SAVE HOOK (FASE 2.2)
   // ============================================================================
@@ -133,6 +142,17 @@ export function CESDKEditorWrapper({
       console.error('[CESDKEditorWrapper] ❌ Auto-save error:', error);
     }
   });
+
+  // ============================================================================
+  // VIDEO TRANSCODING HOOK (FASE 3 - WebM/MKV Export)
+  // ============================================================================
+
+  const {
+    transcode,
+    isTranscoding,
+    error: transcodeError,
+    clearError: clearTranscodeError
+  } = useVideoTranscode();
 
   // ============================================================================
   // RECOVERY HANDLERS (FASE 2.2)
@@ -210,6 +230,106 @@ export function CESDKEditorWrapper({
     setShowRecoveryDialog(false);
     console.log('[CESDKEditorWrapper] ✅ Draft discarded');
   }, [clearDrafts]);
+
+  // ============================================================================
+  // VIDEO FORMAT EXPORT HANDLER (FASE 3 - WebM/MKV Transcoding)
+  // ============================================================================
+  // Handles export format selection from ExportFormatSelector modal
+  // - MP4: Uses pending blob directly (native CE.SDK export)
+  // - WebM/MKV: Transcodes via /api/transcode-video endpoint
+  // ============================================================================
+
+  const handleFormatExport = useCallback(async (format: ExportFormat, quality: TranscodeQuality) => {
+    console.log('[CESDKEditorWrapper] 🎬 handleFormatExport:', { format, quality });
+
+    if (!pendingExportBlob) {
+      console.error('[CESDKEditorWrapper] ❌ No pending export blob');
+      setError('No hay video pendiente para exportar');
+      return;
+    }
+
+    try {
+      let finalBlob: Blob = pendingExportBlob;
+      let finalFilename = `${pendingExportFilename}.mp4`;
+      let finalMimeType: ExportMetadata['format'] = 'video/mp4';
+
+      // ========================================================================
+      // TRANSCODING (WebM/MKV)
+      // ========================================================================
+      if (format === 'webm' || format === 'mkv') {
+        console.log('[CESDKEditorWrapper] 🔄 Transcoding to', format.toUpperCase());
+
+        const transcodeResult = await transcode(
+          pendingExportBlob,
+          `${pendingExportFilename}.mp4`,
+          {
+            format: format as TranscodeFormat,
+            quality
+          }
+        );
+
+        if (!transcodeResult) {
+          // Error is already set by useVideoTranscode hook
+          console.error('[CESDKEditorWrapper] ❌ Transcoding failed');
+          return;
+        }
+
+        finalBlob = transcodeResult.blob;
+        finalFilename = transcodeResult.filename;
+        finalMimeType = transcodeResult.mimeType as ExportMetadata['format'];
+
+        console.log('[CESDKEditorWrapper] ✅ Transcoding complete:', {
+          filename: finalFilename,
+          size: `${(finalBlob.size / 1024 / 1024).toFixed(2)} MB`
+        });
+      }
+
+      // ========================================================================
+      // BUILD METADATA AND CALL PARENT EXPORT
+      // ========================================================================
+      const metadata: ExportMetadata = {
+        filename: finalFilename,
+        mimeType: finalMimeType,
+        size: finalBlob.size,
+        format: finalMimeType,
+        quality: format === 'mp4' ? 0.95 : undefined
+      };
+
+      console.log('[CESDKEditorWrapper] 📤 Calling onExport with:', {
+        filename: metadata.filename,
+        format: metadata.format,
+        size: `${(metadata.size / 1024 / 1024).toFixed(2)} MB`
+      });
+
+      await onExport(finalBlob, metadata);
+
+      // ========================================================================
+      // CLEANUP
+      // ========================================================================
+      setShowExportModal(false);
+      setPendingExportBlob(null);
+      setPendingExportFilename('');
+      clearTranscodeError();
+
+      console.log('[CESDKEditorWrapper] ✅ Export complete');
+
+    } catch (err) {
+      console.error('[CESDKEditorWrapper] ❌ Export error:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Error al exportar video';
+      setError(errorMessage);
+    }
+  }, [pendingExportBlob, pendingExportFilename, transcode, onExport, clearTranscodeError]);
+
+  /**
+   * Handle export modal close
+   */
+  const handleCloseExportModal = useCallback(() => {
+    console.log('[CESDKEditorWrapper] 🔙 Closing export modal');
+    setShowExportModal(false);
+    setPendingExportBlob(null);
+    setPendingExportFilename('');
+    clearTranscodeError();
+  }, [clearTranscodeError]);
 
   // ============================================================================
   // LOAD INITIAL MEDIA FUNCTION
@@ -400,225 +520,60 @@ export function CESDKEditorWrapper({
         await applyYaanTheme(cesdkInstance);
 
         // ========================================================================
-        // FASE 1: FULL ASSET LIBRARY IMPLEMENTATION (2025-11-18)
+        // FIX v2.14.0: LAZY ASSET LOADING PATTERN
         // ========================================================================
         //
-        // Load ALL official IMG.LY asset sources for professional editing experience.
-        // This provides 200+ stickers, 50+ filters, 30+ templates, and more.
+        // ROOT CAUSE DISCOVERY (2025-10-23):
+        // v2.7.4 loaded assets BEFORE creating scene, but CE.SDK needs the scene
+        // to exist first to properly configure Video vs Design mode asset sources.
         //
-        // Asset Sources Loaded:
-        // - Default: Stickers, shapes, filters (LUT/duotone), effects, fonts, colors
-        // - Demo: Templates, upload sources, sample images/videos
+        // PROBLEM:
+        // - addDemoAssetSources({ sceneMode: 'Video' }) executed BEFORE createVideoScene()
+        // - CE.SDK looks for ly.img.page.presets.video when creating scene
+        // - Presets don't exist yet → scene creation FAILS → scene = null
+        //
+        // EVIDENCE:
+        // [UBQ] No default page format could be found.
+        // Make sure the asset sources listed in the config (ly.img.page.presets.video)
+        // are available before creating the scene.
+        //
+        // SOLUTION:
+        // 1. Create scene FIRST (with minimal config, no asset dependencies)
+        // 2. Load initial media IMMEDIATELY (renders user content fast)
+        // 3. Load asset sources PROGRESSIVELY in background (non-blocking)
+        //
+        // BENEFITS:
+        // - Scene always succeeds (no external dependencies)
+        // - User sees their content immediately
+        // - Assets load progressively without blocking UX
+        // - Graceful degradation if asset loading fails
         //
         // References:
-        // - Documentation: docs/CESDK_NEXTJS_LLMS_FULL.txt
-        // - Best Practice: Load in parallel with Promise.all for performance
+        // - UBQ Warning: docs/CESDK_NEXTJS_LLMS_FULL.txt lines 721-723
+        // - Root Cause Analysis: docs/ROOT-CAUSE-ANALYSIS-v2.14.0.md
         // ========================================================================
 
-        console.log('[CESDKEditorWrapper] 📚 Loading asset sources in parallel...');
-
-        try {
-          await Promise.all([
-            // Load default asset sources (stickers, filters, effects, fonts, etc.)
-            // FIX v2.7.4: Use IMG.LY CDN for asset sources (eliminates 404 errors)
-            // CDN: https://cdn.img.ly/assets/v4
-            cesdkInstance.addDefaultAssetSources({
-              baseURL: 'https://cdn.img.ly/assets/v4'
-            }).then(() => {
-              console.log('[CESDKEditorWrapper] ✅ Default asset sources loaded from CDN');
-            }),
-
-            // Load demo asset sources (templates, upload, samples)
-            // FIX v2.7.4: Use IMG.LY CDN for demo assets
-            // CDN: https://cdn.img.ly/assets/demo/v1
-            cesdkInstance.addDemoAssetSources({
-              sceneMode: mediaType === 'video' ? 'Video' : 'Design',
-              withUploadAssetSources: true,  // Enable image/video upload in UI
-              baseURL: 'https://cdn.img.ly/assets/demo/v1'
-            }).then(() => {
-              console.log('[CESDKEditorWrapper] ✅ Demo asset sources loaded from CDN');
-            })
-          ]);
-
-          console.log('[CESDKEditorWrapper] 🎉 All asset sources loaded successfully from CDN');
-
-        } catch (assetError) {
-          // Non-fatal: Continue even if asset loading fails
-          console.warn('[CESDKEditorWrapper] ⚠️ Asset source loading failed:', assetError);
-          console.warn('[CESDKEditorWrapper] Editor will continue with limited assets');
-        }
-
         // ========================================================================
-        // FASE 2 & 3: YAAN CUSTOM ASSET SOURCE + UI PERSONALIZATION (2025-11-18)
-        // ========================================================================
-        //
-        // Integrate YAAN-branded travel stickers as a custom asset source.
-        // This adds 10 curated stickers (plane, camera, palm tree, etc.) to
-        // the asset library and customizes the UI to highlight YAAN content.
-        //
-        // Steps:
-        // 1. Register custom asset source with CE.SDK engine
-        // 2. Add asset library entry to UI
-        // 3. Personalize dock order (YAAN stickers first)
-        //
-        // References:
-        // - Custom Source: src/lib/cesdk/yaan-asset-source.ts
-        // - Asset Source API: docs/CESDK_NEXTJS_LLMS_FULL.txt
+        // PHASE 1: CREATE SCENE (Minimal Config - No Asset Dependencies)
         // ========================================================================
 
-        console.log('[CESDKEditorWrapper] 🎨 Integrating YAAN custom asset source...');
-
-        try {
-          // STEP 1: Register YAAN custom asset source
-          const yaanAssetSource = createYaanAssetSource();
-          await cesdkInstance.engine.asset.addAssetSource(
-            'yaan-travel-stickers',
-            yaanAssetSource
-          );
-
-          console.log('[CESDKEditorWrapper] ✅ YAAN asset source registered');
-
-          // STEP 2: Add YAAN asset library entry to UI
-          cesdkInstance.ui.addAssetLibraryEntry({
-            id: 'yaan-stickers-entry',
-            sourceIds: ['yaan-travel-stickers'],
-            sceneMode: mediaType === 'video' ? 'Video' : 'Design',
-            previewLength: 8,
-            previewBackgroundType: 'cover',
-            gridBackgroundType: 'cover',
-            gridColumns: 4,
-            // NOTE: icon property not working in current CE.SDK version
-            // Will display with default sticker icon
-          });
-
-          console.log('[CESDKEditorWrapper] ✅ YAAN asset library entry added');
-
-          // STEP 3: Personalize dock order (YAAN stickers first)
-          const currentDock = cesdkInstance.ui.getDockOrder();
-
-          // Find YAAN entry and default sticker entry
-          const yaanEntry = currentDock.find((item: any) =>
-            item.key === 'yaan-stickers-entry'
-          );
-          const stickerEntry = currentDock.find((item: any) =>
-            item.key === 'ly.img.sticker'
-          );
-
-          // Filter out YAAN and sticker entries from current order
-          const otherEntries = currentDock.filter((item: any) =>
-            item.key !== 'yaan-stickers-entry' &&
-            item.key !== 'ly.img.sticker'
-          );
-
-          // Reorder: YAAN first, then stickers, then rest
-          const newDockOrder = [
-            yaanEntry,
-            stickerEntry,
-            ...otherEntries
-          ].filter(Boolean); // Remove undefined entries
-
-          cesdkInstance.ui.setDockOrder(newDockOrder);
-
-          console.log('[CESDKEditorWrapper] ✅ Dock order personalized (YAAN first)');
-
-        } catch (yaanError) {
-          // Non-fatal: Continue even if YAAN integration fails
-          console.warn('[CESDKEditorWrapper] ⚠️ YAAN asset source integration failed:', yaanError);
-          console.warn('[CESDKEditorWrapper] Editor will continue with official assets only');
-        }
-
-        console.log('[CESDKEditorWrapper] 🎉 Full asset library integration complete');
-
-        // ========================================================================
-        // FASE C.1: BACKGROUND REMOVAL PLUGIN (2025-11-18)
-        // ========================================================================
-        //
-        // Integrate IMG.LY's Background Removal plugin for one-click background
-        // removal that runs entirely in the browser using Machine Learning (ONNX).
-        //
-        // Benefits:
-        // - Zero server costs (runs client-side)
-        // - No API calls to external services
-        // - Privacy-friendly (data never leaves browser)
-        // - Competitive differentiator vs other moment editors
-        //
-        // Technical:
-        // - Uses ONNX Runtime Web + TensorFlow.js
-        // - Runs on WebAssembly for performance
-        // - Works on all modern browsers (Chrome, Edge, Safari 16.4+)
-        //
-        // References:
-        // - Plugin: @imgly/plugin-background-removal-web
-        // - Documentation: docs/CESDK_NEXTJS_LLMS_FULL.txt (Quick Actions)
-        // ========================================================================
-
-        console.log('[CESDKEditorWrapper] 🎭 Integrating Background Removal plugin...');
-
-        try {
-          // Add Background Removal plugin
-          await cesdkInstance.addPlugin(BackgroundRemovalPlugin());
-          console.log('[CESDKEditorWrapper] ✅ Background Removal plugin registered');
-
-          // Add to canvas menu (prepend to beginning of menu)
-          const currentCanvasMenu = cesdkInstance.ui.getCanvasMenuOrder();
-          cesdkInstance.ui.setCanvasMenuOrder([
-            'ly.img.background-removal.canvasMenu',
-            ...currentCanvasMenu
-          ]);
-
-          console.log('[CESDKEditorWrapper] ✅ Background Removal added to canvas menu');
-
-          // Optional: Also add to inspector bar for quick access
-          const currentInspectorBar = cesdkInstance.ui.getInspectorBar();
-          cesdkInstance.ui.setInspectorBar([
-            'ly.img.background-removal.inspectorBar',
-            ...currentInspectorBar
-          ]);
-
-          console.log('[CESDKEditorWrapper] ✅ Background Removal added to inspector bar');
-
-        } catch (bgRemovalError) {
-          // Non-fatal: Continue even if plugin fails to load
-          console.warn('[CESDKEditorWrapper] ⚠️ Background Removal plugin failed to load:', bgRemovalError);
-          console.warn('[CESDKEditorWrapper] Editor will continue without background removal feature');
-
-          // Show user-friendly notification
-          cesdkInstance.ui.showNotification({
-            type: 'info',
-            message: 'Algunas funciones avanzadas no están disponibles en este navegador.',
-            duration: 'short'
-          });
-        }
-
-        console.log('[CESDKEditorWrapper] 🎭 Background Removal integration complete');
-
-        // Create scene based on media type
+        console.log('[CESDKEditorWrapper] 🎬 Creating scene with minimal configuration...');
         if (mediaType === 'video') {
           // CRITICAL: Use CE.SDK official supportsVideo() function
-          // This is the recommended approach from IMG.LY documentation
-          // CE.SDK internally checks WebCodecs API and browser compatibility
-          // Reference: docs/CESDK_NEXTJS_LLMS_FULL.txt lines 12823, 29311, 54777
           const videoSupported = supportsVideo();
           const browserInfo = detectBrowser(); // For error messaging only
 
           if (videoSupported) {
             console.log('[CESDKEditorWrapper] ✅ Video editing supported (CE.SDK official check)');
             console.log(`[CESDKEditorWrapper] Browser: ${browserInfo.name} ${browserInfo.version} on ${browserInfo.os}`);
-            await cesdkInstance.createVideoScene();
 
-            // FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
-            // This prevents scene from being destroyed/null before media loads
-            // CRITICAL: Must happen synchronously in same execution context
-            if (initialMediaUrl) {
-              console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
-              await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
-            }
+            // Create video scene WITHOUT waiting for assets
+            await cesdkInstance.createVideoScene();
+            console.log('[CESDKEditorWrapper] ✅ Video scene created successfully');
 
             // Register custom handler for unsupported browsers (fallback safety)
-            // CE.SDK calls this when WebCodecs API is not available
             cesdkInstance.actions.register('onUnsupportedBrowser', () => {
               console.warn('[CESDKEditorWrapper] ⚠️ Video editing no soportado en este navegador');
-
               setError(
                 `⚠️ Edición de video no disponible\n\n` +
                 `Tu navegador no soporta las tecnologías necesarias para editar videos (WebCodecs API).\n\n` +
@@ -635,7 +590,7 @@ export function CESDKEditorWrapper({
               );
             });
           } else {
-            // Browser doesn't support video editing - show error immediately
+            // Browser doesn't support video editing
             console.warn('[CESDKEditorWrapper] ❌ Video not supported (CE.SDK official check)');
             console.warn(`[CESDKEditorWrapper] Browser: ${browserInfo.name} ${browserInfo.version} on ${browserInfo.os}`);
 
@@ -656,22 +611,125 @@ export function CESDKEditorWrapper({
             );
 
             // Fallback to design scene (image editing)
-            // This allows CE.SDK engine (WASM) to load successfully for image editing
             await cesdkInstance.createDesignScene();
-
-            // FIX v2.7.3: Media loading moved to separate useEffect (see lines 1088-1104)
+            console.log('[CESDKEditorWrapper] ✅ Design scene created (video fallback)');
           }
         } else {
+          // Create design scene (image editing)
           await cesdkInstance.createDesignScene();
-
-          // FIX v2.13.0: Load initial media IMMEDIATELY after scene creation
-          // This prevents scene from being destroyed/null before media loads
-          // CRITICAL: Must happen synchronously in same execution context
-          if (initialMediaUrl) {
-            console.log('[CESDKEditorWrapper] 🔄 Loading initial media immediately after scene creation...');
-            await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
-          }
+          console.log('[CESDKEditorWrapper] ✅ Design scene created successfully');
         }
+
+        // ========================================================================
+        // PHASE 2: LOAD INITIAL MEDIA (Fast User Content Rendering)
+        // ========================================================================
+
+        // FIX v2.14.0: Load media IMMEDIATELY after scene creation
+        // Scene is guaranteed to exist at this point
+        if (initialMediaUrl) {
+          console.log('[CESDKEditorWrapper] 📥 Loading initial media immediately after scene creation...');
+          await loadInitialMedia(cesdkInstance, initialMediaUrl, mediaType);
+        }
+
+        // ========================================================================
+        // PHASE 3: LOAD ASSET SOURCES PROGRESSIVELY (Non-Blocking)
+        // ========================================================================
+        //
+        // Now that scene exists, we can safely load asset sources in background.
+        // These will populate the asset library UI without blocking user's media.
+        //
+        // Asset Sources:
+        // - Default: Stickers, shapes, filters (LUT/duotone), effects, fonts, colors
+        // - Demo: Templates, upload sources, sample images/videos
+        //
+        // This runs asynchronously and doesn't block the UI initialization.
+        // ========================================================================
+
+        console.log('[CESDKEditorWrapper] 📚 Loading asset sources progressively...');
+
+        // Load assets in background (don't await)
+        Promise.all([
+          cesdkInstance.addDefaultAssetSources({
+            baseURL: 'https://cdn.img.ly/assets/v4'
+          }).then(() => {
+            console.log('[CESDKEditorWrapper] ✅ Default asset sources loaded from CDN');
+          }),
+
+          cesdkInstance.addDemoAssetSources({
+            sceneMode: mediaType === 'video' ? 'Video' : 'Design',
+            withUploadAssetSources: true,
+            baseURL: 'https://cdn.img.ly/assets/demo/v1'
+          }).then(() => {
+            console.log('[CESDKEditorWrapper] ✅ Demo asset sources loaded from CDN');
+          })
+        ]).then(() => {
+          console.log('[CESDKEditorWrapper] 🎉 All asset sources loaded successfully');
+        }).catch(assetError => {
+          console.warn('[CESDKEditorWrapper] ⚠️ Asset source loading failed:', assetError);
+          console.warn('[CESDKEditorWrapper] Editor will continue with limited assets');
+        });
+
+        // ========================================================================
+        // PHASE 4: YAAN CUSTOM ASSETS & PLUGINS (Progressive Enhancement)
+        // ========================================================================
+
+        // YAAN Custom Asset Source (progressive, non-blocking)
+        cesdkInstance.engine.asset.addSource(
+          createYaanAssetSource()
+        ).then(() => {
+          console.log('[CESDKEditorWrapper] ✅ YAAN asset source registered');
+
+          cesdkInstance.ui.addAssetLibraryEntry({
+            id: 'yaan-stickers-entry',
+            sourceIds: ['yaan-travel-stickers'],
+            sceneMode: mediaType === 'video' ? 'Video' : 'Design',
+            previewLength: 8,
+            previewBackgroundType: 'cover',
+            gridBackgroundType: 'cover',
+            gridColumns: 4
+          });
+
+          console.log('[CESDKEditorWrapper] ✅ YAAN asset library entry added');
+
+          // Personalize dock order (YAAN first)
+          const currentDock = cesdkInstance.ui.getDockOrder();
+          const yaanEntry = currentDock.find((item: any) => item.key === 'yaan-stickers-entry');
+          const stickerEntry = currentDock.find((item: any) => item.key === 'ly.img.sticker');
+          const otherEntries = currentDock.filter((item: any) =>
+            item.key !== 'yaan-stickers-entry' && item.key !== 'ly.img.sticker'
+          );
+
+          cesdkInstance.ui.setDockOrder([yaanEntry, stickerEntry, ...otherEntries].filter(Boolean));
+          console.log('[CESDKEditorWrapper] ✅ Dock order personalized (YAAN first)');
+        }).catch(yaanError => {
+          console.warn('[CESDKEditorWrapper] ⚠️ YAAN asset source integration failed:', yaanError);
+        });
+
+        // Background Removal Plugin (progressive, non-blocking)
+        cesdkInstance.addPlugin(BackgroundRemovalPlugin()).then(() => {
+          console.log('[CESDKEditorWrapper] ✅ Background Removal plugin registered');
+
+          const currentCanvasMenu = cesdkInstance.ui.getCanvasMenuOrder();
+          cesdkInstance.ui.setCanvasMenuOrder([
+            'ly.img.background-removal.canvasMenu',
+            ...currentCanvasMenu
+          ]);
+
+          const currentInspectorBar = cesdkInstance.ui.getInspectorBar();
+          cesdkInstance.ui.setInspectorBar([
+            'ly.img.background-removal.inspectorBar',
+            ...currentInspectorBar
+          ]);
+
+          console.log('[CESDKEditorWrapper] ✅ Background Removal integrated');
+        }).catch(bgRemovalError => {
+          console.warn('[CESDKEditorWrapper] ⚠️ Background Removal plugin failed:', bgRemovalError);
+          cesdkInstance.ui.showNotification({
+            type: 'info',
+            message: 'Algunas funciones avanzadas no están disponibles en este navegador.',
+            duration: 'short'
+          });
+        });
 
         // ============================================================================
         // ACTIONS API REGISTRATION (FASE 1 - 2025-11-18)
@@ -744,7 +802,37 @@ export function CESDKEditorWrapper({
               type: exportBlob.type
             });
 
-            // Build metadata
+            // ============================================================================
+            // FASE 3: VIDEO FORMAT SELECTION (WebM/MKV Transcoding)
+            // ============================================================================
+            // For videos, show format selector modal before final export
+            // This allows users to choose MP4 (native), WebM, or MKV format
+            // WebM/MKV are transcoded server-side via /api/transcode-video
+
+            if (mediaType === 'video') {
+              console.log('[CESDKEditorWrapper] 🎬 Video mode - showing format selector');
+
+              // Store blob and filename for later use by handleFormatExport
+              setPendingExportBlob(exportBlob);
+              setPendingExportFilename(`yaan-moment-${Date.now()}`);
+
+              // Close loading notification
+              cesdkInstance.ui.updateNotification(notificationId, {
+                type: 'success',
+                message: 'Video listo - Selecciona el formato',
+                duration: 'short'
+              });
+
+              // Show format selector modal
+              setShowExportModal(true);
+              return; // Don't call onExport yet - handleFormatExport will do it
+            }
+
+            // ============================================================================
+            // IMAGE EXPORT (Direct - no format selection needed)
+            // ============================================================================
+
+            // Build metadata for images
             const metadata: ExportMetadata = {
               filename: `yaan-moment-${Date.now()}.${fileExtension}`,
               mimeType: mimeType,
@@ -753,7 +841,7 @@ export function CESDKEditorWrapper({
               quality: 0.95
             };
 
-            // Call parent's export handler
+            // Call parent's export handler (images only)
             await onExport(exportBlob, metadata);
 
             // Update notification to success (auto-dismiss after 3s)
@@ -1185,7 +1273,7 @@ export function CESDKEditorWrapper({
         cesdkInstance.dispose();
       }
     };
-  }, [mediaType, userId, initialMediaUrl, loadInitialMedia]); // FIX v2.13.0: Added dependencies for loadInitialMedia function
+  }, [mediaType, userId, initialMediaUrl]); // FIX v2.14.0: REVERTED v2.13.0 - removed loadInitialMedia to prevent infinite loop
 
   // ============================================================================
   // RENDER
@@ -1231,12 +1319,34 @@ export function CESDKEditorWrapper({
 
       {/* NOTE: Export Overlay removed - CE.SDK Utils API now handles loading dialogs */}
 
-      {/* FASE 2.6: Undo/Redo Controls - Top Left Corner */}
+      {/* FASE 2.6: Undo/Redo Controls + Eye Dropper - Top Left Corner */}
       {isInitialized && (
-        <div className="absolute top-4 left-4 z-10">
+        <div className="absolute top-4 left-4 z-10 flex items-center gap-3">
           <UndoRedoControls
             cesdkInstance={cesdkRef.current}
             showTooltips={true}
+          />
+
+          {/* Eye Dropper Color Picker */}
+          <EyeDropperButton
+            cesdkInstance={cesdkRef.current}
+            onColorPicked={(color, hexColor) => {
+              console.log('[CESDKEditorWrapper] 🎨 Color picked:', hexColor, color);
+            }}
+            showTooltip={true}
+            size="md"
+          />
+        </div>
+      )}
+
+      {/* Timeline Groups Panel - Only in Video Mode - Top Right Corner */}
+      {isInitialized && mediaType === 'video' && (
+        <div className="absolute top-4 right-4 z-10">
+          <TimelineGroupPanel
+            cesdkInstance={cesdkRef.current}
+            isVideoMode={mediaType === 'video'}
+            defaultCollapsed={true}
+            className="w-72"
           />
         </div>
       )}
@@ -1274,6 +1384,16 @@ export function CESDKEditorWrapper({
         draftMetadata={draftMetadata}
         onRecover={handleRecoverDraft}
         onDiscard={handleDiscardDraft}
+      />
+
+      {/* FASE 3: Export Format Selector Modal (WebM/MKV Transcoding) */}
+      <ExportFormatSelector
+        isOpen={showExportModal}
+        onClose={handleCloseExportModal}
+        onExport={handleFormatExport}
+        isVideoMode={mediaType === 'video'}
+        videoBlob={pendingExportBlob ?? undefined}
+        videoFilename={pendingExportFilename || undefined}
       />
     </div>
   );
