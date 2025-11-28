@@ -6,45 +6,45 @@
 // - Archivos de test: __tests__/**/*.test.ts(x)
 // - Mocks: src/__tests__/mocks/
 // - Coverage: coverage/
-
+ 
 const nextJest = require('next/jest');
-
+ 
 const createJestConfig = nextJest({
   // Provide the path to your Next.js app to load next.config.js and .env files
   dir: './',
 });
-
+ 
 /** @type {import('jest').Config} */
 const customJestConfig = {
   // Test environment
   testEnvironment: 'jest-environment-jsdom',
-
+ 
   // Setup files to run after jest is initialized
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
-
+ 
   // Module path aliases (must match tsconfig.json paths)
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
-
+ 
   // Test file patterns
   testMatch: [
     '**/__tests__/**/*.test.ts',
     '**/__tests__/**/*.test.tsx',
   ],
-
+ 
   // Files to ignore during tests
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/',
     '<rootDir>/amplify/',
   ],
-
+ 
   // Transform ignore patterns (required for ES modules in node_modules)
   transformIgnorePatterns: [
     '/node_modules/(?!(maplibre-gl|@mapbox|@cesdk|@aws-amplify|aws-amplify)/)',
   ],
-
+ 
   // Coverage configuration
   collectCoverageFrom: [
     // Product Wizard components (primary focus)
@@ -69,11 +69,31 @@ const customJestConfig = {
     // Form context
     'src/context/ProductFormContext.tsx',
     // Exclude type definitions and index files
+    'src/components/friends/*.{ts,tsx}',
+    'src/components/media/*.{ts,tsx}',
+    'src/components/auth/*.{ts,tsx}',
+    'src/components/guards/*.{ts,tsx}',
+    'src/components/moments/**/*.{ts,tsx}',
+    'src/components/social/*.{ts,tsx}',
+    'src/components/navbar/*.{ts,tsx}',
+    'src/components/StorageImage.tsx',
+    'src/components/cesdk/*.{ts,tsx}',
+    'src/components/layout/*.{ts,tsx}',
+    'src/components/chat/*.{ts,tsx}',
+    'src/components/layouts/*.{ts,tsx}',
+    'src/components/profile/*.{ts,tsx}',
+    'src/components/ConfigureAmplifyClientSide.tsx',
+    'src/components/location/*.{ts,tsx}',
+    'src/components/provider/*.{ts,tsx}',
+    'src/components/feed/*.{ts,tsx}',
+    'src/components/provider/**/*.{ts,tsx}',
+    'src/components/providers/**/*.{ts,tsx}',
+ 
     '!**/*.d.ts',
     '!**/index.ts',
     '!**/node_modules/**',
   ],
-
+ 
   // Coverage thresholds per file (enforced in CI)
   // Global thresholds are set to 0 because not all files have tests yet
   // Specific thresholds enforce high coverage on tested files
@@ -137,24 +157,24 @@ const customJestConfig = {
       statements: 40,
     },
   },
-
+ 
   // Coverage reporters
   coverageReporters: ['text', 'lcov', 'html'],
-
+ 
   // Verbose output
   verbose: true,
-
+ 
   // Clear mocks between tests
   clearMocks: true,
-
+ 
   // Restore mocks between tests
   restoreMocks: true,
-
+ 
   // Maximum workers for parallel execution
   maxWorkers: '50%',
-
+ 
   // Global timeout for tests (10 seconds)
   testTimeout: 10000,
 };
-
+ 
 module.exports = createJestConfig(customJestConfig);
