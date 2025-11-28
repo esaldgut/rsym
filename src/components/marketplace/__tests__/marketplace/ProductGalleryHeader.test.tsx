@@ -3,13 +3,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Mocks for dependencies
-jest.mock('../../ui/S3GalleryImage', () => ({
+jest.mock('@/components/ui/S3GalleryImage', () => ({
   S3GalleryImage: ({ path, alt, className }: any) => (
     <img data-testid="s3-image" src={path} alt={alt} className={className} />
   ),
 }));
 
-jest.mock('../../ui/CarouselDots', () => ({
+jest.mock('@/components/ui/CarouselDots', () => ({
   CarouselDots: ({ total, current, onDotClick }: any) => (
     <div data-testid="carousel-dots">{current}/{total}</div>
   ),

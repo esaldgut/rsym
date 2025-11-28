@@ -3,7 +3,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 // Mocks 
-jest.mock('../../marketplace/ProductGalleryHeader', () => {
+jest.mock('@/components/marketplace/ProductGalleryHeader', () => {
   const React = require('react');
   return {
     ProductGalleryHeader: React.forwardRef(function MockGallery(props: any, ref: any) {
@@ -19,42 +19,42 @@ jest.mock('../../marketplace/ProductGalleryHeader', () => {
   };
 });
 
-jest.mock('../../marketplace/FullscreenGallery', () => {
+jest.mock('@/components/marketplace/FullscreenGallery', () => {
   const React = require('react');
   return {
     FullscreenGallery: (props: any) => React.createElement('div', { 'data-testid': 'mock-fullscreen' }, props.isOpen ? 'open' : 'closed')
   };
 });
 
-jest.mock('../../marketplace/SeasonCard', () => {
+jest.mock('@/components/marketplace/SeasonCard', () => {
   const React = require('react');
   return {
     SeasonCard: (props: any) => React.createElement('div', { 'data-testid': 'mock-season' }, props.season?.id)
   };
 });
 
-jest.mock('../../marketplace/ProductReviews', () => {
+jest.mock('@/components/marketplace/ProductReviews', () => {
   const React = require('react');
   return {
     ProductReviews: () => React.createElement('div', { 'data-testid': 'mock-reviews' }, 'reviews')
   };
 });
 
-jest.mock('../../marketplace/maps/HybridProductMap', () => {
+jest.mock('@/components/marketplace/maps/HybridProductMap', () => {
   const React = require('react');
   return {
     HybridProductMap: () => React.createElement('div', { 'data-testid': 'mock-map' }, 'map')
-  };
+  }
 });
 
-jest.mock('../../ui/ProfileImage', () => {
+jest.mock('@/components/ui/ProfileImage', () => {
   const React = require('react');
   return {
     ProfileImage: (props: any) => React.createElement('img', { 'data-testid': 'mock-profile', src: props.path, alt: props.alt })
   };
 });
 
-jest.mock('../../marketplace/ItineraryCard', () => {
+jest.mock('@/components/marketplace/ItineraryCard', () => {
   const React = require('react');
   return {
     ItineraryCard: (props: any) => React.createElement('div', { 'data-testid': 'mock-itinerary' }, props.itinerary)
