@@ -49,6 +49,12 @@ const customJestConfig = {
   collectCoverageFrom: [
     // Product Wizard components (primary focus)
     'src/components/product-wizard/**/*.{ts,tsx}',
+    // Marketplace components
+    'src/components/marketplace/**/*.{ts,tsx}',
+    // Booking components
+    'src/components/booking/**/*.{ts,tsx}',
+    // Reservation components (NEW)
+    'src/components/reservation/**/*.{ts,tsx}',
     // UI components (tested)
     'src/components/ui/CarouselDots.tsx',
     'src/components/ui/DateInput.tsx',
